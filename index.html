@@ -4700,6 +4700,73 @@ async function carregarDadosEscritorio() {
   return data;
 }
 
+// ==================== ÊXITOS (Honorários por Êxito) ====================
+
+function exitoDoBanco(row) {
+  return {
+    id: row.id,
+    processoId: row.processo_id,
+    resultado: row.resultado,
+    valorCausa: Number(row.valor_causa) || 0,
+    percentual: Number(row.percentual) || 0,
+    honorario: Number(row.honorario) || 0,
+    data: row.data_exito,
+    status: row.status || 'pendente'
+  };
+}
+
+function exitoParaBanco(e, escritorioId) {
+  return {
+    escritorio_id: escritorioId,
+    processo_id: e.processoId,
+    resultado: e.resultado,
+    valor_causa: e.valorCausa || 0,
+    percentual: e.percentual || 0,
+    honorario: e.honorario,
+    data_exito: e.data || today(),
+    status: e.status || 'pendente'
+  };
+}
+
+async function carregarExitos() {
+  const sb = await getSB();
+  const escritorioId = getEscritorioId();
+  if(!sb || !escritorioId) return [];
+  const { data, error } = await sb
+    .from('exitos')
+    .select('*')
+    .eq('escritorio_id', escritorioId)
+    .order('criado_em', { ascending: false });
+  if(error) { console.warn('Erro ao carregar êxitos:', error.message); return []; }
+  return (data || []).map(exitoDoBanco);
+}
+
+async function salvarExitoNoBanco(e, editId) {
+  const sb = await getSB();
+  const escritorioId = getEscritorioId();
+  if(!sb || !escritorioId) { showToast('Sem conexão com o banco.', 'error'); return null; }
+  const payload = exitoParaBanco(e, escritorioId);
+
+  if(editId) {
+    const { data, error } = await sb.from('exitos').update(payload).eq('id', editId).eq('escritorio_id', escritorioId).select().single();
+    if(error) { showToast('Erro ao atualizar êxito: ' + error.message, 'error'); return null; }
+    return exitoDoBanco(data);
+  } else {
+    const { data, error } = await sb.from('exitos').insert(payload).select().single();
+    if(error) { showToast('Erro ao registrar êxito: ' + error.message, 'error'); return null; }
+    return exitoDoBanco(data);
+  }
+}
+
+async function excluirExitoDoBanco(id) {
+  const sb = await getSB();
+  const escritorioId = getEscritorioId();
+  if(!sb || !escritorioId) return false;
+  const { error } = await sb.from('exitos').delete().eq('id', id).eq('escritorio_id', escritorioId);
+  if(error) { showToast('Erro ao excluir êxito: ' + error.message, 'error'); return false; }
+  return true;
+}
+
 async function carregarDocumentos() {
   const sb = await getSB();
   const escritorioId = getEscritorioId();
@@ -4805,7 +4872,7 @@ async function sbLoad() {
   }
 
   console.log('🔄 Carregando dados reais do escritório...');
-  const [clientes, processos, tipos, parcelas, despesas, eventos, intimacoes, orcamentos, documentosLista, dadosEscritorio] = await Promise.all([
+  const [clientes, processos, tipos, parcelas, despesas, eventos, intimacoes, orcamentos, documentosLista, dadosEscritorio, exitos] = await Promise.all([
     carregarClientes(),
     carregarProcessos(),
     carregarTipos(),
@@ -4815,7 +4882,8 @@ async function sbLoad() {
     carregarIntimacoes(),
     carregarOrcamentos(),
     carregarDocumentos(),
-    carregarDadosEscritorio()
+    carregarDadosEscritorio(),
+    carregarExitos()
   ]);
 
   store.clientes = clientes;
@@ -4827,6 +4895,7 @@ async function sbLoad() {
   store.intimacoes = intimacoes;
   store.orcamentos = orcamentos;
   store.escritorio = dadosEscritorio || {};
+  store.exitos = exitos;
 
   // store.documentos (por processo) e store.docsCliente (por cliente) são
   // objetos indexados por ID, derivados da mesma lista plana carregada do
@@ -5907,20 +5976,18 @@ function renderExito() {
       <td><strong style="color:var(--success)">${fmtMoney(e.honorario)}</strong></td>
       <td><span class="badge ${st.cls}">${st.icon} ${st.label}</span></td>
       <td style="white-space:nowrap">
-        <button class="btn btn-outline btn-sm" onclick="editarExito(${e.id})" title="Editar">✏️</button>
-        <button class="btn btn-danger btn-sm" onclick="excluirExito(${e.id})" title="Excluir">🗑</button>
+        <button class="btn btn-outline btn-sm" onclick="editarExito('${e.id}')" title="Editar">✏️</button>
+        <button class="btn btn-danger btn-sm" onclick="excluirExito('${e.id}')" title="Excluir">🗑</button>
       </td>
     </tr>`;
   }).join('');
 }
 
-function salvarExito() {
-  const processoId = parseInt(document.getElementById('exito-processo').value);
+async function salvarExito() {
+  const processoId = document.getElementById('exito-processo').value;
   const resultado = document.getElementById('exito-resultado').value.trim();
   const honorario = parseFloat(document.getElementById('exito-honorario').value)||0;
   if(!processoId||!resultado||!honorario) { showToast('Preencha os campos obrigatórios.','error'); return; }
-  if(!store.exitos) store.exitos = [];
-  if(!store.nextId.exito) store.nextId.exito = 1;
   const editId = document.getElementById('exito-edit-id').value;
   const data = {
     processoId, resultado, honorario,
@@ -5929,16 +5996,20 @@ function salvarExito() {
     data: document.getElementById('exito-data').value||today(),
     status: document.getElementById('exito-status').value
   };
+
+  const salvo = await salvarExitoNoBanco(data, editId || null);
+  if(!salvo) return;
+
   if(editId) {
-    const e = store.exitos.find(e=>e.id==editId);
-    if(e) Object.assign(e, data);
+    const idx = store.exitos.findIndex(e => e.id === editId);
+    if(idx >= 0) store.exitos[idx] = salvo;
     showToast('Êxito atualizado!','success');
   } else {
-    store.exitos.push({ id:store.nextId.exito++, ...data });
+    store.exitos.unshift(salvo);
     registrarAuditoria('criou','processo','Êxito registrado: '+store.processos.find(p=>p.id===processoId)?.numero,'Honorário: '+fmtMoney(honorario));
     showToast('Êxito registrado!','success');
   }
-  saveData(); closeModal('modal-exito'); renderExito();
+  closeModal('modal-exito'); renderExito();
 }
 
 function editarExito(id) {
@@ -5957,10 +6028,12 @@ function editarExito(id) {
   openModal('modal-exito', false);
 }
 
-function excluirExito(id) {
+async function excluirExito(id) {
   if(!confirm('Excluir este registro de êxito?')) return;
+  const ok = await excluirExitoDoBanco(id);
+  if(!ok) return;
   store.exitos = store.exitos.filter(e=>e.id!==id);
-  saveData(); renderExito(); showToast('Excluído.');
+  renderExito(); showToast('Excluído.');
 }
 
 function populateProcessosExito() {
@@ -6106,6 +6179,28 @@ function buscaGlobal(q) {
     });
   }
 
+  // Documentos (por nome de arquivo) — busca tanto em documentos de
+  // processo quanto de cliente, e navega para o "dono" do documento.
+  const docsProcesso = Object.entries(store.documentos||{}).flatMap(([procId, docs]) =>
+    docs.filter(d => d.nome.toLowerCase().includes(termo)).map(d => ({...d, _procId: procId}))
+  ).slice(0,3);
+  const docsCliente = Object.entries(store.docsCliente||{}).flatMap(([cliId, docs]) =>
+    docs.filter(d => d.nome.toLowerCase().includes(termo)).map(d => ({...d, _cliId: cliId}))
+  ).slice(0,3);
+  if(docsProcesso.length || docsCliente.length) {
+    resultados.push({tipo:'grupo', label:'📁 Documentos'});
+    docsProcesso.forEach(d => {
+      const pr = store.processos.find(p=>p.id===d._procId)||{numero:'—'};
+      resultados.push({tipo:'doc-processo', id:d._procId, icon:'📁', iconBg:'#F0E9FE', iconCor:'#7C3AED',
+        main:destaqueBusca(d.nome,termo), sub:'Processo '+pr.numero});
+    });
+    docsCliente.forEach(d => {
+      const c = store.clientes.find(c=>c.id===d._cliId)||{nome:'—'};
+      resultados.push({tipo:'doc-cliente', id:d._cliId, icon:'📁', iconBg:'#F0E9FE', iconCor:'#7C3AED',
+        main:destaqueBusca(d.nome,termo), sub:'Cliente '+c.nome});
+    });
+  }
+
   if(!resultados.length) {
     dropdown.innerHTML = `<div class="busca-sem-resultado">🔍 Nenhum resultado para "<strong>${q}</strong>"</div>`;
     dropdown.style.display = 'block'; return;
@@ -6116,7 +6211,7 @@ function buscaGlobal(q) {
     if(r.tipo==='grupo') {
       html += `<div class="busca-grupo-titulo">${r.label}</div>`;
     } else {
-      html += `<div class="busca-item" data-idx="${itemIdx}" onclick="buscaNavegar('${r.tipo}',${r.id})" onmouseenter="buscaSetAtivo(${itemIdx})">
+      html += `<div class="busca-item" data-idx="${itemIdx}" onclick="buscaNavegar('${r.tipo}','${r.id}')" onmouseenter="buscaSetAtivo(${itemIdx})">
         <div class="bi-icon" style="background:${r.iconBg};color:${r.iconCor}">${r.icon}</div>
         <div style="flex:1;min-width:0">
           <div class="bi-main">${r.main}</div>
@@ -6170,6 +6265,12 @@ function buscaNavegar(tipo, id) {
   } else if(tipo==='despesa') {
     navigate('despesas', navBtn('despesas'));
     setTimeout(() => editarDespesa(id), 300);
+  } else if(tipo==='doc-processo') {
+    navigate('processos', navBtn('processos'));
+    setTimeout(() => abrirDocumentos(id), 300);
+  } else if(tipo==='doc-cliente') {
+    navigate('clientes', navBtn('clientes'));
+    setTimeout(() => abrirDocumentosCliente(id), 300);
   }
 }
 
