@@ -5214,7 +5214,7 @@ const pageTitles = {
   despesas: 'Despesas', relatorios: 'Relatórios', opcoes: 'Opções'
 };
 const pageActions = {
-  dashboard: 'Atualizar', tipos: '', clientes: '', processos: '',
+  dashboard: '', tipos: '', clientes: '', processos: '',
   orcamentos: '', agenda: '', financeiro: '', despesas: '', relatorios: '⬇ Exportar', opcoes: ''
 };
 
@@ -5236,11 +5236,33 @@ function navigate(page, btn) {
   ab.style.display = pageActions[page] ? '' : 'none';
   currentPage = page;
   refreshPage(page);
+  // Dashboard se atualiza sozinho em segundo plano (sem botão); qualquer
+  // outra página desliga esse intervalo, para não gastar chamadas ao banco
+  // enquanto o usuário não está olhando os números.
+  if(page === 'dashboard') iniciarAutoRefreshDashboard();
+  else pararAutoRefreshDashboard();
+}
+
+const DASHBOARD_REFRESH_MS = 30000; // 30 segundos
+let _dashboardRefreshTimer = null;
+
+function iniciarAutoRefreshDashboard() {
+  pararAutoRefreshDashboard(); // evita duplicar se já estava rodando
+  _dashboardRefreshTimer = setInterval(() => {
+    // Só busca dados novos se a aba estiver realmente visível — evita
+    // chamadas ao banco enquanto o usuário trocou de aba ou minimizou.
+    if(document.visibilityState === 'visible' && currentPage === 'dashboard') {
+      updateDashboard();
+    }
+  }, DASHBOARD_REFRESH_MS);
+}
+
+function pararAutoRefreshDashboard() {
+  if(_dashboardRefreshTimer) { clearInterval(_dashboardRefreshTimer); _dashboardRefreshTimer = null; }
 }
 
 function topbarAction() {
   const actions = {
-    dashboard: () => refreshPage('dashboard'),
     tipos: () => openModal('modal-tipo'),
     clientes: () => openModal('modal-cliente'),
     processos: () => openModal('modal-processo'),
@@ -11409,7 +11431,20 @@ async function entrarNoSistema() {
     aplicarAparencia();
     aplicarPermissoes();
     iniciarDarkMode();
+    // Sincroniza o título da página e o botão de ação da topbar com a
+    // página inicial (Dashboard), que já aparece ativa no HTML estático
+    // sem nunca ter passado por navigate() — sem isto, o botão fica preso
+    // no texto "+ Nova Entrada" do HTML original até o usuário clicar
+    // manualmente no menu.
+    document.getElementById('page-title').textContent = pageTitles['dashboard'];
+    const ab = document.getElementById('topbar-action-btn');
+    if(ab) {
+      ab.textContent = pageActions['dashboard'] || '';
+      ab.style.display = pageActions['dashboard'] ? '' : 'none';
+    }
+    currentPage = 'dashboard';
     updateDashboard();
+    iniciarAutoRefreshDashboard();
     // Onboarding: só abre se tiver sessão ativa E nunca tiver sido concluído
     try {
       if(localStorage.getItem(LOGIN_KEY) && !localStorage.getItem(OBD_KEY)) {
