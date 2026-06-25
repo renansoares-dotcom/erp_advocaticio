@@ -290,9 +290,36 @@ body {
   .login-card { padding: 24px 18px !important; width: 92vw !important; }
   #login-screen { padding: 16px; }
 
-  /* Calendário */
+  /* Alerta de Prazos Fatais (Dashboard) — empilha texto e ação no celular,
+     em vez de espremer tudo numa linha só (nome do cliente + botão
+     "Cumprido" não cabem lado a lado em telas estreitas). */
+  #dash-fatal-lista > div {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 8px !important;
+  }
+  #dash-fatal-lista > div > div:last-child {
+    width: 100% !important;
+    justify-content: space-between !important;
+  }
+
+  /* Grade de parcelas (dentro do detalhe do processo) — a versão desktop
+     usa colunas fixas (40px 1fr 120px 110px 80px) que não cabem na largura
+     de um celular; no mobile, cada parcela empilha em coluna única. */
+  .parcel-row {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 4px 10px !important;
+    padding: 10px 0 !important;
+    font-size: 12.5px !important;
+  }
+  .parcel-header { display: none !important; } /* cabeçalho da tabela não cabe; cada linha já é autoexplicativa empilhada */
+
+  /* Calendário — colunas empilhadas (calendário, depois painel lateral) */
   #page-agenda > div { grid-template-columns: 1fr !important; }
-  #card-dia-selecionado { display: none; }
+  /* Eventos do dia selecionado: continuam visíveis (antes ficavam
+     escondidos no mobile, o que impedia ver os prazos do dia clicado —
+     justamente o caso de uso mais importante da Agenda no celular). */
+  #card-dia-selecionado { display: block !important; }
 
   /* Tabs */
   .tabs-bar { flex-wrap: wrap; width: 100% !important; gap: 4px !important; }
@@ -3723,11 +3750,11 @@ body.topbar-escura .notif-btn:hover { background: rgba(255,255,255,0.2); border-
       <!-- TAGS -->
       <div style="font-size:11px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--text-muted);margin:18px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--border)">Tags</div>
       <div id="cliente-tags-lista" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;min-height:26px"></div>
-      <div style="display:flex;gap:8px;align-items:center">
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
         <input type="text" class="form-control" id="cliente-tag-nova" placeholder="Nova tag (ex: VIP, urgente...)" style="flex:1" onkeydown="if(event.key==='Enter'){event.preventDefault();adicionarTagCliente();}">
-        <input type="color" id="cliente-tag-cor" value="#1D3A5C" style="width:40px;height:36px;border:1.5px solid var(--border);border-radius:var(--radius);cursor:pointer;padding:2px">
         <button class="btn btn-outline btn-sm" onclick="adicionarTagCliente()">+ Adicionar</button>
       </div>
+      <div id="cliente-tag-cor-wrap"></div>
 
       <!-- DIP -->
       <div style="font-size:11px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--text-muted);margin:18px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
@@ -3864,11 +3891,11 @@ body.topbar-escura .notif-btn:hover { background: rgba(255,255,255,0.2); border-
         <!-- TAGS -->
         <div style="font-size:11px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--text-muted);margin:18px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--border)">Tags</div>
         <div id="proc-tags-lista" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;min-height:26px"></div>
-        <div style="display:flex;gap:8px;align-items:center">
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
           <input type="text" class="form-control" id="proc-tag-nova" placeholder="Nova tag (ex: urgente, recurso...)" style="flex:1" onkeydown="if(event.key==='Enter'){event.preventDefault();adicionarTagProcesso();}">
-          <input type="color" id="proc-tag-cor" value="#1D3A5C" style="width:40px;height:36px;border:1.5px solid var(--border);border-radius:var(--radius);cursor:pointer;padding:2px">
           <button class="btn btn-outline btn-sm" onclick="adicionarTagProcesso()">+ Adicionar</button>
         </div>
+        <div id="proc-tag-cor-wrap"></div>
       </div>
     </div>
     <div class="modal-footer">
@@ -4916,6 +4943,49 @@ async function desvincularTagProcesso(processoId, tagId) {
 // Helper compartilhado: renderiza um conjunto de tags como badges
 // compactos, para uso em listagens (Clientes, Processos). Retorna string
 // vazia se não houver tags, para não acrescentar espaço/quebra desnecessária.
+// Paleta fixa de cores para tags — 10 opções pré-definidas, para manter
+// consistência visual entre os usuários do mesmo escritório (em vez de um
+// seletor de cor livre, que tende a gerar tons quase iguais sem padrão).
+const TAG_CORES = [
+  '#1D3A5C', // azul-marinho (padrão do sistema)
+  '#0B7B45', // verde
+  '#B91C1C', // vermelho
+  '#C4A96B', // dourado
+  '#7C3AED', // roxo
+  '#92400E', // marrom/âmbar
+  '#0E7490', // azul-petróleo
+  '#BE185D', // rosa-escuro
+  '#4D7C0F', // verde-oliva
+  '#475569'  // cinza-azulado
+];
+
+// Gera o HTML de um seletor visual de cores (bolinhas clicáveis) para um
+// campo hidden de id `hiddenId`. selecionada define a cor marcada inicialmente.
+function renderSeletorCorTag(hiddenId, selecionada) {
+  selecionada = selecionada || TAG_CORES[0];
+  return `<input type="hidden" id="${hiddenId}" value="${selecionada}">
+    <div style="display:flex;gap:5px;flex-wrap:wrap">
+      ${TAG_CORES.map(cor => `
+        <button type="button" onclick="document.getElementById('${hiddenId}').value='${cor}';atualizarSelecaoCorTag('${hiddenId}')"
+          data-cor="${cor}"
+          style="width:22px;height:22px;border-radius:50%;background:${cor};cursor:pointer;border:2px solid ${cor===selecionada?'var(--text-primary)':'transparent'};box-shadow:0 0 0 1px ${cor===selecionada?'var(--text-primary)':'transparent'};padding:0">
+        </button>
+      `).join('')}
+    </div>`;
+}
+
+// Atualiza o anel de seleção visual quando uma cor é clicada.
+function atualizarSelecaoCorTag(hiddenId) {
+  const cor = document.getElementById(hiddenId).value;
+  const wrap = document.getElementById(hiddenId).nextElementSibling;
+  if(!wrap) return;
+  wrap.querySelectorAll('button').forEach(b => {
+    const ativa = b.dataset.cor === cor;
+    b.style.border = '2px solid ' + (ativa ? 'var(--text-primary)' : 'transparent');
+    b.style.boxShadow = '0 0 0 1px ' + (ativa ? 'var(--text-primary)' : 'transparent');
+  });
+}
+
 function renderTagsBadgesHTML(tags) {
   if(!tags || !tags.length) return '';
   return '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px">' +
@@ -4926,6 +4996,8 @@ function renderTagsBadgesHTML(tags) {
 function renderTagsClienteModal() {
   const editId = document.getElementById('cliente-edit-id').value;
   const lista = document.getElementById('cliente-tags-lista');
+  const corWrap = document.getElementById('cliente-tag-cor-wrap');
+  if(corWrap) corWrap.innerHTML = renderSeletorCorTag('cliente-tag-cor');
   if(!lista) return;
   const tags = (store.clientesTags && store.clientesTags[editId]) || [];
   if(!tags.length) {
@@ -4974,6 +5046,8 @@ async function removerTagDoCliente(clienteId, tagId) {
 function renderTagsProcessoModal() {
   const editId = document.getElementById('processo-edit-id').value;
   const lista = document.getElementById('proc-tags-lista');
+  const corWrap = document.getElementById('proc-tag-cor-wrap');
+  if(corWrap) corWrap.innerHTML = renderSeletorCorTag('proc-tag-cor');
   if(!lista) return;
   const tags = (store.processosTags && store.processosTags[editId]) || [];
   if(!tags.length) {
@@ -7796,10 +7870,15 @@ function renderCalendario() {
 
   grid.innerHTML = '';
 
+  // Em telas estreitas (celular), células mais baixas — o calendário inteiro
+  // precisa caber sem rolagem horizontal, e o detalhe do dia já aparece
+  // abaixo dele (ver #card-dia-selecionado no CSS mobile).
+  const alturaCelula = window.innerWidth <= 768 ? '52px' : '72px';
+
   // Células vazias
   for(let i = 0; i < primeiroDia; i++) {
     const vazio = document.createElement('div');
-    vazio.style.minHeight = '72px';
+    vazio.style.minHeight = alturaCelula;
     grid.appendChild(vazio);
   }
 
@@ -7811,7 +7890,7 @@ function renderCalendario() {
     const isSel  = dateStr === calDiaSel;
 
     const cell = document.createElement('div');
-    cell.style.cssText = 'min-height:72px;border-radius:10px;padding:6px;cursor:pointer;transition:all 0.15s;position:relative;border:2px solid ' +
+    cell.style.cssText = 'min-height:' + alturaCelula + ';border-radius:10px;padding:6px;cursor:pointer;transition:all 0.15s;position:relative;border:2px solid ' +
       (isSel ? 'var(--blue-400)' : isHoje ? 'var(--blue-200)' : 'var(--border)') + ';background:' +
       (isSel ? 'var(--blue-50)' : isHoje ? '#F0F7FF' : 'white');
 
@@ -9038,6 +9117,7 @@ function resetFormCliente() {
   _dipEntradas = [];
   renderDIPLista();
   populateTiposSelect('cliente-tipo-processo');
+  renderTagsClienteModal();
 }
 
 function populateTiposSelect(selectId) {
@@ -9369,6 +9449,7 @@ function resetFormProcesso() {
   setLembreteAtivo(false);
   populateClientesSelect();
   populateTiposProcSelect();
+  renderTagsProcessoModal();
 }
 function setLembreteAtivo(ativo) {
   const btn = document.getElementById('btn-toggle-lembrete');
@@ -9623,7 +9704,7 @@ function excluirAndamento(procId, idx) {
   setTimeout(()=>verDetalhe(procId), 100);
 }
 function salvarAndamento() {
-  const id = parseInt(document.getElementById('andamento-proc-id').value);
+  const id = document.getElementById('andamento-proc-id').value;
   const status = document.getElementById('andamento-status').value;
   const texto = document.getElementById('andamento-texto').value.trim();
   const editIdx = document.getElementById('andamento-edit-idx').value;
@@ -9795,11 +9876,11 @@ function verDetalhe(id) {
           </span>
         `).join('') || '<span style="font-size:12px;color:var(--text-muted)">Nenhuma tag ainda.</span>'}
       </div>
-      <div style="display:flex;gap:6px;align-items:center">
+      <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px">
         <input type="text" class="form-control" id="detalhe-tag-nova" placeholder="Nova tag..." style="flex:1;font-size:12.5px;padding:6px 10px" onkeydown="if(event.key==='Enter'){event.preventDefault();adicionarTagDetalheProcesso('${id}');}">
-        <input type="color" id="detalhe-tag-cor" value="#1D3A5C" style="width:32px;height:30px;border:1.5px solid var(--border);border-radius:var(--radius);cursor:pointer;padding:1px">
         <button class="btn btn-outline btn-sm" onclick="adicionarTagDetalheProcesso('${id}')">+</button>
       </div>
+      ${renderSeletorCorTag('detalhe-tag-cor')}
     </div>
 
     <!-- Pipeline -->
@@ -9834,7 +9915,7 @@ function verDetalhe(id) {
             <span>${fmtMoney(pa.valor)}</span>
             <span>${fmtDate(pa.dtPagamento)}</span>
             <span><span class="badge ${stPa}">${stLabel}</span></span>
-            <span>${pa.status==='pago'?`<button class="btn btn-outline btn-sm" onclick="gerarReciboPagamento(${pa.id})" style="font-size:11px;padding:2px 8px">🧾</button>`:'—'}</span>
+            <span>${pa.status==='pago'?`<button class="btn btn-outline btn-sm" onclick="gerarReciboPagamento('${pa.id}')" style="font-size:11px;padding:2px 8px">🧾</button>`:'—'}</span>
           </div>`;
         }).join('')}` : `<div style="text-align:center;color:var(--text-muted);padding:24px;font-size:13px">Nenhuma parcela cadastrada.</div>`}
       </div>
@@ -9842,7 +9923,7 @@ function verDetalhe(id) {
       <!-- Aba Partes -->
       <div id="det-tab-partes" style="display:none">
         <div style="display:flex;justify-content:flex-end;margin-bottom:12px">
-          <button class="btn btn-outline btn-sm" onclick="closeModal('modal-detalhe');abrirNovaParte(${id})">+ Adicionar Parte</button>
+          <button class="btn btn-outline btn-sm" onclick="closeModal('modal-detalhe');abrirNovaParte('${id}')">+ Adicionar Parte</button>
         </div>
         ${renderPartesHTML(id)}
       </div>
@@ -9850,7 +9931,7 @@ function verDetalhe(id) {
       <!-- Aba Contatos -->
       <div id="det-tab-contatos" style="display:none">
         <div style="display:flex;justify-content:flex-end;margin-bottom:12px">
-          <button class="btn btn-outline btn-sm" onclick="closeModal('modal-detalhe');abrirNovoContato(${id})">+ Registrar Contato</button>
+          <button class="btn btn-outline btn-sm" onclick="closeModal('modal-detalhe');abrirNovoContato('${id}')">+ Registrar Contato</button>
         </div>
         ${renderContatosHTML(id)}
       </div>
@@ -9863,7 +9944,7 @@ function verDetalhe(id) {
       <!-- Aba Checklist -->
       <div id="det-tab-checklist" style="display:none">
         <div style="display:flex;justify-content:flex-end;margin-bottom:10px">
-          <button class="btn btn-outline btn-sm" onclick="adicionarTarefa(${id})">+ Nova Tarefa</button>
+          <button class="btn btn-outline btn-sm" onclick="adicionarTarefa('${id}')">+ Nova Tarefa</button>
         </div>
         <div id="checklist-${id}">${renderChecklistHTML(id)}</div>
       </div>
@@ -9871,7 +9952,7 @@ function verDetalhe(id) {
       <!-- Aba Intimações/Prazos -->
       <div id="det-tab-intimacoes" style="display:none">
         <div style="display:flex;justify-content:flex-end;margin-bottom:10px">
-          <button class="btn btn-outline btn-sm" onclick="closeModal('modal-detalhe');abrirNovaIntimacao(${id})">+ Nova Intimação</button>
+          <button class="btn btn-outline btn-sm" onclick="closeModal('modal-detalhe');abrirNovaIntimacao('${id}')">+ Nova Intimação</button>
         </div>
         ${renderHistoricoPrazosHTML(id)}
       </div>
@@ -9879,7 +9960,7 @@ function verDetalhe(id) {
       <!-- Aba Andamentos -->
       <div id="det-tab-andamentos" style="display:none">
         <div style="display:flex;justify-content:flex-end;margin-bottom:10px">
-          <button class="btn btn-primary btn-sm" onclick="closeModal('modal-detalhe');atualizarAndamento(${id})">+ Novo Andamento</button>
+          <button class="btn btn-primary btn-sm" onclick="closeModal('modal-detalhe');atualizarAndamento('${id}')">+ Novo Andamento</button>
         </div>
         ${andamentos.length ? `
         <div style="position:relative;padding-left:20px">
@@ -9896,8 +9977,8 @@ function verDetalhe(id) {
                   ${a.autor?`<span style="font-size:11px;color:var(--text-muted)">— ${a.autor}</span>`:''}
                 </div>
                 <div style="display:flex;gap:4px;flex-shrink:0">
-                  <button onclick="editarAndamento(${id},${i})" style="background:white;border:1.5px solid #E2E8F0;border-radius:8px;cursor:pointer;font-size:13px;padding:4px 9px;line-height:1;transition:all 0.15s" title="Editar">✏️</button>
-                  <button onclick="excluirAndamento(${id},${i})" style="background:#DC2626;border:1.5px solid #DC2626;border-radius:8px;cursor:pointer;font-size:12px;padding:4px 9px;line-height:1;color:white;transition:all 0.15s" title="Excluir"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg></button>
+                  <button onclick="editarAndamento('${id}',${i})" style="background:white;border:1.5px solid #E2E8F0;border-radius:8px;cursor:pointer;font-size:13px;padding:4px 9px;line-height:1;transition:all 0.15s" title="Editar">✏️</button>
+                  <button onclick="excluirAndamento('${id}',${i})" style="background:#DC2626;border:1.5px solid #DC2626;border-radius:8px;cursor:pointer;font-size:12px;padding:4px 9px;line-height:1;color:white;transition:all 0.15s" title="Excluir"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg></button>
                 </div>
               </div>
               <div style="font-size:13px;background:${isFirst?'var(--blue-50)':'var(--surface)'};border:1px solid ${isFirst?'var(--blue-100)':'var(--border)'};border-radius:8px;padding:9px 12px">${a.texto}</div>
