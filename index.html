@@ -3720,6 +3720,15 @@ body.topbar-escura .notif-btn:hover { background: rgba(255,255,255,0.2); border-
         </div>
       </div>
 
+      <!-- TAGS -->
+      <div style="font-size:11px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--text-muted);margin:18px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--border)">Tags</div>
+      <div id="cliente-tags-lista" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;min-height:26px"></div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input type="text" class="form-control" id="cliente-tag-nova" placeholder="Nova tag (ex: VIP, urgente...)" style="flex:1" onkeydown="if(event.key==='Enter'){event.preventDefault();adicionarTagCliente();}">
+        <input type="color" id="cliente-tag-cor" value="#1D3A5C" style="width:40px;height:36px;border:1.5px solid var(--border);border-radius:var(--radius);cursor:pointer;padding:2px">
+        <button class="btn btn-outline btn-sm" onclick="adicionarTagCliente()">+ Adicionar</button>
+      </div>
+
       <!-- DIP -->
       <div style="font-size:11px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--text-muted);margin:18px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
         <span>DIP <span style="font-size:10px;font-weight:400;text-transform:none;letter-spacing:0;color:var(--text-muted)">(Diário de Informações do Processo)</span></span>
@@ -3850,6 +3859,15 @@ body.topbar-escura .notif-btn:hover { background: rgba(255,255,255,0.2); border-
             <label class="form-label">Mensagem do Lembrete</label>
             <textarea class="form-control" id="proc-lembrete-msg" placeholder="Ex: Audiência marcada, prazo para recurso, reunião com cliente..." style="min-height:68px"></textarea>
           </div>
+        </div>
+
+        <!-- TAGS -->
+        <div style="font-size:11px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--text-muted);margin:18px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--border)">Tags</div>
+        <div id="proc-tags-lista" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;min-height:26px"></div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <input type="text" class="form-control" id="proc-tag-nova" placeholder="Nova tag (ex: urgente, recurso...)" style="flex:1" onkeydown="if(event.key==='Enter'){event.preventDefault();adicionarTagProcesso();}">
+          <input type="color" id="proc-tag-cor" value="#1D3A5C" style="width:40px;height:36px;border:1.5px solid var(--border);border-radius:var(--radius);cursor:pointer;padding:2px">
+          <button class="btn btn-outline btn-sm" onclick="adicionarTagProcesso()">+ Adicionar</button>
         </div>
       </div>
     </div>
@@ -4767,6 +4785,261 @@ async function excluirExitoDoBanco(id) {
   return true;
 }
 
+// ==================== TAGS (catálogo + vínculos) ====================
+
+async function carregarTags() {
+  const sb = await getSB();
+  const escritorioId = getEscritorioId();
+  if(!sb || !escritorioId) return [];
+  const { data, error } = await sb
+    .from('tags')
+    .select('id, nome, cor')
+    .eq('escritorio_id', escritorioId)
+    .order('nome');
+  if(error) { console.warn('Erro ao carregar tags:', error.message); return []; }
+  return data || [];
+}
+
+// Cria a tag se ainda não existir (por nome), ou retorna a existente.
+// Usa upsert para evitar corrida entre "checar se existe" e "criar".
+async function obterOuCriarTag(nome, cor) {
+  const sb = await getSB();
+  const escritorioId = getEscritorioId();
+  if(!sb || !escritorioId) return null;
+  nome = nome.trim();
+  if(!nome) return null;
+
+  const { data, error } = await sb
+    .from('tags')
+    .upsert({ escritorio_id: escritorioId, nome, cor: cor || '#1D3A5C' }, { onConflict: 'escritorio_id,nome', ignoreDuplicates: false })
+    .select()
+    .single();
+  if(error) { showToast('Erro ao criar tag: ' + error.message, 'error'); return null; }
+  return data;
+}
+
+async function excluirTagDoBanco(id) {
+  const sb = await getSB();
+  const escritorioId = getEscritorioId();
+  if(!sb || !escritorioId) return false;
+  // ON DELETE CASCADE nas tabelas de vínculo já remove as associações.
+  const { error } = await sb.from('tags').delete().eq('id', id).eq('escritorio_id', escritorioId);
+  if(error) { showToast('Erro ao excluir tag: ' + error.message, 'error'); return false; }
+  return true;
+}
+
+// Carrega todos os vínculos cliente<->tag do escritório, já agrupados por
+// cliente_id (formato {clienteId: [tag, tag, ...]}), para popular o store
+// sem precisar de uma chamada por cliente.
+async function carregarClientesTags() {
+  const sb = await getSB();
+  const escritorioId = getEscritorioId();
+  if(!sb || !escritorioId) return {};
+  const { data, error } = await sb
+    .from('clientes_tags')
+    .select('cliente_id, tags(id, nome, cor)')
+    .eq('escritorio_id', escritorioId);
+  if(error) { console.warn('Erro ao carregar tags de clientes:', error.message); return {}; }
+  const agrupado = {};
+  (data || []).forEach(row => {
+    if(!agrupado[row.cliente_id]) agrupado[row.cliente_id] = [];
+    if(row.tags) agrupado[row.cliente_id].push(row.tags);
+  });
+  return agrupado;
+}
+
+async function carregarProcessosTags() {
+  const sb = await getSB();
+  const escritorioId = getEscritorioId();
+  if(!sb || !escritorioId) return {};
+  const { data, error } = await sb
+    .from('processos_tags')
+    .select('processo_id, tags(id, nome, cor)')
+    .eq('escritorio_id', escritorioId);
+  if(error) { console.warn('Erro ao carregar tags de processos:', error.message); return {}; }
+  const agrupado = {};
+  (data || []).forEach(row => {
+    if(!agrupado[row.processo_id]) agrupado[row.processo_id] = [];
+    if(row.tags) agrupado[row.processo_id].push(row.tags);
+  });
+  return agrupado;
+}
+
+async function vincularTagCliente(clienteId, tagId) {
+  const sb = await getSB();
+  const escritorioId = getEscritorioId();
+  if(!sb || !escritorioId) return false;
+  const { error } = await sb.from('clientes_tags').upsert(
+    { cliente_id: clienteId, tag_id: tagId, escritorio_id: escritorioId },
+    { onConflict: 'cliente_id,tag_id', ignoreDuplicates: true }
+  );
+  if(error) { showToast('Erro ao adicionar tag: ' + error.message, 'error'); return false; }
+  return true;
+}
+
+async function desvincularTagCliente(clienteId, tagId) {
+  const sb = await getSB();
+  const escritorioId = getEscritorioId();
+  if(!sb || !escritorioId) return false;
+  const { error } = await sb.from('clientes_tags').delete()
+    .eq('cliente_id', clienteId).eq('tag_id', tagId).eq('escritorio_id', escritorioId);
+  if(error) { showToast('Erro ao remover tag: ' + error.message, 'error'); return false; }
+  return true;
+}
+
+async function vincularTagProcesso(processoId, tagId) {
+  const sb = await getSB();
+  const escritorioId = getEscritorioId();
+  if(!sb || !escritorioId) return false;
+  const { error } = await sb.from('processos_tags').upsert(
+    { processo_id: processoId, tag_id: tagId, escritorio_id: escritorioId },
+    { onConflict: 'processo_id,tag_id', ignoreDuplicates: true }
+  );
+  if(error) { showToast('Erro ao adicionar tag: ' + error.message, 'error'); return false; }
+  return true;
+}
+
+async function desvincularTagProcesso(processoId, tagId) {
+  const sb = await getSB();
+  const escritorioId = getEscritorioId();
+  if(!sb || !escritorioId) return false;
+  const { error } = await sb.from('processos_tags').delete()
+    .eq('processo_id', processoId).eq('tag_id', tagId).eq('escritorio_id', escritorioId);
+  if(error) { showToast('Erro ao remover tag: ' + error.message, 'error'); return false; }
+  return true;
+}
+
+// ==================== UI DE TAGS (modais de Cliente e Processo) ====================
+
+// Renderiza a lista de tags já vinculadas a um cliente, dentro do modal.
+// editId vazio = cliente novo (ainda sem tags possíveis).
+// Helper compartilhado: renderiza um conjunto de tags como badges
+// compactos, para uso em listagens (Clientes, Processos). Retorna string
+// vazia se não houver tags, para não acrescentar espaço/quebra desnecessária.
+function renderTagsBadgesHTML(tags) {
+  if(!tags || !tags.length) return '';
+  return '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px">' +
+    tags.map(t => `<span style="display:inline-block;padding:1px 8px;border-radius:10px;font-size:10px;font-weight:600;background:${hexParaRgba(t.cor,0.15)};color:${t.cor}">${t.nome}</span>`).join('') +
+    '</div>';
+}
+
+function renderTagsClienteModal() {
+  const editId = document.getElementById('cliente-edit-id').value;
+  const lista = document.getElementById('cliente-tags-lista');
+  if(!lista) return;
+  const tags = (store.clientesTags && store.clientesTags[editId]) || [];
+  if(!tags.length) {
+    lista.innerHTML = '<span style="font-size:12px;color:var(--text-muted)">Nenhuma tag ainda.</span>';
+    return;
+  }
+  lista.innerHTML = tags.map(t => `
+    <span style="display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:500;background:${hexParaRgba(t.cor,0.15)};color:${t.cor}">
+      ${t.nome}
+      <button onclick="removerTagDoCliente('${editId}','${t.id}')" style="background:none;border:none;cursor:pointer;color:${t.cor};font-size:13px;line-height:1;padding:0" title="Remover">✕</button>
+    </span>
+  `).join('');
+}
+
+async function adicionarTagCliente() {
+  const editId = document.getElementById('cliente-edit-id').value;
+  if(!editId) { showToast('Salve o cliente antes de adicionar tags.', 'error'); return; }
+  const input = document.getElementById('cliente-tag-nova');
+  const cor = document.getElementById('cliente-tag-cor').value;
+  const nome = input.value.trim();
+  if(!nome) return;
+
+  const tag = await obterOuCriarTag(nome, cor);
+  if(!tag) return;
+  const vinculou = await vincularTagCliente(editId, tag.id);
+  if(!vinculou) return;
+
+  if(!store.tags.some(t => t.id === tag.id)) store.tags.push(tag);
+  if(!store.clientesTags[editId]) store.clientesTags[editId] = [];
+  if(!store.clientesTags[editId].some(t => t.id === tag.id)) store.clientesTags[editId].push(tag);
+
+  input.value = '';
+  renderTagsClienteModal();
+  renderClientes();
+}
+
+async function removerTagDoCliente(clienteId, tagId) {
+  const ok = await desvincularTagCliente(clienteId, tagId);
+  if(!ok) return;
+  store.clientesTags[clienteId] = (store.clientesTags[clienteId]||[]).filter(t => t.id !== tagId);
+  renderTagsClienteModal();
+  renderClientes();
+}
+
+// Mesma lógica, para o modal de Processo.
+function renderTagsProcessoModal() {
+  const editId = document.getElementById('processo-edit-id').value;
+  const lista = document.getElementById('proc-tags-lista');
+  if(!lista) return;
+  const tags = (store.processosTags && store.processosTags[editId]) || [];
+  if(!tags.length) {
+    lista.innerHTML = '<span style="font-size:12px;color:var(--text-muted)">Nenhuma tag ainda.</span>';
+    return;
+  }
+  lista.innerHTML = tags.map(t => `
+    <span style="display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:500;background:${hexParaRgba(t.cor,0.15)};color:${t.cor}">
+      ${t.nome}
+      <button onclick="removerTagDoProcesso('${editId}','${t.id}')" style="background:none;border:none;cursor:pointer;color:${t.cor};font-size:13px;line-height:1;padding:0" title="Remover">✕</button>
+    </span>
+  `).join('');
+}
+
+async function adicionarTagProcesso() {
+  const editId = document.getElementById('processo-edit-id').value;
+  if(!editId) { showToast('Salve o processo antes de adicionar tags.', 'error'); return; }
+  const input = document.getElementById('proc-tag-nova');
+  const cor = document.getElementById('proc-tag-cor').value;
+  const nome = input.value.trim();
+  if(!nome) return;
+
+  const tag = await obterOuCriarTag(nome, cor);
+  if(!tag) return;
+  const vinculou = await vincularTagProcesso(editId, tag.id);
+  if(!vinculou) return;
+
+  if(!store.tags.some(t => t.id === tag.id)) store.tags.push(tag);
+  if(!store.processosTags[editId]) store.processosTags[editId] = [];
+  if(!store.processosTags[editId].some(t => t.id === tag.id)) store.processosTags[editId].push(tag);
+
+  input.value = '';
+  renderTagsProcessoModal();
+  renderProcessos();
+}
+
+async function removerTagDoProcesso(processoId, tagId) {
+  const ok = await desvincularTagProcesso(processoId, tagId);
+  if(!ok) return;
+  store.processosTags[processoId] = (store.processosTags[processoId]||[]).filter(t => t.id !== tagId);
+  renderTagsProcessoModal();
+  renderProcessos();
+}
+
+// Adiciona uma tag direto na tela de detalhe do processo (verDetalhe),
+// que é onde o usuário realmente interage com processos já existentes —
+// diferente do modal-processo, usado só na criação de um processo novo.
+async function adicionarTagDetalheProcesso(processoId) {
+  const input = document.getElementById('detalhe-tag-nova');
+  const cor = document.getElementById('detalhe-tag-cor').value;
+  const nome = input.value.trim();
+  if(!nome) return;
+
+  const tag = await obterOuCriarTag(nome, cor);
+  if(!tag) return;
+  const vinculou = await vincularTagProcesso(processoId, tag.id);
+  if(!vinculou) return;
+
+  if(!store.tags.some(t => t.id === tag.id)) store.tags.push(tag);
+  if(!store.processosTags[processoId]) store.processosTags[processoId] = [];
+  if(!store.processosTags[processoId].some(t => t.id === tag.id)) store.processosTags[processoId].push(tag);
+
+  renderProcessos();
+  verDetalhe(processoId); // reconstrói a tela com a tag nova já visível
+}
+
 async function carregarDocumentos() {
   const sb = await getSB();
   const escritorioId = getEscritorioId();
@@ -4872,7 +5145,7 @@ async function sbLoad() {
   }
 
   console.log('🔄 Carregando dados reais do escritório...');
-  const [clientes, processos, tipos, parcelas, despesas, eventos, intimacoes, orcamentos, documentosLista, dadosEscritorio, exitos] = await Promise.all([
+  const [clientes, processos, tipos, parcelas, despesas, eventos, intimacoes, orcamentos, documentosLista, dadosEscritorio, exitos, tags, clientesTags, processosTags] = await Promise.all([
     carregarClientes(),
     carregarProcessos(),
     carregarTipos(),
@@ -4883,7 +5156,10 @@ async function sbLoad() {
     carregarOrcamentos(),
     carregarDocumentos(),
     carregarDadosEscritorio(),
-    carregarExitos()
+    carregarExitos(),
+    carregarTags(),
+    carregarClientesTags(),
+    carregarProcessosTags()
   ]);
 
   store.clientes = clientes;
@@ -4896,6 +5172,9 @@ async function sbLoad() {
   store.orcamentos = orcamentos;
   store.escritorio = dadosEscritorio || {};
   store.exitos = exitos;
+  store.tags = tags;
+  store.clientesTags = clientesTags;
+  store.processosTags = processosTags;
 
   // store.documentos (por processo) e store.docsCliente (por cliente) são
   // objetos indexados por ID, derivados da mesma lista plana carregada do
@@ -4937,6 +5216,9 @@ function normalizarStore() {
   if(!store.intimacoes)  store.intimacoes  = {};
   if(!store.partes)      store.partes      = {};
   if(!store.contatos)    store.contatos    = {};
+  if(!store.tags)            store.tags            = [];
+  if(!store.clientesTags)    store.clientesTags    = {};
+  if(!store.processosTags)   store.processosTags   = {};
   // Identidade Visual (cores + logo customizável)
   if(!store.aparencia) store.aparencia = {};
   if(!store.aparencia.corPrimaria)  store.aparencia.corPrimaria  = '#1A2E45';
@@ -8850,6 +9132,7 @@ function editarCliente(id) {
   _dipEntradas = Array.isArray(c.dipEntradas) ? [...c.dipEntradas] : (c.dip ? [{ texto: c.dip, data: 'Antes', hora: '—', autor: '—', ts: '' }] : []);
   document.getElementById('cliente-dip-novo').value = '';
   renderDIPLista();
+  renderTagsClienteModal();
   openModal('modal-cliente', false);
 }
 async function excluirCliente(id) {
@@ -9052,7 +9335,7 @@ function renderClientes(q = '') {
     const tipo = store.tipos.find(t => t.id === c.tipoProcessoId);
     return `<tr>
       <td>${i+1}</td>
-      <td><strong>${c.nome}</strong>${c.indicacao?`<br><span style="font-size:10.5px;color:var(--text-muted)">Indicado por: ${c.indicacao}</span>`:''}</td>
+      <td><strong>${c.nome}</strong>${c.indicacao?`<br><span style="font-size:10.5px;color:var(--text-muted)">Indicado por: ${c.indicacao}</span>`:''}${renderTagsBadgesHTML(store.clientesTags[c.id])}</td>
       <td>${formatarCpfCnpj(c.cpf)}</td>
       <td>${c.tel||'—'}</td>
       <td>${c.natureza ? `<span style="font-size:12.5px">${c.natureza}</span>` : '<span style="color:var(--text-muted)">—</span>'}</td>
@@ -9268,7 +9551,7 @@ function renderProcessos() {
     const pct = totalParc > 0 ? Math.min(100, Math.round(pago/totalParc*100)) : 0;
     const numDocs = ((store.documentos||{})[p.id]||[]).length;
     return `<tr>
-      <td><strong style="color:var(--blue-600)">${p.numero}</strong>${p.lembrete&&p.lembrete.ativo?` <span title="${(p.lembrete.msg||'Lembrete ativo').replace(/"/g,"'")}" style="cursor:default">🔔</span>`:''}</td>
+      <td><strong style="color:var(--blue-600)">${p.numero}</strong>${p.lembrete&&p.lembrete.ativo?` <span title="${(p.lembrete.msg||'Lembrete ativo').replace(/"/g,"'")}" style="cursor:default">🔔</span>`:''}${renderTagsBadgesHTML(store.processosTags[p.id])}</td>
       <td>${c.nome}</td>
       <td><span class="badge badge-navy">${t.nome}</span></td>
       <td>${p.adv||'—'}</td>
@@ -9502,19 +9785,36 @@ function verDetalhe(id) {
     </div>
     ${p.descricao?`<div style="margin-bottom:14px;padding:10px 14px;background:var(--surface);border-radius:var(--radius);font-size:13px;color:var(--text-secondary);border-left:3px solid var(--blue-300)">${p.descricao}</div>`:''}
 
+    <!-- Tags -->
+    <div style="margin-bottom:14px">
+      <div id="detalhe-tags-lista" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;min-height:24px">
+        ${(store.processosTags[id]||[]).map(t => `
+          <span style="display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:500;background:${hexParaRgba(t.cor,0.15)};color:${t.cor}">
+            ${t.nome}
+            <button onclick="removerTagDoProcesso('${id}','${t.id}');verDetalhe('${id}')" style="background:none;border:none;cursor:pointer;color:${t.cor};font-size:13px;line-height:1;padding:0" title="Remover">✕</button>
+          </span>
+        `).join('') || '<span style="font-size:12px;color:var(--text-muted)">Nenhuma tag ainda.</span>'}
+      </div>
+      <div style="display:flex;gap:6px;align-items:center">
+        <input type="text" class="form-control" id="detalhe-tag-nova" placeholder="Nova tag..." style="flex:1;font-size:12.5px;padding:6px 10px" onkeydown="if(event.key==='Enter'){event.preventDefault();adicionarTagDetalheProcesso('${id}');}">
+        <input type="color" id="detalhe-tag-cor" value="#1D3A5C" style="width:32px;height:30px;border:1.5px solid var(--border);border-radius:var(--radius);cursor:pointer;padding:1px">
+        <button class="btn btn-outline btn-sm" onclick="adicionarTagDetalheProcesso('${id}')">+</button>
+      </div>
+    </div>
+
     <!-- Pipeline -->
     ${renderPipelineHTML(id, etapaAtual)}
 
     <!-- Abas internas -->
     <div style="margin-top:16px">
       <div style="display:flex;gap:0;border-bottom:2px solid var(--border);margin-bottom:14px;overflow-x:auto">
-        <button class="det-tab active" onclick="switchDetTab('parcelas',${id},this)" style="padding:7px 12px;border:none;background:none;cursor:pointer;font-size:12.5px;font-weight:600;color:var(--blue-600);border-bottom:2px solid var(--blue-600);margin-bottom:-2px;white-space:nowrap">💰 Parcelas ${parcelas.length?'('+parcelas.length+')':''}</button>
-        <button class="det-tab" onclick="switchDetTab('partes',${id},this)" style="padding:7px 12px;border:none;background:none;cursor:pointer;font-size:12.5px;color:var(--text-muted);border-bottom:2px solid transparent;margin-bottom:-2px;white-space:nowrap">👥 Partes ${nPartes?'('+nPartes+')':''}</button>
-        <button class="det-tab" onclick="switchDetTab('contatos',${id},this)" style="padding:7px 12px;border:none;background:none;cursor:pointer;font-size:12.5px;color:var(--text-muted);border-bottom:2px solid transparent;margin-bottom:-2px;white-space:nowrap">📞 Contatos ${nContatos?'('+nContatos+')':''}</button>
-        <button class="det-tab" onclick="switchDetTab('checklist',${id},this)" style="padding:7px 12px;border:none;background:none;cursor:pointer;font-size:12.5px;color:var(--text-muted);border-bottom:2px solid transparent;margin-bottom:-2px;white-space:nowrap">✅ Tarefas ${nTarefas?'('+nTarefas+')':''}</button>
-        <button class="det-tab" onclick="switchDetTab('intimacoes',${id},this)" style="padding:7px 12px;border:none;background:none;cursor:pointer;font-size:12.5px;color:var(--text-muted);border-bottom:2px solid transparent;margin-bottom:-2px;white-space:nowrap">📨 Prazos ${nIntims?'<span style="background:var(--danger);color:white;border-radius:10px;font-size:10px;padding:1px 6px;margin-left:3px">'+nIntims+'</span>':''}</button>
-        <button class="det-tab" onclick="switchDetTab('peticao',${id},this)" style="padding:7px 12px;border:none;background:none;cursor:pointer;font-size:12.5px;color:var(--text-muted);border-bottom:2px solid transparent;margin-bottom:-2px;white-space:nowrap">📝 Petição</button>
-        <button class="det-tab" onclick="switchDetTab('andamentos',${id},this)" style="padding:7px 12px;border:none;background:none;cursor:pointer;font-size:12.5px;color:var(--text-muted);border-bottom:2px solid transparent;margin-bottom:-2px;white-space:nowrap">📋 Andamentos ${andamentos.length?'('+andamentos.length+')':''}</button>
+        <button class="det-tab active" onclick="switchDetTab('parcelas','${id}',this)" style="padding:7px 12px;border:none;background:none;cursor:pointer;font-size:12.5px;font-weight:600;color:var(--blue-600);border-bottom:2px solid var(--blue-600);margin-bottom:-2px;white-space:nowrap">💰 Parcelas ${parcelas.length?'('+parcelas.length+')':''}</button>
+        <button class="det-tab" onclick="switchDetTab('partes','${id}',this)" style="padding:7px 12px;border:none;background:none;cursor:pointer;font-size:12.5px;color:var(--text-muted);border-bottom:2px solid transparent;margin-bottom:-2px;white-space:nowrap">👥 Partes ${nPartes?'('+nPartes+')':''}</button>
+        <button class="det-tab" onclick="switchDetTab('contatos','${id}',this)" style="padding:7px 12px;border:none;background:none;cursor:pointer;font-size:12.5px;color:var(--text-muted);border-bottom:2px solid transparent;margin-bottom:-2px;white-space:nowrap">📞 Contatos ${nContatos?'('+nContatos+')':''}</button>
+        <button class="det-tab" onclick="switchDetTab('checklist','${id}',this)" style="padding:7px 12px;border:none;background:none;cursor:pointer;font-size:12.5px;color:var(--text-muted);border-bottom:2px solid transparent;margin-bottom:-2px;white-space:nowrap">✅ Tarefas ${nTarefas?'('+nTarefas+')':''}</button>
+        <button class="det-tab" onclick="switchDetTab('intimacoes','${id}',this)" style="padding:7px 12px;border:none;background:none;cursor:pointer;font-size:12.5px;color:var(--text-muted);border-bottom:2px solid transparent;margin-bottom:-2px;white-space:nowrap">📨 Prazos ${nIntims?'<span style="background:var(--danger);color:white;border-radius:10px;font-size:10px;padding:1px 6px;margin-left:3px">'+nIntims+'</span>':''}</button>
+        <button class="det-tab" onclick="switchDetTab('peticao','${id}',this)" style="padding:7px 12px;border:none;background:none;cursor:pointer;font-size:12.5px;color:var(--text-muted);border-bottom:2px solid transparent;margin-bottom:-2px;white-space:nowrap">📝 Petição</button>
+        <button class="det-tab" onclick="switchDetTab('andamentos','${id}',this)" style="padding:7px 12px;border:none;background:none;cursor:pointer;font-size:12.5px;color:var(--text-muted);border-bottom:2px solid transparent;margin-bottom:-2px;white-space:nowrap">📋 Andamentos ${andamentos.length?'('+andamentos.length+')':''}</button>
       </div>
 
       <!-- Aba Parcelas -->
