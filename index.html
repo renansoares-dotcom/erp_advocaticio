@@ -5019,6 +5019,179 @@ async function atualizarEtapaProcessoNoBanco(processoId, etapa) {
   return true;
 }
 
+// ==================== PARTES DO PROCESSO ====================
+
+function parteDoBanco(row) {
+  return {
+    id: row.id,
+    tipo: row.tipo,
+    nome: row.nome,
+    cpf: row.cpf || '',
+    oab: row.oab || '',
+    tel: row.telefone || '',
+    email: row.email || ''
+  };
+}
+
+async function carregarPartesProcesso() {
+  const sb = await getSB();
+  const escritorioId = getEscritorioId();
+  if(!sb || !escritorioId) return {};
+  const { data, error } = await sb.from('partes_processo').select('*').eq('escritorio_id', escritorioId).order('criado_em');
+  if(error) { console.warn('Erro ao carregar partes:', error.message); return {}; }
+  const agrupado = {};
+  (data || []).forEach(row => {
+    if(!agrupado[row.processo_id]) agrupado[row.processo_id] = [];
+    agrupado[row.processo_id].push(parteDoBanco(row));
+  });
+  return agrupado;
+}
+
+async function salvarParteNoBanco(processoId, dados, editId) {
+  const sb = await getSB();
+  const escritorioId = getEscritorioId();
+  if(!sb || !escritorioId) { showToast('Sem conexão com o banco.', 'error'); return null; }
+  const payload = { tipo: dados.tipo, nome: dados.nome, cpf: dados.cpf || null, oab: dados.oab || null, telefone: dados.tel || null, email: dados.email || null };
+
+  if(editId) {
+    const { data, error } = await sb.from('partes_processo').update(payload).eq('id', editId).eq('escritorio_id', escritorioId).select().single();
+    if(error) { showToast('Erro ao atualizar parte: ' + error.message, 'error'); return null; }
+    return parteDoBanco(data);
+  } else {
+    const { data, error } = await sb.from('partes_processo').insert({ ...payload, escritorio_id: escritorioId, processo_id: processoId }).select().single();
+    if(error) { showToast('Erro ao adicionar parte: ' + error.message, 'error'); return null; }
+    return parteDoBanco(data);
+  }
+}
+
+async function excluirParteDoBanco(id) {
+  const sb = await getSB();
+  const escritorioId = getEscritorioId();
+  if(!sb || !escritorioId) return false;
+  const { error } = await sb.from('partes_processo').delete().eq('id', id).eq('escritorio_id', escritorioId);
+  if(error) { showToast('Erro ao excluir parte: ' + error.message, 'error'); return false; }
+  return true;
+}
+
+// ==================== HISTÓRICO DE CONTATOS DO PROCESSO ====================
+
+function contatoProcessoDoBanco(row) {
+  return {
+    id: row.id,
+    tipo: row.tipo,
+    data: row.data_contato,
+    pessoa: row.pessoa || '',
+    duracao: row.duracao || '',
+    obs: row.observacoes
+  };
+}
+
+async function carregarContatosProcesso() {
+  const sb = await getSB();
+  const escritorioId = getEscritorioId();
+  if(!sb || !escritorioId) return {};
+  const { data, error } = await sb.from('contatos_processo').select('*').eq('escritorio_id', escritorioId).order('data_contato', { ascending: false });
+  if(error) { console.warn('Erro ao carregar contatos:', error.message); return {}; }
+  const agrupado = {};
+  (data || []).forEach(row => {
+    if(!agrupado[row.processo_id]) agrupado[row.processo_id] = [];
+    agrupado[row.processo_id].push(contatoProcessoDoBanco(row));
+  });
+  return agrupado;
+}
+
+async function salvarContatoProcessoNoBanco(processoId, dados, editId) {
+  const sb = await getSB();
+  const escritorioId = getEscritorioId();
+  if(!sb || !escritorioId) { showToast('Sem conexão com o banco.', 'error'); return null; }
+  const payload = { tipo: dados.tipo, data_contato: dados.data || today(), pessoa: dados.pessoa || null, duracao: dados.duracao || null, observacoes: dados.obs };
+
+  if(editId) {
+    const { data, error } = await sb.from('contatos_processo').update(payload).eq('id', editId).eq('escritorio_id', escritorioId).select().single();
+    if(error) { showToast('Erro ao atualizar contato: ' + error.message, 'error'); return null; }
+    return contatoProcessoDoBanco(data);
+  } else {
+    const { data, error } = await sb.from('contatos_processo').insert({ ...payload, escritorio_id: escritorioId, processo_id: processoId }).select().single();
+    if(error) { showToast('Erro ao registrar contato: ' + error.message, 'error'); return null; }
+    return contatoProcessoDoBanco(data);
+  }
+}
+
+async function excluirContatoProcessoDoBanco(id) {
+  const sb = await getSB();
+  const escritorioId = getEscritorioId();
+  if(!sb || !escritorioId) return false;
+  const { error } = await sb.from('contatos_processo').delete().eq('id', id).eq('escritorio_id', escritorioId);
+  if(error) { showToast('Erro ao excluir contato: ' + error.message, 'error'); return false; }
+  return true;
+}
+
+// ==================== TAREFAS (CHECKLIST) DO PROCESSO ====================
+
+function tarefaProcessoDoBanco(row) {
+  return {
+    id: row.id,
+    texto: row.texto,
+    prazo: row.prazo || '',
+    resp: row.responsavel || '',
+    feita: !!row.feita,
+    feita_em: row.feita_em || null,
+    criada: (row.criado_em || '').slice(0,10)
+  };
+}
+
+async function carregarTarefasProcesso() {
+  const sb = await getSB();
+  const escritorioId = getEscritorioId();
+  if(!sb || !escritorioId) return {};
+  const { data, error } = await sb.from('tarefas_processo').select('*').eq('escritorio_id', escritorioId).order('criado_em');
+  if(error) { console.warn('Erro ao carregar tarefas:', error.message); return {}; }
+  const agrupado = {};
+  (data || []).forEach(row => {
+    if(!agrupado[row.processo_id]) agrupado[row.processo_id] = [];
+    agrupado[row.processo_id].push(tarefaProcessoDoBanco(row));
+  });
+  return agrupado;
+}
+
+async function salvarTarefaProcessoNoBanco(processoId, dados, editId) {
+  const sb = await getSB();
+  const escritorioId = getEscritorioId();
+  if(!sb || !escritorioId) { showToast('Sem conexão com o banco.', 'error'); return null; }
+  const payload = { texto: dados.texto, prazo: dados.prazo || null, responsavel: dados.resp || null };
+
+  if(editId) {
+    const { data, error } = await sb.from('tarefas_processo').update(payload).eq('id', editId).eq('escritorio_id', escritorioId).select().single();
+    if(error) { showToast('Erro ao atualizar tarefa: ' + error.message, 'error'); return null; }
+    return tarefaProcessoDoBanco(data);
+  } else {
+    const { data, error } = await sb.from('tarefas_processo').insert({ ...payload, escritorio_id: escritorioId, processo_id: processoId }).select().single();
+    if(error) { showToast('Erro ao adicionar tarefa: ' + error.message, 'error'); return null; }
+    return tarefaProcessoDoBanco(data);
+  }
+}
+
+async function alterarStatusTarefaNoBanco(id, feita) {
+  const sb = await getSB();
+  const escritorioId = getEscritorioId();
+  if(!sb || !escritorioId) return null;
+  const { data, error } = await sb.from('tarefas_processo')
+    .update({ feita, feita_em: feita ? today() : null })
+    .eq('id', id).eq('escritorio_id', escritorioId)
+    .select().single();
+  if(error) { showToast('Erro ao atualizar tarefa: ' + error.message, 'error'); return null; }
+  return tarefaProcessoDoBanco(data);
+}
+
+async function excluirTarefaProcessoDoBanco(id) {
+  const sb = await getSB();
+  const escritorioId = getEscritorioId();
+  if(!sb || !escritorioId) return false;
+  const { error } = await sb.from('tarefas_processo').delete().eq('id', id).eq('escritorio_id', escritorioId);
+  if(error) { showToast('Erro ao excluir tarefa: ' + error.message, 'error'); return false; }
+  return true;
+}
+
 // ==================== UI DE TAGS (modais de Cliente e Processo) ====================
 
 // Renderiza a lista de tags já vinculadas a um cliente, dentro do modal.
@@ -5302,7 +5475,7 @@ async function sbLoad() {
   }
 
   console.log('🔄 Carregando dados reais do escritório...');
-  const [clientes, processos, tipos, parcelas, despesas, eventos, intimacoes, orcamentos, documentosLista, dadosEscritorio, exitos, tags, clientesTags, processosTags, andamentos] = await Promise.all([
+  const [clientes, processos, tipos, parcelas, despesas, eventos, intimacoes, orcamentos, documentosLista, dadosEscritorio, exitos, tags, clientesTags, processosTags, andamentos, partes, contatosProcesso, tarefas] = await Promise.all([
     carregarClientes(),
     carregarProcessos(),
     carregarTipos(),
@@ -5317,7 +5490,10 @@ async function sbLoad() {
     carregarTags(),
     carregarClientesTags(),
     carregarProcessosTags(),
-    carregarAndamentos()
+    carregarAndamentos(),
+    carregarPartesProcesso(),
+    carregarContatosProcesso(),
+    carregarTarefasProcesso()
   ]);
 
   store.clientes = clientes;
@@ -5334,6 +5510,9 @@ async function sbLoad() {
   store.clientesTags = clientesTags;
   store.processosTags = processosTags;
   store.andamentos = andamentos;
+  store.partes = partes;
+  store.contatos = contatosProcesso;
+  store.checklist = tarefas;
 
   // store.documentos (por processo) e store.docsCliente (por cliente) são
   // objetos indexados por ID, derivados da mesma lista plana carregada do
@@ -10366,8 +10545,8 @@ function renderPartesHTML(procId) {
           </div>
         </div>
         <div style="display:flex;gap:4px">
-          <button onclick="editarParte(${procId},${p.id})" style="background:white;border:1.5px solid #E2E8F0;border-radius:8px;cursor:pointer;font-size:13px;padding:4px 9px" title="Editar">✏️</button>
-          <button onclick="excluirParte(${procId},${p.id})" style="background:#DC2626;border:1.5px solid #DC2626;border-radius:8px;cursor:pointer;font-size:12px;padding:4px 9px;color:white" title="Excluir"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg></button>
+          <button onclick="editarParte('${procId}','${p.id}')" style="background:white;border:1.5px solid #E2E8F0;border-radius:8px;cursor:pointer;font-size:13px;padding:4px 9px" title="Editar">✏️</button>
+          <button onclick="excluirParte('${procId}','${p.id}')" style="background:#DC2626;border:1.5px solid #DC2626;border-radius:8px;cursor:pointer;font-size:12px;padding:4px 9px;color:white" title="Excluir"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg></button>
         </div>
       </div>`).join('')}
     </div>`;
@@ -10398,8 +10577,8 @@ function editarParte(procId, parteId) {
   openModal('modal-parte', false);
 }
 
-function salvarParte() {
-  const procId = parseInt(document.getElementById('parte-proc-id').value);
+async function salvarParte() {
+  const procId = document.getElementById('parte-proc-id').value;
   const nome = document.getElementById('parte-nome').value.trim();
   if(!nome) { showToast('Informe o nome da parte.','error'); return; }
   const editId = document.getElementById('parte-edit-id').value;
@@ -10410,25 +10589,29 @@ function salvarParte() {
     tel: document.getElementById('parte-tel').value.trim(),
     email: document.getElementById('parte-email').value.trim()
   };
-  if(!store.partes) store.partes = {};
   if(!store.partes[procId]) store.partes[procId] = [];
-  if(!store.nextId.parte) store.nextId.parte = 1;
+
+  const salvo = await salvarParteNoBanco(procId, dados, editId || null);
+  if(!salvo) return;
+
   if(editId) {
-    const p = store.partes[procId].find(p=>p.id==editId);
-    if(p) Object.assign(p, dados);
+    const idx = store.partes[procId].findIndex(p=>p.id===editId);
+    if(idx >= 0) store.partes[procId][idx] = salvo;
     showToast('Parte atualizada!','success');
   } else {
-    store.partes[procId].push({ id: store.nextId.parte++, ...dados });
+    store.partes[procId].push(salvo);
     showToast('Parte adicionada!','success');
   }
-  saveData(); closeModal('modal-parte');
+  closeModal('modal-parte');
   setTimeout(()=>verDetalhe(procId), 100);
 }
 
-function excluirParte(procId, parteId) {
+async function excluirParte(procId, parteId) {
   if(!confirm('Excluir esta parte?')) return;
+  const ok = await excluirParteDoBanco(parteId);
+  if(!ok) return;
   store.partes[procId] = store.partes[procId].filter(p=>p.id!==parteId);
-  saveData(); showToast('Parte excluída.');
+  showToast('Parte excluída.');
   setTimeout(()=>verDetalhe(procId), 100);
 }
 
@@ -10465,8 +10648,8 @@ function renderContatosHTML(procId) {
         </div>
         <div style="display:flex;align-items:center;gap:6px">
           <span style="font-size:11.5px;color:var(--text-muted)">${fmtDate(c.data)}</span>
-          <button onclick="editarContato(${procId},${c.id})" style="background:white;border:1.5px solid #E2E8F0;border-radius:8px;cursor:pointer;font-size:13px;padding:3px 8px" title="Editar">✏️</button>
-          <button onclick="excluirContato(${procId},${c.id})" style="background:#DC2626;border:1.5px solid #DC2626;border-radius:8px;cursor:pointer;font-size:12px;padding:3px 8px;color:white" title="Excluir"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg></button>
+          <button onclick="editarContato('${procId}','${c.id}')" style="background:white;border:1.5px solid #E2E8F0;border-radius:8px;cursor:pointer;font-size:13px;padding:3px 8px" title="Editar">✏️</button>
+          <button onclick="excluirContato('${procId}','${c.id}')" style="background:#DC2626;border:1.5px solid #DC2626;border-radius:8px;cursor:pointer;font-size:12px;padding:3px 8px;color:white" title="Excluir"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg></button>
         </div>
       </div>
       <div style="font-size:13px;color:var(--text-secondary);line-height:1.5;padding:8px 10px;background:white;border-radius:6px;border:1px solid var(--border)">${c.obs}</div>
@@ -10498,8 +10681,8 @@ function editarContato(procId, contatoId) {
   openModal('modal-contato', false);
 }
 
-function salvarContato() {
-  const procId = parseInt(document.getElementById('contato-proc-id').value);
+async function salvarContato() {
+  const procId = document.getElementById('contato-proc-id').value;
   const obs = document.getElementById('contato-obs').value.trim();
   if(!obs) { showToast('Descreva o contato.','error'); return; }
   const editId = document.getElementById('contato-edit-id').value;
@@ -10510,25 +10693,29 @@ function salvarContato() {
     duracao: document.getElementById('contato-duracao').value.trim(),
     obs
   };
-  if(!store.contatos) store.contatos = {};
   if(!store.contatos[procId]) store.contatos[procId] = [];
-  if(!store.nextId.contato) store.nextId.contato = 1;
+
+  const salvo = await salvarContatoProcessoNoBanco(procId, dados, editId || null);
+  if(!salvo) return;
+
   if(editId) {
-    const c = store.contatos[procId].find(c=>c.id==editId);
-    if(c) Object.assign(c, dados);
+    const idx = store.contatos[procId].findIndex(c=>c.id===editId);
+    if(idx >= 0) store.contatos[procId][idx] = salvo;
     showToast('Contato atualizado!','success');
   } else {
-    store.contatos[procId].push({ id: store.nextId.contato++, ...dados });
+    store.contatos[procId].push(salvo);
     showToast('Contato registrado!','success');
   }
-  saveData(); closeModal('modal-contato');
+  closeModal('modal-contato');
   setTimeout(()=>verDetalhe(procId), 100);
 }
 
-function excluirContato(procId, contatoId) {
+async function excluirContato(procId, contatoId) {
   if(!confirm('Excluir este contato?')) return;
+  const ok = await excluirContatoProcessoDoBanco(contatoId);
+  if(!ok) return;
   store.contatos[procId] = store.contatos[procId].filter(c=>c.id!==contatoId);
-  saveData(); showToast('Contato excluído.');
+  showToast('Contato excluído.');
   setTimeout(()=>verDetalhe(procId), 100);
 }
 
@@ -10676,15 +10863,15 @@ function renderChecklistHTML(procId) {
     </div>
     ${tarefas.map(t => `
     <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:var(--radius);margin-bottom:6px;background:${t.feita?'var(--success-bg)':'var(--surface)'};border:1px solid ${t.feita?'#6EE7B7':'var(--border)'}">
-      <input type="checkbox" ${t.feita?'checked':''} onchange="toggleTarefa(${procId},${t.id},this.checked)"
+      <input type="checkbox" ${t.feita?'checked':''} onchange="toggleTarefa('${procId}','${t.id}',this.checked)"
         style="accent-color:var(--success);width:16px;height:16px;cursor:pointer;flex-shrink:0">
       <div style="flex:1;min-width:0">
         <div style="font-size:13px;${t.feita?'text-decoration:line-through;color:var(--text-muted)':''}">${t.texto}</div>
         ${t.prazo||t.resp?`<div style="font-size:11px;color:var(--text-muted);margin-top:2px">${t.resp?'👤 '+t.resp:''}${t.resp&&t.prazo?' · ':''}${t.prazo?'📅 '+fmtDate(t.prazo):''}</div>`:''}
       </div>
       <div style="display:flex;gap:4px;flex-shrink:0">
-        <button onclick="editarTarefa(${procId},${t.id})" style="background:white;border:1.5px solid #E2E8F0;border-radius:8px;cursor:pointer;font-size:13px;padding:4px 9px;line-height:1;transition:all 0.15s" title="Editar">✏️</button>
-        <button onclick="excluirTarefa(${procId},${t.id})" style="background:#DC2626;border:1.5px solid #DC2626;border-radius:8px;cursor:pointer;font-size:12px;padding:4px 9px;line-height:1;color:white;transition:all 0.15s" title="Excluir"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg></button>
+        <button onclick="editarTarefa('${procId}','${t.id}')" style="background:white;border:1.5px solid #E2E8F0;border-radius:8px;cursor:pointer;font-size:13px;padding:4px 9px;line-height:1;transition:all 0.15s" title="Editar">✏️</button>
+        <button onclick="excluirTarefa('${procId}','${t.id}')" style="background:#DC2626;border:1.5px solid #DC2626;border-radius:8px;cursor:pointer;font-size:12px;padding:4px 9px;line-height:1;color:white;transition:all 0.15s" title="Excluir"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg></button>
       </div>
     </div>`).join('')}`;
 }
@@ -10710,37 +10897,42 @@ function editarTarefa(procId, tarefaId) {
   closeModal('modal-detalhe');
   openModal('modal-tarefa', false);
 }
-function salvarTarefa() {
-  const procId = parseInt(document.getElementById('tarefa-proc-id').value);
+async function salvarTarefa() {
+  const procId = document.getElementById('tarefa-proc-id').value;
   const texto = document.getElementById('tarefa-texto').value.trim();
   const editId = document.getElementById('tarefa-edit-id').value;
   if(!texto) { showToast('Descreva a tarefa.','error'); return; }
-  if(!store.checklist) store.checklist = {};
   if(!store.checklist[procId]) store.checklist[procId] = [];
+  const dados = { texto, prazo: document.getElementById('tarefa-prazo').value, resp: document.getElementById('tarefa-resp').value.trim() };
+
+  const salvo = await salvarTarefaProcessoNoBanco(procId, dados, editId || null);
+  if(!salvo) return;
+
   if(editId) {
-    const t = store.checklist[procId].find(t=>t.id==editId);
-    if(t) { t.texto=texto; t.prazo=document.getElementById('tarefa-prazo').value; t.resp=document.getElementById('tarefa-resp').value.trim(); }
+    const idx = store.checklist[procId].findIndex(t=>t.id===editId);
+    if(idx >= 0) store.checklist[procId][idx] = salvo;
     showToast('Tarefa atualizada!','success');
   } else {
-    if(!store.nextId.tarefa) store.nextId.tarefa = 1;
-    store.checklist[procId].push({ id:store.nextId.tarefa++, texto, prazo:document.getElementById('tarefa-prazo').value, resp:document.getElementById('tarefa-resp').value.trim(), feita:false, criada:today() });
+    store.checklist[procId].push(salvo);
     showToast('✅ Tarefa adicionada!','success');
   }
-  saveData(); closeModal('modal-tarefa');
+  closeModal('modal-tarefa');
   setTimeout(()=>verDetalhe(procId), 100);
 }
 
-function toggleTarefa(procId, tarefaId, feita) {
+async function toggleTarefa(procId, tarefaId, feita) {
+  const salvo = await alterarStatusTarefaNoBanco(tarefaId, feita);
+  if(!salvo) return;
   const t = getChecklist(procId).find(t=>t.id===tarefaId);
-  if(t) { t.feita = feita; t.feita_em = feita ? today() : null; }
-  saveData();
+  if(t) Object.assign(t, salvo);
   const el = document.getElementById('checklist-'+procId);
   if(el) el.innerHTML = renderChecklistHTML(procId);
 }
 
-function excluirTarefa(procId, tarefaId) {
+async function excluirTarefa(procId, tarefaId) {
+  const ok = await excluirTarefaProcessoDoBanco(tarefaId);
+  if(!ok) return;
   store.checklist[procId] = store.checklist[procId].filter(t=>t.id!==tarefaId);
-  saveData();
   const el = document.getElementById('checklist-'+procId);
   if(el) el.innerHTML = renderChecklistHTML(procId);
 }
