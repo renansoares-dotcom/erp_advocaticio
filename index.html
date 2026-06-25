@@ -4129,7 +4129,8 @@ function processoDoBanco(row) {
     status: row.status || 'andamento',
     vara: '', // campo livre de texto no front, não modelado em coluna própria ainda
     descricao: row.observacoes || '',
-    abertura: (row.criado_em || '').slice(0, 10)
+    abertura: (row.criado_em || '').slice(0, 10),
+    etapa: row.etapa || 0
   };
 }
 
@@ -4936,6 +4937,88 @@ async function desvincularTagProcesso(processoId, tagId) {
   return true;
 }
 
+// ==================== ANDAMENTOS (histórico do processo) ====================
+
+function andamentoDoBanco(row) {
+  const dt = new Date(row.criado_em);
+  return {
+    id: row.id,
+    data: row.criado_em ? row.criado_em.slice(0,10) : today(),
+    hora: dt.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'}),
+    autor: row.autor_nome || '—',
+    texto: row.texto,
+    status: row.status || ''
+  };
+}
+
+// Carrega todos os andamentos do escritório, agrupados por processo_id
+// (formato {processoId: [andamento, andamento, ...]}, igual ao padrão já
+// usado em store.intimacoes/store.documentos).
+async function carregarAndamentos() {
+  const sb = await getSB();
+  const escritorioId = getEscritorioId();
+  if(!sb || !escritorioId) return {};
+  const { data, error } = await sb
+    .from('andamentos')
+    .select('*')
+    .eq('escritorio_id', escritorioId)
+    .order('criado_em');
+  if(error) { console.warn('Erro ao carregar andamentos:', error.message); return {}; }
+  const agrupado = {};
+  (data || []).forEach(row => {
+    if(!agrupado[row.processo_id]) agrupado[row.processo_id] = [];
+    agrupado[row.processo_id].push(andamentoDoBanco(row));
+  });
+  return agrupado;
+}
+
+async function criarAndamentoNoBanco(processoId, texto, status) {
+  const sb = await getSB();
+  const escritorioId = getEscritorioId();
+  if(!sb || !escritorioId) { showToast('Sem conexão com o banco.', 'error'); return null; }
+  const autorNome = getSessao().nome || getSessao().email || null;
+  const { data, error } = await sb.from('andamentos').insert({
+    escritorio_id: escritorioId,
+    processo_id: processoId,
+    texto, status: status || null,
+    autor_id: getSessao().userId || null,
+    autor_nome: autorNome
+  }).select().single();
+  if(error) { showToast('Erro ao registrar andamento: ' + error.message, 'error'); return null; }
+  return andamentoDoBanco(data);
+}
+
+async function atualizarAndamentoNoBanco(id, texto, status) {
+  const sb = await getSB();
+  const escritorioId = getEscritorioId();
+  if(!sb || !escritorioId) { showToast('Sem conexão com o banco.', 'error'); return null; }
+  const { data, error } = await sb.from('andamentos')
+    .update({ texto, status })
+    .eq('id', id).eq('escritorio_id', escritorioId)
+    .select().single();
+  if(error) { showToast('Erro ao atualizar andamento: ' + error.message, 'error'); return null; }
+  return andamentoDoBanco(data);
+}
+
+async function excluirAndamentoDoBanco(id) {
+  const sb = await getSB();
+  const escritorioId = getEscritorioId();
+  if(!sb || !escritorioId) return false;
+  const { error } = await sb.from('andamentos').delete().eq('id', id).eq('escritorio_id', escritorioId);
+  if(error) { showToast('Erro ao excluir andamento: ' + error.message, 'error'); return false; }
+  return true;
+}
+
+// Atualiza a etapa do pipeline visual do processo (processos.etapa).
+async function atualizarEtapaProcessoNoBanco(processoId, etapa) {
+  const sb = await getSB();
+  const escritorioId = getEscritorioId();
+  if(!sb || !escritorioId) { showToast('Sem conexão com o banco.', 'error'); return false; }
+  const { error } = await sb.from('processos').update({ etapa }).eq('id', processoId).eq('escritorio_id', escritorioId);
+  if(error) { showToast('Erro ao atualizar etapa: ' + error.message, 'error'); return false; }
+  return true;
+}
+
 // ==================== UI DE TAGS (modais de Cliente e Processo) ====================
 
 // Renderiza a lista de tags já vinculadas a um cliente, dentro do modal.
@@ -5219,7 +5302,7 @@ async function sbLoad() {
   }
 
   console.log('🔄 Carregando dados reais do escritório...');
-  const [clientes, processos, tipos, parcelas, despesas, eventos, intimacoes, orcamentos, documentosLista, dadosEscritorio, exitos, tags, clientesTags, processosTags] = await Promise.all([
+  const [clientes, processos, tipos, parcelas, despesas, eventos, intimacoes, orcamentos, documentosLista, dadosEscritorio, exitos, tags, clientesTags, processosTags, andamentos] = await Promise.all([
     carregarClientes(),
     carregarProcessos(),
     carregarTipos(),
@@ -5233,7 +5316,8 @@ async function sbLoad() {
     carregarExitos(),
     carregarTags(),
     carregarClientesTags(),
-    carregarProcessosTags()
+    carregarProcessosTags(),
+    carregarAndamentos()
   ]);
 
   store.clientes = clientes;
@@ -5249,6 +5333,7 @@ async function sbLoad() {
   store.tags = tags;
   store.clientesTags = clientesTags;
   store.processosTags = processosTags;
+  store.andamentos = andamentos;
 
   // store.documentos (por processo) e store.docsCliente (por cliente) são
   // objetos indexados por ID, derivados da mesma lista plana carregada do
@@ -5891,7 +5976,8 @@ async function converterEmProcesso() {
   const pId = processoSalvo.id;
   store.processos.unshift(processoSalvo);
   if(!store.andamentos[pId]) store.andamentos[pId] = [];
-  store.andamentos[pId].push({ data: today(), texto: 'Processo aberto a partir do orçamento.', status: 'andamento' });
+  const andamentoConversao = await criarAndamentoNoBanco(pId, 'Processo aberto a partir do orçamento.', 'andamento');
+  if(andamentoConversao) store.andamentos[pId].push(andamentoConversao);
 
   // 2. Gerar as parcelas reais, com base nas condições do orçamento
   const nParcelas = o.parcelas||1;
@@ -9576,7 +9662,8 @@ async function salvarProcesso() {
     const pId = salvo.id;
     store.processos.unshift(salvo);
     if(!store.andamentos[pId]) store.andamentos[pId] = [];
-    store.andamentos[pId].push({ data: today(), texto: 'Processo aberto.', status: procData.status });
+    const andamentoAbertura = await criarAndamentoNoBanco(pId, 'Processo aberto.', procData.status);
+    if(andamentoAbertura) store.andamentos[pId].push(andamentoAbertura);
 
     const cli = store.clientes.find(c => c.id === cId);
     const cliValor = parseFloat(cli?.valor) || 0;
@@ -9694,41 +9781,50 @@ function editarAndamento(procId, idx) {
   closeModal('modal-detalhe');
   openModal('modal-andamento', false);
 }
-function excluirAndamento(procId, idx) {
+async function excluirAndamento(procId, idx) {
   if(!confirm('Excluir este andamento?')) return;
   const list = store.andamentos[procId]||[];
   const realIdx = list.length - 1 - idx;
+  const a = list[realIdx];
+  if(!a) return;
+  const ok = await excluirAndamentoDoBanco(a.id);
+  if(!ok) return;
   list.splice(realIdx, 1);
-  saveData();
   showToast('Andamento excluído.','success');
   setTimeout(()=>verDetalhe(procId), 100);
 }
-function salvarAndamento() {
+async function salvarAndamento() {
   const id = document.getElementById('andamento-proc-id').value;
   const status = document.getElementById('andamento-status').value;
   const texto = document.getElementById('andamento-texto').value.trim();
   const editIdx = document.getElementById('andamento-edit-idx').value;
   if(!texto) { showToast('Descreva o andamento.', 'error'); return; }
   if(!store.andamentos[id]) store.andamentos[id] = [];
+
   if(editIdx !== '') {
     const a = store.andamentos[id][parseInt(editIdx)];
-    if(a) { a.texto = texto; a.status = status; }
+    if(!a) return;
+    const salvo = await atualizarAndamentoNoBanco(a.id, texto, status);
+    if(!salvo) return;
+    Object.assign(a, salvo);
     showToast('Andamento atualizado!','success');
   } else {
+    const salvo = await criarAndamentoNoBanco(id, texto, status);
+    if(!salvo) return;
+    store.andamentos[id].push(salvo);
+
+    // Ao registrar um andamento novo (não edição), o status escolhido
+    // também atualiza o status do próprio processo.
     const p = store.processos.find(p=>p.id===id);
-    if(p) p.status = status;
-    const session = JSON.parse(localStorage.getItem(LOGIN_KEY)||'{}');
-    const now = new Date();
-    store.andamentos[id].push({
-      data: today(),
-      hora: now.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}),
-      autor: session.nome||session.email||'—',
-      texto, status
-    });
+    if(p && p.status !== status) {
+      const atualizou = await salvarProcessoNoBanco({ ...p, status }, id);
+      if(atualizou) p.status = status;
+    }
+
     registrarAuditoria('editou','processo','Andamento: '+(store.processos.find(p=>p.id===id)?.numero||''),'');
     showToast('Andamento registrado!', 'success');
   }
-  saveData(); closeModal('modal-andamento'); renderProcessos(); updateDashboard();
+  closeModal('modal-andamento'); renderProcessos(); updateDashboard();
   setTimeout(()=>verDetalhe(id), 100);
 }
 
@@ -10927,7 +11023,7 @@ function renderPipelineHTML(processoId, etapaAtual) {
   return `<div class="pipeline">
     ${ETAPAS_PROCESSO.map((e,i) => {
       const cls = i < etapaAtual ? 'done' : i === etapaAtual ? 'active' : 'futura';
-      return `<div class="pipeline-step ${cls}" onclick="avancarEtapa(${processoId},${i})" title="Definir como: ${e.label.replace('\n',' ')}">
+      return `<div class="pipeline-step ${cls}" onclick="avancarEtapa('${processoId}',${i})" title="Definir como: ${e.label.replace('\n',' ')}">
         <div class="pipeline-dot">${i < etapaAtual ? '✓' : i === etapaAtual ? e.icon : String(i+1)}</div>
         <div class="pipeline-label">${e.label}</div>
       </div>`;
@@ -10938,22 +11034,20 @@ function renderPipelineHTML(processoId, etapaAtual) {
   </div>`;
 }
 
-function avancarEtapa(processoId, etapaIdx) {
+async function avancarEtapa(processoId, etapaIdx) {
   const p = store.processos.find(p=>p.id===processoId); if(!p) return;
-  p.etapa = etapaIdx;
-  // Registrar no andamento automaticamente
   const etapa = ETAPAS_PROCESSO[etapaIdx];
+
+  const okEtapa = await atualizarEtapaProcessoNoBanco(processoId, etapaIdx);
+  if(!okEtapa) return;
+  p.etapa = etapaIdx;
+
+  // Registrar no andamento automaticamente
   if(!store.andamentos[processoId]) store.andamentos[processoId] = [];
-  const session = JSON.parse(localStorage.getItem(LOGIN_KEY)||'{}');
-  const now = new Date();
-  store.andamentos[processoId].push({
-    data: today(),
-    hora: now.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}),
-    autor: session.nome||session.email||'—',
-    texto: `Etapa atualizada para: ${etapa.icon} ${etapa.label.replace('\n',' ')}`,
-    status: p.status
-  });
-  saveData();
+  const texto = `Etapa atualizada para: ${etapa.icon} ${etapa.label.replace('\n',' ')}`;
+  const salvo = await criarAndamentoNoBanco(processoId, texto, p.status);
+  if(salvo) store.andamentos[processoId].push(salvo);
+
   // Atualizar pipeline e andamentos no modal sem fechar
   const pipelineEl = document.querySelector('.pipeline');
   if(pipelineEl && pipelineEl.parentElement) {
