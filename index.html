@@ -2164,6 +2164,10 @@ body.topbar-escura .notif-btn:hover { background: rgba(255,255,255,0.2); border-
                   <span style="font-size:13px;font-weight:600" id="opcoes-nome-sistema">Novo Escritório</span>
                 </div>
                 <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border)">
+                  <span style="font-size:13px;color:var(--text-secondary)">Status do Plano</span>
+                  <span id="opcoes-status-plano">—</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border)">
                   <span style="font-size:13px;color:var(--text-secondary)">Versão</span>
                   <span class="badge badge-blue">v1.0</span>
                 </div>
@@ -3676,7 +3680,11 @@ body.topbar-escura .notif-btn:hover { background: rgba(255,255,255,0.2); border-
       <div class="form-row">
         <div class="form-group">
           <label class="form-label">Senha do INSS</label>
-          <input type="text" class="form-control" id="cliente-senha-inss" placeholder="Senha de acesso ao INSS">
+          <div style="display:flex;gap:6px">
+            <input type="text" class="form-control" id="cliente-senha-inss" placeholder="Digite para definir/alterar a senha">
+            <button type="button" class="btn btn-outline btn-sm" id="btn-ver-senha-inss" onclick="revelarSenhaInss()" style="white-space:nowrap;display:none">👁 Ver atual</button>
+          </div>
+          <div id="senha-inss-status" style="font-size:11px;color:var(--text-muted);margin-top:3px"></div>
         </div>
         <div class="form-group">
           <label class="form-label">Indicação</label>
@@ -4087,6 +4095,7 @@ function clienteDoBanco(row) {
     natureza: row.natureza || '',
     beneficio: row.beneficio || '',
     senhaInss: '', // nunca vem em claro do banco; ver clientes_get_senha_inss()
+    temSenhaInss: row.senha_inss != null, // só indica se existe, nunca o valor
     indicacao: row.indicacao || '',
     responsavel: row.responsavel || '',
     tipoProcessoId: row.tipo_processo_id || null,
@@ -4160,9 +4169,12 @@ async function carregarClientes() {
   const sb = await getSB();
   const escritorioId = getEscritorioId();
   if(!sb || !escritorioId) return [];
+  // Lista as colunas explicitamente, e troca senha_inss por uma expressão
+  // booleana (existe ou não) — nunca trazemos o valor cifrado para o
+  // client em listagens; a leitura real só acontece via clientes_get_senha_inss().
   const { data, error } = await sb
     .from('clientes')
-    .select('*')
+    .select('id, escritorio_id, nome, cpf, telefone, email, endereco, cidade, natureza, beneficio, indicacao, responsavel, tipo_processo_id, status, observacoes, valor, n_parcelas, criado_em, atualizado_em, senha_inss')
     .eq('escritorio_id', escritorioId)
     .order('criado_em', { ascending: false });
   if(error) { console.warn('Erro ao carregar clientes:', error.message); return []; }
@@ -4739,7 +4751,7 @@ async function carregarDadosEscritorio() {
   if(!sb || !escritorioId) return null;
   const { data, error } = await sb
     .from('escritorios')
-    .select('id, nome, oab, cnpj, email, telefone, endereco')
+    .select('id, nome, oab, cnpj, email, telefone, endereco, status_pagamento, proximo_vencimento')
     .eq('id', escritorioId)
     .single();
   if(error) { console.warn('Erro ao carregar dados do escritório:', error.message); return null; }
@@ -8772,6 +8784,25 @@ async function removerUsuarioEscritorio(id) {
   renderUsuarios();
 }
 
+// Mostra o status do plano/pagamento do escritório, lido de
+// store.escritorio (carregado em sbLoad). Somente leitura — quem altera é
+// o admin do negócio, direto no Supabase, nunca pelo próprio escritório.
+function renderStatusPlano() {
+  const el = document.getElementById('opcoes-status-plano');
+  if(!el) return;
+  const status = (store.escritorio || {}).status_pagamento || 'trial';
+  const vencimento = (store.escritorio || {}).proximo_vencimento;
+  const STATUS_INFO = {
+    trial:        { label: '🔵 Período de avaliação', cor: '#185FA5', bg: '#E6F1FB' },
+    em_dia:       { label: '✅ Em dia', cor: '#0B7B45', bg: '#E2F5EC' },
+    inadimplente: { label: '⚠️ Pendência financeira', cor: '#B91C1C', bg: '#FEE2E2' },
+    cancelado:    { label: '⛔ Cancelado', cor: '#475569', bg: '#F1F5F9' }
+  };
+  const info = STATUS_INFO[status] || STATUS_INFO.trial;
+  el.innerHTML = `<span class="badge" style="background:${info.bg};color:${info.cor}">${info.label}</span>` +
+    (vencimento ? ` <span style="font-size:11px;color:var(--text-muted);margin-left:6px">Próx. venc.: ${fmtDate(vencimento)}</span>` : '');
+}
+
 function renderOpcoes() {
   const session = localStorage.getItem(LOGIN_KEY);
   if(session) {
@@ -8784,6 +8815,7 @@ function renderOpcoes() {
   });
   atualizarBadgeAuditoria();
   renderUsuarios();
+  renderStatusPlano();
   carregarConfigWpp();
   const errEl = document.getElementById('opcoes-senha-error');
   const sucEl = document.getElementById('opcoes-senha-success');
@@ -9377,6 +9409,9 @@ function resetFormCliente() {
   });
   document.getElementById('cliente-parcelas').value = '1';
   document.getElementById('cliente-status').value = 'ativo';
+  document.getElementById('btn-ver-senha-inss').style.display = 'none';
+  document.getElementById('senha-inss-status').textContent = '';
+  delete document.getElementById('cliente-senha-inss').dataset.clienteId;
   const cont = document.getElementById('cliente-datas-container');
   if(cont) cont.style.display = 'none';
   _dipEntradas = [];
@@ -9460,7 +9495,12 @@ function editarCliente(id) {
   document.getElementById('cliente-cidade').value = c.cidade||'';
   document.getElementById('cliente-natureza').value = c.natureza||'';
   document.getElementById('cliente-beneficio').value = c.beneficio||'';
-  document.getElementById('cliente-senha-inss').value = c.senhaInss||'';
+  document.getElementById('cliente-senha-inss').value = '';
+  document.getElementById('cliente-senha-inss').dataset.clienteId = c.id;
+  document.getElementById('btn-ver-senha-inss').style.display = c.temSenhaInss ? '' : 'none';
+  document.getElementById('senha-inss-status').textContent = c.temSenhaInss
+    ? '🔒 Já existe uma senha salva. Deixe vazio para mantê-la, ou digite uma nova para substituir.'
+    : '';
   document.getElementById('cliente-indicacao').value = c.indicacao||'';
   document.getElementById('cliente-responsavel').value = c.responsavel||'';
   document.getElementById('cliente-tipo-processo').value = c.tipoProcessoId||'';
@@ -9480,6 +9520,23 @@ function editarCliente(id) {
   renderTagsClienteModal();
   openModal('modal-cliente', false);
 }
+
+// Busca a senha real do INSS (decifrada) e a exibe no campo, só quando o
+// usuário pede explicitamente — nunca automaticamente ao abrir o cliente,
+// para reduzir o risco de exposição acidental em tela compartilhada.
+async function revelarSenhaInss() {
+  const clienteId = document.getElementById('cliente-senha-inss').dataset.clienteId;
+  if(!clienteId) return;
+  const sb = await getSB();
+  if(!sb) { showToast('Sem conexão com o banco.', 'error'); return; }
+  const { data, error } = await sb.rpc('clientes_get_senha_inss', { p_cliente_id: clienteId });
+  if(error) { showToast('Erro ao buscar senha: ' + error.message, 'error'); return; }
+  const campo = document.getElementById('cliente-senha-inss');
+  campo.value = data || '';
+  campo.type = 'text';
+  showToast(data ? 'Senha atual exibida abaixo.' : 'Nenhuma senha cadastrada.', data ? 'success' : '');
+}
+
 async function excluirCliente(id) {
   if(!confirm('Excluir este cliente?')) return;
   const _c = store.clientes.find(c=>c.id===id);
@@ -9489,9 +9546,25 @@ async function excluirCliente(id) {
   registrarAuditoria('excluiu','cliente','Excluiu cliente: '+(_c?.nome||id),'');
   renderClientes(); showToast('Cliente excluído.');
 }
-function gerarFichaPDF(id) {
+async function gerarFichaPDF(id) {
   const c = store.clientes.find(c => c.id === id);
   if(!c) return;
+  // Abre a janela já, em resposta direta ao clique — evita que o navegador
+  // bloqueie como pop-up por causa do await abaixo.
+  const win = window.open('', '_blank');
+  win.document.write('<p style="font-family:sans-serif;padding:24px;color:#666">Gerando ficha...</p>');
+
+  // Busca a senha real do INSS (decifrada) para constar na ficha impressa —
+  // só aqui, no momento da geração, nunca mantida em store.clientes.
+  let senhaInssReal = '';
+  if(c.temSenhaInss) {
+    const sb = await getSB();
+    if(sb) {
+      const { data, error } = await sb.rpc('clientes_get_senha_inss', { p_cliente_id: id });
+      if(!error) senhaInssReal = data || '';
+    }
+  }
+
   const tipo = store.tipos.find(t => t.id === c.tipoProcessoId);
   const processos = store.processos.filter(p => p.clienteId === id);
   const hoje = new Date().toLocaleDateString('pt-BR', {day:'2-digit',month:'long',year:'numeric'});
@@ -9603,7 +9676,7 @@ function gerarFichaPDF(id) {
     <div class="grid-2">
       <div class="field"><div class="field-label">Natureza</div><div class="field-value ${!c.natureza?'empty':''}">${c.natureza||'Não informado'}</div></div>
       <div class="field"><div class="field-label">Benefício</div><div class="field-value ${!c.beneficio?'empty':''}">${c.beneficio||'Não informado'}</div></div>
-      <div class="field"><div class="field-label">Senha do INSS</div><div class="field-value ${!c.senhaInss?'empty':''}">${c.senhaInss||'Não informado'}</div></div>
+      <div class="field"><div class="field-label">Senha do INSS</div><div class="field-value ${!senhaInssReal?'empty':''}">${senhaInssReal||'Não informado'}</div></div>
       <div class="field"><div class="field-label">Tipo de Processo</div><div class="field-value ${!tipo?'empty':''}">${tipo?tipo.nome:'Não vinculado'}</div></div>
       <div class="field"><div class="field-label">Indicação</div><div class="field-value ${!c.indicacao?'empty':''}">${c.indicacao||'Não informado'}</div></div>
       <div class="field"><div class="field-label">Responsável</div><div class="field-value ${!c.responsavel?'empty':''}">${c.responsavel||'Não informado'}</div></div>
@@ -9656,7 +9729,7 @@ function gerarFichaPDF(id) {
 </body>
 </html>`;
 
-  const win = window.open('', '_blank');
+  win.document.open();
   win.document.write(html);
   win.document.close();
   showToast('Ficha gerada! Use "Salvar como PDF" no diálogo de impressão.', 'success');
@@ -12137,7 +12210,7 @@ async function fazerLogin() {
     // Buscar vínculo do usuário com o escritório (papel + escritorio_id)
     const { data: vinculo, error: vinculoErr } = await sb
       .from('usuarios_escritorios')
-      .select('papel, escritorio_id, escritorios(nome)')
+      .select('papel, escritorio_id, escritorios(nome, status_pagamento)')
       .eq('usuario_id', data.user.id)
       .eq('ativo', true)
       .single();
@@ -12145,6 +12218,21 @@ async function fazerLogin() {
     if(vinculoErr || !vinculo) {
       await sb.auth.signOut();
       errEl.textContent = '❌ Usuário não vinculado a nenhum escritório. Contate o administrador.';
+      errEl.style.display = 'block';
+      btnLogin.textContent = 'Entrar no Sistema →'; btnLogin.disabled = false;
+      return;
+    }
+
+    // Bloqueio total de acesso quando o escritório está inadimplente ou
+    // cancelado — a pessoa nem chega a entrar no sistema (modelo de
+    // cobrança básico: sem gateway, status marcado manualmente pelo
+    // administrador do negócio direto no banco).
+    const statusPagamento = vinculo.escritorios?.status_pagamento;
+    if(statusPagamento === 'inadimplente' || statusPagamento === 'cancelado') {
+      await sb.auth.signOut();
+      errEl.innerHTML = statusPagamento === 'inadimplente'
+        ? '🔒 <strong>Acesso suspenso por pendência financeira.</strong><br>Entre em contato com o suporte para regularizar o pagamento.'
+        : '🔒 <strong>Esta conta foi cancelada.</strong><br>Entre em contato com o suporte para mais informações.';
       errEl.style.display = 'block';
       btnLogin.textContent = 'Entrar no Sistema →'; btnLogin.disabled = false;
       return;
