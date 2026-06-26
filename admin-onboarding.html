@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>Painel Administrativo — ERP Jurídico</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    font-family: 'Inter', -apple-system, sans-serif;
+    background: #0F1E2E;
+    color: #E8F0F8;
+    min-height: 100vh;
+  }
+  .container { max-width: 720px; margin: 0 auto; padding: 32px 20px; }
+
+  /* LOGIN */
+  #tela-login { display:flex; align-items:center; justify-content:center; min-height:100vh; }
+  .login-box { background:#1A2E45; border-radius:16px; padding:36px; width:380px; box-shadow:0 12px 40px rgba(0,0,0,0.4); }
+  .login-box h1 { font-size:18px; font-weight:700; margin-bottom:6px; }
+  .login-box p { font-size:13px; color:#9DB5D0; margin-bottom:22px; }
+  .login-box input {
+    width:100%; padding:11px 14px; margin-bottom:12px; border-radius:8px;
+    border:1.5px solid #2A4D6E; background:#0F1E2E; color:#E8F0F8; font-size:14px; outline:none;
+  }
+  .login-box input:focus { border-color:#5A87B8; }
+  .login-box button {
+    width:100%; padding:12px; border-radius:8px; border:none; background:#C4A96B;
+    color:#0F1E2E; font-weight:600; font-size:14px; cursor:pointer; margin-top:6px;
+  }
+  .login-box button:disabled { opacity:0.6; cursor:default; }
+  .erro { background:#2E0A0A; border:1px solid #B91C1C; color:#FCA5A5; padding:10px 14px; border-radius:8px; font-size:13px; margin-bottom:14px; display:none; }
+
+  /* PAINEL */
+  #tela-painel { display:none; }
+  header { display:flex; justify-content:space-between; align-items:center; margin-bottom:28px; }
+  header h1 { font-size:20px; font-weight:700; }
+  header span { font-size:12px; color:#9DB5D0; }
+  .btn-sair { background:none; border:1px solid #2A4D6E; color:#9DB5D0; padding:7px 14px; border-radius:8px; font-size:12px; cursor:pointer; }
+
+  .card { background:#1A2E45; border-radius:12px; padding:22px; margin-bottom:20px; border:1px solid #2A4D6E; }
+  .card h2 { font-size:15px; font-weight:600; margin-bottom:14px; }
+  .form-group { margin-bottom:12px; }
+  .form-group label { display:block; font-size:12px; color:#9DB5D0; margin-bottom:5px; }
+  .form-group input, .form-group select {
+    width:100%; padding:9px 12px; border-radius:8px; border:1.5px solid #2A4D6E;
+    background:#0F1E2E; color:#E8F0F8; font-size:13.5px; outline:none;
+  }
+  .form-row { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .btn-primary {
+    background:#5A87B8; color:white; border:none; padding:10px 20px; border-radius:8px;
+    font-size:13.5px; font-weight:600; cursor:pointer; margin-top:8px;
+  }
+  .btn-primary:disabled { opacity:0.6; cursor:default; }
+
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th { text-align:left; padding:8px 6px; color:#9DB5D0; font-size:11px; text-transform:uppercase; border-bottom:1px solid #2A4D6E; }
+  td { padding:10px 6px; border-bottom:1px solid #16243a; }
+  select.status-select { background:#0F1E2E; color:#E8F0F8; border:1px solid #2A4D6E; border-radius:6px; padding:4px 8px; font-size:12px; }
+  .toast { position:fixed; top:20px; right:20px; background:#1A2E45; border:1px solid #2A4D6E; padding:12px 18px; border-radius:8px; font-size:13px; display:none; }
+  .toast.success { border-color:#0B7B45; }
+  .toast.error { border-color:#B91C1C; }
+  .credenciais-box {
+    background:#0F1E2E; border:1px solid #C4A96B; border-radius:8px; padding:14px; margin-top:14px; font-size:13px;
+  }
+  .credenciais-box code { background:#1A2E45; padding:2px 6px; border-radius:4px; }
+</style>
+</head>
+<body>
+
+<div id="tela-login">
+  <div class="login-box">
+    <h1>🔐 Painel Administrativo</h1>
+    <p>Acesso restrito — gestão de escritórios clientes.</p>
+    <div class="erro" id="erro-login"></div>
+    <input type="email" id="login-email" placeholder="Seu e-mail">
+    <input type="password" id="login-senha" placeholder="Sua senha">
+    <button id="btn-login" onclick="fazerLogin()">Entrar</button>
+  </div>
+</div>
+
+<div id="tela-painel">
+  <div class="container">
+    <header>
+      <div>
+        <h1>Painel Administrativo</h1>
+        <span id="info-usuario"></span>
+      </div>
+      <button class="btn-sair" onclick="sair()">Sair</button>
+    </header>
+
+    <div class="card">
+      <h2>➕ Criar novo escritório</h2>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Nome do escritório</label>
+          <input type="text" id="novo-nome" placeholder="Ex: Almeida Advocacia">
+        </div>
+        <div class="form-group">
+          <label>OAB (opcional)</label>
+          <input type="text" id="novo-oab" placeholder="OAB/PE 12.345">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Nome do responsável (admin)</label>
+          <input type="text" id="novo-nome-admin" placeholder="Ex: Dr. João Almeida">
+        </div>
+        <div class="form-group">
+          <label>Telefone (opcional)</label>
+          <input type="text" id="novo-telefone" placeholder="(81) 9 9999-9999">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>E-mail de login do responsável</label>
+          <input type="email" id="novo-email" placeholder="contato@escritorio.com.br">
+        </div>
+        <div class="form-group">
+          <label>Senha provisória (mín. 8 caracteres)</label>
+          <input type="text" id="novo-senha" placeholder="Defina uma senha para entregar ao cliente">
+        </div>
+      </div>
+      <button class="btn-primary" id="btn-criar" onclick="criarEscritorio()">Criar Escritório</button>
+      <div class="credenciais-box" id="credenciais-resultado" style="display:none"></div>
+    </div>
+
+    <div class="card">
+      <h2>📋 Escritórios cadastrados</h2>
+      <div class="table-wrap" style="overflow-x:auto">
+        <table>
+          <thead><tr>
+            <th>Nome</th><th>Status</th><th>Próx. vencimento</th><th>Criado em</th>
+          </tr></thead>
+          <tbody id="tbody-escritorios">
+            <tr><td colspan="4" style="text-align:center;color:#9DB5D0;padding:20px">Carregando...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const SB_URL  = 'https://voufezlvxnihfazimjqe.supabase.co';
+const SB_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZvdWZlemx2eG5paGZhemltanFlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE4MDAwOTcsImV4cCI6MjA5NzM3NjA5N30.AWWNngX-7nK0I9ZgbcJWiC6zNY2dfsBBxC1zaqMWH7s';
+let sb = null;
+
+function getSB() {
+  if(!sb) sb = window.supabase.createClient(SB_URL, SB_ANON);
+  return sb;
+}
+
+function showToast(msg, tipo) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast' + (tipo ? ' ' + tipo : '');
+  t.style.display = 'block';
+  setTimeout(() => t.style.display = 'none', 4000);
+}
+
+async function fazerLogin() {
+  const email = document.getElementById('login-email').value.trim();
+  const senha = document.getElementById('login-senha').value;
+  const erroEl = document.getElementById('erro-login');
+  erroEl.style.display = 'none';
+  if(!email || !senha) { erroEl.textContent = 'Preencha e-mail e senha.'; erroEl.style.display = 'block'; return; }
+
+  const btn = document.getElementById('btn-login');
+  btn.disabled = true; btn.textContent = 'Entrando...';
+
+  const supabase = getSB();
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password: senha });
+  if(error || !data.user) {
+    erroEl.textContent = 'E-mail ou senha incorretos.';
+    erroEl.style.display = 'block';
+    btn.disabled = false; btn.textContent = 'Entrar';
+    return;
+  }
+
+  const { data: ehSuperAdmin, error: errCheck } = await supabase.rpc('eh_super_admin');
+  if(errCheck || !ehSuperAdmin) {
+    await supabase.auth.signOut();
+    erroEl.textContent = '🔒 Este painel é restrito ao administrador do sistema.';
+    erroEl.style.display = 'block';
+    btn.disabled = false; btn.textContent = 'Entrar';
+    return;
+  }
+
+  document.getElementById('info-usuario').textContent = email;
+  document.getElementById('tela-login').style.display = 'none';
+  document.getElementById('tela-painel').style.display = 'block';
+  carregarEscritorios();
+}
+
+async function sair() {
+  const supabase = getSB();
+  await supabase.auth.signOut();
+  location.reload();
+}
+
+async function criarEscritorio() {
+  const nomeEscritorio = document.getElementById('novo-nome').value.trim();
+  const oab = document.getElementById('novo-oab').value.trim();
+  const nomeAdmin = document.getElementById('novo-nome-admin').value.trim();
+  const telefone = document.getElementById('novo-telefone').value.trim();
+  const email = document.getElementById('novo-email').value.trim();
+  const senha = document.getElementById('novo-senha').value;
+
+  if(!nomeEscritorio || !email || !senha) {
+    showToast('Preencha ao menos nome do escritório, e-mail e senha.', 'error');
+    return;
+  }
+  if(senha.length < 8) {
+    showToast('A senha provisória precisa ter ao menos 8 caracteres.', 'error');
+    return;
+  }
+
+  const btn = document.getElementById('btn-criar');
+  btn.disabled = true; btn.textContent = 'Criando...';
+  document.getElementById('credenciais-resultado').style.display = 'none';
+
+  try {
+    const supabase = getSB();
+    const sessao = await supabase.auth.getSession();
+    const token = sessao.data.session?.access_token;
+    if(!token) { showToast('Sessão expirada. Faça login novamente.', 'error'); return; }
+
+    const resp = await fetch(SB_URL + '/functions/v1/onboarding-escritorio', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify({ nomeEscritorio, oab, nomeAdmin, telefone, email, senha })
+    });
+    const resultado = await resp.json();
+
+    if(!resp.ok) {
+      showToast(resultado.erro || 'Erro ao criar escritório.', 'error');
+      return;
+    }
+
+    showToast('✅ Escritório criado com sucesso!', 'success');
+    const box = document.getElementById('credenciais-resultado');
+    box.innerHTML = '<strong>Escritório criado!</strong><br>' +
+      'Passe estas credenciais ao cliente:<br>' +
+      'E-mail: <code>' + email + '</code><br>' +
+      'Senha provisória: <code>' + senha + '</code><br>' +
+      'Link do sistema: <code>https://renansoares-dotcom.github.io/erp_advocaticio/</code>';
+    box.style.display = 'block';
+
+    ['novo-nome','novo-oab','novo-nome-admin','novo-telefone','novo-email','novo-senha'].forEach(function(id) {
+      document.getElementById(id).value = '';
+    });
+    carregarEscritorios();
+  } catch(e) {
+    showToast('Erro de conexão: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Criar Escritório';
+  }
+}
+
+async function carregarEscritorios() {
+  const supabase = getSB();
+  const { data, error } = await supabase
+    .from('escritorios')
+    .select('id, nome, status_pagamento, proximo_vencimento, criado_em')
+    .order('criado_em', { ascending: false });
+
+  const tb = document.getElementById('tbody-escritorios');
+  if(error) {
+    tb.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#FCA5A5;padding:20px">Erro ao carregar: ' + error.message + '</td></tr>';
+    return;
+  }
+  if(!data || !data.length) {
+    tb.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#9DB5D0;padding:20px">Nenhum escritório cadastrado ainda.</td></tr>';
+    return;
+  }
+
+  tb.innerHTML = data.map(function(e) {
+    const criado = e.criado_em ? new Date(e.criado_em).toLocaleDateString('pt-BR') : '—';
+    const venc = e.proximo_vencimento ? new Date(e.proximo_vencimento + 'T12:00:00').toLocaleDateString('pt-BR') : '—';
+    return '<tr>' +
+      '<td><strong>' + e.nome + '</strong></td>' +
+      '<td><select class="status-select" onchange="alterarStatus(\'' + e.id + '\', this.value)">' +
+        '<option value="trial"' + (e.status_pagamento==='trial'?' selected':'') + '>Trial</option>' +
+        '<option value="em_dia"' + (e.status_pagamento==='em_dia'?' selected':'') + '>Em dia</option>' +
+        '<option value="inadimplente"' + (e.status_pagamento==='inadimplente'?' selected':'') + '>Inadimplente</option>' +
+        '<option value="cancelado"' + (e.status_pagamento==='cancelado'?' selected':'') + '>Cancelado</option>' +
+      '</select></td>' +
+      '<td>' + venc + '</td>' +
+      '<td>' + criado + '</td>' +
+    '</tr>';
+  }).join('');
+}
+
+async function alterarStatus(escritorioId, novoStatus) {
+  const supabase = getSB();
+  const { error } = await supabase.from('escritorios').update({ status_pagamento: novoStatus }).eq('id', escritorioId);
+  if(error) { showToast('Erro ao atualizar status: ' + error.message, 'error'); return; }
+  showToast('Status atualizado.', 'success');
+}
+
+(async function() {
+  const supabase = getSB();
+  const { data } = await supabase.auth.getSession();
+  if(data.session) {
+    const check = await supabase.rpc('eh_super_admin');
+    if(check.data) {
+      document.getElementById('info-usuario').textContent = data.session.user.email;
+      document.getElementById('tela-login').style.display = 'none';
+      document.getElementById('tela-painel').style.display = 'block';
+      carregarEscritorios();
+    }
+  }
+})();
+</script>
+</body>
+</html>
