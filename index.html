@@ -14,7 +14,7 @@
     color: #E8F0F8;
     min-height: 100vh;
   }
-  .container { max-width: 720px; margin: 0 auto; padding: 32px 20px; }
+  .container { max-width: 980px; margin: 0 auto; padding: 32px 20px; }
 
   /* LOGIN */
   #tela-login { display:flex; align-items:center; justify-content:center; min-height:100vh; }
@@ -81,6 +81,24 @@
   .btn-cancelar-modal { background:none; border:1px solid #2A4D6E; color:#9DB5D0; padding:9px 16px; border-radius:8px; font-size:13px; cursor:pointer; }
   .btn-confirmar-exclusao { background:#B91C1C; border:none; color:white; padding:9px 16px; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer; }
   .btn-confirmar-exclusao:disabled { opacity:0.4; cursor:default; }
+
+  .btn-financeiro { background:none; border:1px solid #2A4D6E; color:#9DB5D0; padding:5px 12px; border-radius:6px; font-size:11.5px; cursor:pointer; margin-right:6px; }
+  .btn-financeiro:hover { background:#0F1E2E; }
+
+  .modal-financeiro { background:#1A2E45; border:1px solid #2A4D6E; border-radius:12px; padding:26px; width:720px; max-height:85vh; overflow-y:auto; }
+  .modal-financeiro h3 { font-size:17px; margin-bottom:18px; }
+  .modal-financeiro h4 { font-size:13px; color:#9DB5D0; margin:18px 0 10px; text-transform:uppercase; letter-spacing:0.5px; }
+  .plano-resumo { background:#0F1E2E; border:1px solid #2A4D6E; border-radius:8px; padding:14px; margin-bottom:6px; font-size:13px; }
+  .plano-resumo strong { color:#C4A96B; }
+  .btn-fechar-financeiro { background:none; border:1px solid #2A4D6E; color:#9DB5D0; padding:8px 16px; border-radius:8px; font-size:13px; cursor:pointer; float:right; }
+
+  .cobranca-status { display:inline-block; padding:2px 9px; border-radius:12px; font-size:11px; font-weight:600; }
+  .cobranca-status.pendente { background:#1D3A5C; color:#9DB5D0; }
+  .cobranca-status.pago { background:#0A2E1C; color:#6FCF97; }
+  .cobranca-status.atrasado { background:#2E0A0A; color:#FCA5A5; }
+  .cobranca-status.cancelado { background:#1f2937; color:#9ca3af; }
+  .btn-marcar-pago { background:#0B7B45; border:none; color:white; padding:4px 10px; border-radius:6px; font-size:11px; cursor:pointer; }
+  table.tabela-cobrancas td, table.tabela-cobrancas th { padding:7px 8px; }
 </style>
 </head>
 <body>
@@ -154,6 +172,51 @@
           </tbody>
         </table>
       </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-financeiro">
+  <div class="modal-financeiro">
+    <button class="btn-fechar-financeiro" onclick="fecharModalFinanceiro()">Fechar ✕</button>
+    <h3>💰 Financeiro — <span id="financeiro-nome-escritorio"></span></h3>
+
+    <h4>Plano atual</h4>
+    <div class="plano-resumo" id="financeiro-plano-resumo">Carregando...</div>
+
+    <h4>Definir / alterar plano</h4>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Valor (R$)</label>
+        <input type="number" id="financeiro-valor" step="0.01" placeholder="200.00">
+      </div>
+      <div class="form-group">
+        <label>Periodicidade</label>
+        <select id="financeiro-periodicidade">
+          <option value="mensal">Mensal</option>
+          <option value="trimestral">Trimestral</option>
+          <option value="semestral">Semestral</option>
+          <option value="anual">Anual</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Primeiro vencimento</label>
+      <input type="date" id="financeiro-primeiro-vencimento">
+    </div>
+    <p style="font-size:12px;color:#9DB5D0;margin-bottom:10px">Isso gera automaticamente as próximas cobranças (12 parcelas mensais, 8 trimestrais, 4 semestrais ou 3 anuais) a partir da data escolhida.</p>
+    <button class="btn-primary" id="btn-gerar-plano" onclick="definirPlano()">Gerar Cobranças</button>
+
+    <h4>Histórico de cobranças</h4>
+    <div style="overflow-x:auto">
+      <table class="tabela-cobrancas">
+        <thead><tr>
+          <th>Vencimento</th><th>Valor</th><th>Status</th><th>Pago em</th><th>Forma</th><th>Ações</th>
+        </tr></thead>
+        <tbody id="tbody-cobrancas">
+          <tr><td colspan="6" style="text-align:center;color:#9DB5D0;padding:16px">Carregando...</td></tr>
+        </tbody>
+      </table>
     </div>
   </div>
 </div>
@@ -321,7 +384,7 @@ async function carregarEscritorios() {
       '</select></td>' +
       '<td>' + venc + '</td>' +
       '<td>' + criado + '</td>' +
-      '<td><button class="btn-excluir" onclick="abrirModalExcluir(\'' + e.id + '\', \'' + nomeEscapado + '\')">🗑 Excluir</button></td>' +
+      '<td><button class="btn-financeiro" onclick="abrirModalFinanceiro(\'' + e.id + '\', \'' + nomeEscapado + '\')">💰 Financeiro</button><button class="btn-excluir" onclick="abrirModalExcluir(\'' + e.id + '\', \'' + nomeEscapado + '\')">🗑 Excluir</button></td>' +
     '</tr>';
   }).join('');
 }
@@ -363,6 +426,112 @@ async function confirmarExclusao() {
   showToast('Escritório excluído definitivamente.', 'success');
   fecharModalExcluir();
   carregarEscritorios();
+}
+
+let _escritorioFinanceiroAtual = null;
+
+function abrirModalFinanceiro(id, nome) {
+  _escritorioFinanceiroAtual = id;
+  document.getElementById('financeiro-nome-escritorio').textContent = nome;
+  document.getElementById('financeiro-valor').value = '';
+  document.getElementById('financeiro-primeiro-vencimento').value = '';
+  document.getElementById('modal-financeiro').classList.add('aberto');
+  carregarFinanceiroEscritorio();
+}
+
+function fecharModalFinanceiro() {
+  document.getElementById('modal-financeiro').classList.remove('aberto');
+  _escritorioFinanceiroAtual = null;
+}
+
+const NOMES_PERIODICIDADE = { mensal: 'Mensal', trimestral: 'Trimestral', semestral: 'Semestral', anual: 'Anual' };
+
+async function carregarFinanceiroEscritorio() {
+  if(!_escritorioFinanceiroAtual) return;
+  const supabase = getSB();
+
+  const { data: esc } = await supabase.from('escritorios').select('plano_valor, plano_periodicidade').eq('id', _escritorioFinanceiroAtual).single();
+  const resumoEl = document.getElementById('financeiro-plano-resumo');
+  if(esc && esc.plano_valor) {
+    resumoEl.innerHTML = 'R$ <strong>' + Number(esc.plano_valor).toFixed(2).replace('.', ',') + '</strong> · ' + (NOMES_PERIODICIDADE[esc.plano_periodicidade] || esc.plano_periodicidade);
+  } else {
+    resumoEl.textContent = 'Nenhum plano definido ainda.';
+  }
+
+  const { data: cobrancas, error } = await supabase
+    .from('cobrancas_escritorio')
+    .select('id, valor, vencimento, status, data_pagamento, forma_pagamento')
+    .eq('escritorio_id', _escritorioFinanceiroAtual)
+    .order('vencimento');
+
+  const tb = document.getElementById('tbody-cobrancas');
+  if(error) {
+    tb.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#FCA5A5;padding:16px">Erro: ' + error.message + '</td></tr>';
+    return;
+  }
+  if(!cobrancas || !cobrancas.length) {
+    tb.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#9DB5D0;padding:16px">Nenhuma cobrança registrada ainda.</td></tr>';
+    return;
+  }
+
+  const hoje = new Date().toISOString().split('T')[0];
+  tb.innerHTML = cobrancas.map(function(c) {
+    const venc = new Date(c.vencimento + 'T12:00:00').toLocaleDateString('pt-BR');
+    const pago = c.data_pagamento ? new Date(c.data_pagamento + 'T12:00:00').toLocaleDateString('pt-BR') : '—';
+    const statusReal = (c.status === 'pendente' && c.vencimento < hoje) ? 'atrasado' : c.status;
+    const statusLabel = { pendente: 'Pendente', pago: 'Pago', atrasado: 'Atrasado', cancelado: 'Cancelado' }[statusReal] || statusReal;
+    const acao = statusReal !== 'pago' && statusReal !== 'cancelado'
+      ? '<button class="btn-marcar-pago" onclick="marcarCobrancaPaga(\'' + c.id + '\')">Marcar pago</button>'
+      : '';
+    return '<tr>' +
+      '<td>' + venc + '</td>' +
+      '<td>R$ ' + Number(c.valor).toFixed(2).replace('.', ',') + '</td>' +
+      '<td><span class="cobranca-status ' + statusReal + '">' + statusLabel + '</span></td>' +
+      '<td>' + pago + '</td>' +
+      '<td>' + (c.forma_pagamento || '—') + '</td>' +
+      '<td>' + acao + '</td>' +
+    '</tr>';
+  }).join('');
+}
+
+async function definirPlano() {
+  if(!_escritorioFinanceiroAtual) return;
+  const valor = parseFloat(document.getElementById('financeiro-valor').value);
+  const periodicidade = document.getElementById('financeiro-periodicidade').value;
+  const primeiroVencimento = document.getElementById('financeiro-primeiro-vencimento').value;
+
+  if(!valor || valor <= 0) { showToast('Informe um valor válido.', 'error'); return; }
+  if(!primeiroVencimento) { showToast('Informe a data do primeiro vencimento.', 'error'); return; }
+
+  const btn = document.getElementById('btn-gerar-plano');
+  btn.disabled = true; btn.textContent = 'Gerando...';
+
+  const supabase = getSB();
+  const { data, error } = await supabase.rpc('gerar_cobrancas_plano', {
+    p_escritorio_id: _escritorioFinanceiroAtual,
+    p_valor: valor,
+    p_periodicidade: periodicidade,
+    p_primeiro_vencimento: primeiroVencimento
+  });
+
+  btn.disabled = false; btn.textContent = 'Gerar Cobranças';
+
+  if(error) {
+    showToast('Erro ao gerar cobranças: ' + error.message, 'error');
+    return;
+  }
+  showToast(data + ' cobrança(s) gerada(s) com sucesso!', 'success');
+  carregarFinanceiroEscritorio();
+}
+
+async function marcarCobrancaPaga(cobrancaId) {
+  const supabase = getSB();
+  const { error } = await supabase.from('cobrancas_escritorio')
+    .update({ status: 'pago', data_pagamento: new Date().toISOString().split('T')[0] })
+    .eq('id', cobrancaId);
+  if(error) { showToast('Erro ao marcar pagamento: ' + error.message, 'error'); return; }
+  showToast('Cobrança marcada como paga.', 'success');
+  carregarFinanceiroEscritorio();
 }
 
 async function alterarStatus(escritorioId, novoStatus) {
