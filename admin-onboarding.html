@@ -226,6 +226,52 @@
         </div>
       </div>
     </div>
+
+    <div class="card">
+      <h2>📢 Informativos</h2>
+      <p style="font-size:12.5px;color:#9DB5D0;margin-bottom:14px">Avisos que aparecem dentro do sistema, para todos os escritórios ou para um específico.</p>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>Título</label>
+          <input type="text" id="info-titulo" placeholder="Ex: Manutenção programada">
+        </div>
+        <div class="form-group">
+          <label>Tipo</label>
+          <select id="info-tipo">
+            <option value="normal">📢 Aviso</option>
+            <option value="urgente">⚠️ Urgente</option>
+            <option value="atualizacao">🆕 Atualização</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Mensagem</label>
+        <textarea id="info-corpo" placeholder="Descreva o aviso..." style="width:100%;min-height:80px;padding:9px 12px;border-radius:8px;border:1.5px solid #2A4D6E;background:#0F1E2E;color:#E8F0F8;font-size:13.5px;outline:none;font-family:inherit;resize:vertical"></textarea>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Destinatário</label>
+          <select id="info-destinatario">
+            <option value="">Todos os escritórios</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Válido até (opcional)</label>
+          <input type="date" id="info-valido-até">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Anexo (opcional — imagem ou PDF)</label>
+        <input type="file" id="info-anexo" accept="image/*,.pdf">
+      </div>
+      <button class="btn-primary" id="btn-publicar-informativo" onclick="publicarInformativo()">Publicar Informativo</button>
+
+      <h4 style="font-size:13px;color:#9DB5D0;margin:22px 0 10px;text-transform:uppercase;letter-spacing:0.5px">Informativos publicados</h4>
+      <div id="lista-informativos-admin">
+        <p style="font-size:12.5px;color:#9DB5D0">Carregando...</p>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -340,6 +386,7 @@ async function fazerLogin() {
   document.getElementById('tela-painel').style.display = 'block';
   carregarEscritorios();
   iniciarBlocoGithub();
+  carregarListaInformativosAdmin();
 }
 
 async function sair() {
@@ -441,6 +488,16 @@ async function carregarEscritorios() {
       '<td><button class="btn-financeiro" onclick="abrirModalFinanceiro(\'' + e.id + '\', \'' + nomeEscapado + '\')">💰 Financeiro</button><button class="btn-excluir" onclick="abrirModalExcluir(\'' + e.id + '\', \'' + nomeEscapado + '\')">🗑 Excluir</button></td>' +
     '</tr>';
   }).join('');
+
+  // Popula o select de destinatário do formulário de Informativos, mantendo
+  // a seleção atual (se houver) para não perder o que o usuário já escolheu.
+  const selectDest = document.getElementById('info-destinatario');
+  if(selectDest) {
+    const valorAtual = selectDest.value;
+    selectDest.innerHTML = '<option value="">Todos os escritórios</option>' +
+      data.map(function(e) { return '<option value="' + e.id + '">' + e.nome + '</option>'; }).join('');
+    selectDest.value = valorAtual;
+  }
 }
 
 let _escritorioParaExcluir = null;
@@ -775,6 +832,104 @@ async function restaurarVersao(sha, descricaoVersao) {
   }
 }
 
+// ==================== INFORMATIVOS ====================
+
+const INFO_TIPO_LABEL = { normal: '📢 Aviso', urgente: '⚠️ Urgente', atualizacao: '🆕 Atualização' };
+
+async function publicarInformativo() {
+  const titulo = document.getElementById('info-titulo').value.trim();
+  const tipo = document.getElementById('info-tipo').value;
+  const corpo = document.getElementById('info-corpo').value.trim();
+  const escritorioId = document.getElementById('info-destinatario').value || null;
+  const validoAte = document.getElementById('info-valido-até').value || null;
+  const arquivoInput = document.getElementById('info-anexo');
+
+  if(!titulo) { showToast('Informe um título.', 'error'); return; }
+
+  const btn = document.getElementById('btn-publicar-informativo');
+  btn.disabled = true; btn.textContent = 'Publicando...';
+
+  try {
+    const supabase = getSB();
+    let anexoPath = null;
+    let anexoNome = null;
+
+    if(arquivoInput.files.length) {
+      const arquivo = arquivoInput.files[0];
+      const nomeSeguro = arquivo.name.replace(/[^a-zA-Z0-9.\-_]/g, '_');
+      const path = Date.now() + '_' + nomeSeguro;
+      const { error: erroUpload } = await supabase.storage.from('informativos').upload(path, arquivo);
+      if(erroUpload) { showToast('Erro ao enviar anexo: ' + erroUpload.message, 'error'); return; }
+      anexoPath = path;
+      anexoNome = arquivo.name;
+    }
+
+    const { error } = await supabase.from('informativos').insert({
+      titulo, corpo: corpo || null, tipo,
+      escritorio_id: escritorioId,
+      anexo_path: anexoPath, anexo_nome: anexoNome,
+      "valido_até": validoAte
+    });
+
+    if(error) { showToast('Erro ao publicar: ' + error.message, 'error'); return; }
+
+    showToast('✅ Informativo publicado!', 'success');
+    document.getElementById('info-titulo').value = '';
+    document.getElementById('info-corpo').value = '';
+    document.getElementById('info-destinatario').value = '';
+    document.getElementById('info-valido-até').value = '';
+    arquivoInput.value = '';
+    carregarListaInformativosAdmin();
+  } catch(e) {
+    showToast('Erro: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Publicar Informativo';
+  }
+}
+
+async function carregarListaInformativosAdmin() {
+  const lista = document.getElementById('lista-informativos-admin');
+  if(!lista) return;
+  lista.innerHTML = '<p style="font-size:12.5px;color:#9DB5D0">Carregando...</p>';
+
+  const supabase = getSB();
+  const { data, error } = await supabase
+    .from('informativos')
+    .select('id, titulo, tipo, escritorio_id, valido_até, criado_em, escritorios(nome)')
+    .order('criado_em', { ascending: false });
+
+  if(error) {
+    lista.innerHTML = '<p style="font-size:12.5px;color:#FCA5A5">Erro: ' + error.message + '</p>';
+    return;
+  }
+  if(!data || !data.length) {
+    lista.innerHTML = '<p style="font-size:12.5px;color:#9DB5D0">Nenhum informativo publicado ainda.</p>';
+    return;
+  }
+
+  lista.innerHTML = data.map(function(i) {
+    const data_ = new Date(i.criado_em).toLocaleDateString('pt-BR');
+    const destino = i.escritorio_id ? (i.escritorios ? i.escritorios.nome : 'escritório específico') : 'Todos os escritórios';
+    const validade = i.valido_até ? ' · válido até ' + new Date(i.valido_até + 'T12:00:00').toLocaleDateString('pt-BR') : '';
+    return '<div class="versao-item">' +
+      '<div class="versao-info">' +
+        '<div class="versao-msg">' + (INFO_TIPO_LABEL[i.tipo] || i.tipo) + ' — ' + i.titulo + '</div>' +
+        '<div class="versao-meta">' + data_ + ' · ' + destino + validade + '</div>' +
+      '</div>' +
+      '<button class="btn-excluir" onclick="excluirInformativoAdmin(\'' + i.id + '\')">🗑 Excluir</button>' +
+    '</div>';
+  }).join('');
+}
+
+async function excluirInformativoAdmin(id) {
+  if(!confirm('Excluir este informativo? Ele deixará de aparecer para os escritórios.')) return;
+  const supabase = getSB();
+  const { error } = await supabase.from('informativos').delete().eq('id', id);
+  if(error) { showToast('Erro ao excluir: ' + error.message, 'error'); return; }
+  showToast('Informativo excluído.', 'success');
+  carregarListaInformativosAdmin();
+}
+
 (async function() {
   const supabase = getSB();
   const { data } = await supabase.auth.getSession();
@@ -786,6 +941,7 @@ async function restaurarVersao(sha, descricaoVersao) {
       document.getElementById('tela-painel').style.display = 'block';
       carregarEscritorios();
       iniciarBlocoGithub();
+      carregarListaInformativosAdmin();
     }
   }
 })();
