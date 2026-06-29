@@ -99,6 +99,16 @@
   .cobranca-status.cancelado { background:#1f2937; color:#9ca3af; }
   .btn-marcar-pago { background:#0B7B45; border:none; color:white; padding:4px 10px; border-radius:6px; font-size:11px; cursor:pointer; }
   table.tabela-cobrancas td, table.tabela-cobrancas th { padding:7px 8px; }
+
+  .versao-item { background:#0F1E2E; border:1px solid #2A4D6E; border-radius:8px; padding:12px 16px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center; gap:12px; }
+  .versao-item.atual { border-color:#0B7B45; }
+  .versao-info { flex:1; min-width:0; }
+  .versao-msg { font-size:13.5px; font-weight:500; margin-bottom:3px; word-break:break-word; }
+  .versao-meta { font-size:11.5px; color:#9DB5D0; }
+  .badge-atual { background:#0A2E1C; color:#6FCF97; font-size:10.5px; padding:2px 8px; border-radius:10px; font-weight:600; margin-left:8px; }
+  .btn-restaurar { background:none; border:1px solid #5A87B8; color:#9DB5D0; padding:6px 14px; border-radius:6px; font-size:12px; cursor:pointer; white-space:nowrap; }
+  .btn-restaurar:hover { background:#0F1E2E; color:#E8F0F8; }
+  .btn-restaurar:disabled { opacity:0.4; cursor:default; }
 </style>
 </head>
 <body>
@@ -171,6 +181,49 @@
             <tr><td colspan="5" style="text-align:center;color:#9DB5D0;padding:20px">Carregando...</td></tr>
           </tbody>
         </table>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>🗂️ Versões do Sistema (erp_advocaticio)</h2>
+      <div id="github-token-bloco">
+        <p style="font-size:12.5px;color:#9DB5D0;margin-bottom:10px">
+          Cole seu token de acesso do GitHub para gerenciar versões do sistema direto por aqui.
+          O token fica salvo só neste navegador, nunca é enviado a nenhum outro lugar além do GitHub.
+        </p>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Token do GitHub</label>
+            <input type="password" id="github-token-input" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx">
+          </div>
+          <div class="form-group">
+            <label>Repositório (usuário/nome)</label>
+            <input type="text" id="github-repo-input" placeholder="renansoares-dotcom/erp_advocaticio" value="renansoares-dotcom/erp_advocaticio">
+          </div>
+        </div>
+        <button class="btn-primary" onclick="salvarTokenGithub()">Salvar Token</button>
+        <span id="github-token-status" style="font-size:12px;margin-left:10px;color:#9DB5D0"></span>
+      </div>
+
+      <div id="github-versoes-bloco" style="display:none;margin-top:18px">
+        <h4 style="font-size:13px;color:#9DB5D0;margin-bottom:10px;text-transform:uppercase;letter-spacing:0.5px">Publicar nova versão</h4>
+        <p style="font-size:12.5px;color:#9DB5D0;margin-bottom:10px">
+          Selecione o novo arquivo erp_advocaticio.html e descreva o que mudou — isso fica registrado no histórico.
+        </p>
+        <div class="form-group">
+          <label>Arquivo (.html)</label>
+          <input type="file" id="github-arquivo-input" accept=".html">
+        </div>
+        <div class="form-group">
+          <label>Observação desta versão</label>
+          <input type="text" id="github-observacao-input" placeholder="Ex: adicionei busca por tags">
+        </div>
+        <button class="btn-primary" id="btn-publicar-versao" onclick="publicarNovaVersao()">Publicar Nova Versão</button>
+
+        <h4 style="font-size:13px;color:#9DB5D0;margin:22px 0 10px;text-transform:uppercase;letter-spacing:0.5px">Histórico de versões</h4>
+        <div id="github-historico-lista">
+          <p style="font-size:12.5px;color:#9DB5D0">Carregando...</p>
+        </div>
       </div>
     </div>
   </div>
@@ -286,6 +339,7 @@ async function fazerLogin() {
   document.getElementById('tela-login').style.display = 'none';
   document.getElementById('tela-painel').style.display = 'block';
   carregarEscritorios();
+  iniciarBlocoGithub();
 }
 
 async function sair() {
@@ -541,6 +595,186 @@ async function alterarStatus(escritorioId, novoStatus) {
   showToast('Status atualizado.', 'success');
 }
 
+// ==================== VERSÕES DO SISTEMA (integração com GitHub) ====================
+// O token de acesso pessoal do GitHub fica salvo só no localStorage deste
+// navegador — nunca é enviado a nenhum servidor além da própria API do
+// GitHub. Usado para: 1) listar o histórico de commits do arquivo
+// index.html, 2) publicar uma nova versão, 3) restaurar uma versão antiga.
+const GH_TOKEN_KEY = 'admin_gh_token';
+const GH_REPO_KEY = 'admin_gh_repo';
+const GH_ARQUIVO = 'index.html'; // arquivo do sistema principal no repositório
+
+function getGithubToken() { return localStorage.getItem(GH_TOKEN_KEY) || ''; }
+function getGithubRepo() { return localStorage.getItem(GH_REPO_KEY) || ''; }
+
+function salvarTokenGithub() {
+  const token = document.getElementById('github-token-input').value.trim();
+  const repo = document.getElementById('github-repo-input').value.trim();
+  if(!token || !repo) { showToast('Preencha o token e o repositório.', 'error'); return; }
+  if(!/^[^\/]+\/[^\/]+$/.test(repo)) { showToast('Repositório deve estar no formato usuario/nome-do-repo.', 'error'); return; }
+  localStorage.setItem(GH_TOKEN_KEY, token);
+  localStorage.setItem(GH_REPO_KEY, repo);
+  document.getElementById('github-token-status').textContent = '✅ Token salvo neste navegador.';
+  mostrarBlocoVersoes();
+}
+
+function mostrarBlocoVersoes() {
+  if(!getGithubToken() || !getGithubRepo()) return;
+  document.getElementById('github-versoes-bloco').style.display = 'block';
+  carregarHistoricoVersoes();
+}
+
+// Chamado ao logar — se já houver token salvo de uma sessão anterior,
+// mostra o bloco de versões direto, sem precisar colar o token de novo.
+function iniciarBlocoGithub() {
+  const token = getGithubToken();
+  const repo = getGithubRepo();
+  if(token) document.getElementById('github-token-input').value = token;
+  if(repo) document.getElementById('github-repo-input').value = repo;
+  if(token && repo) mostrarBlocoVersoes();
+}
+
+async function githubFetch(path, opts) {
+  const token = getGithubToken();
+  const repo = getGithubRepo();
+  const resp = await fetch('https://api.github.com/repos/' + repo + path, Object.assign({
+    headers: {
+      'Authorization': 'Bearer ' + token,
+      'Accept': 'application/vnd.github+json'
+    }
+  }, opts || {}));
+  return resp;
+}
+
+async function carregarHistoricoVersoes() {
+  const lista = document.getElementById('github-historico-lista');
+  lista.innerHTML = '<p style="font-size:12.5px;color:#9DB5D0">Carregando...</p>';
+
+  try {
+    const resp = await githubFetch('/commits?path=' + GH_ARQUIVO + '&per_page=15');
+    if(!resp.ok) {
+      const erro = await resp.json().catch(function(){ return {}; });
+      lista.innerHTML = '<p style="font-size:12.5px;color:#FCA5A5">Erro ao carregar histórico: ' + (erro.message || resp.statusText) + '</p>';
+      return;
+    }
+    const commits = await resp.json();
+    if(!commits.length) {
+      lista.innerHTML = '<p style="font-size:12.5px;color:#9DB5D0">Nenhum histórico encontrado para este arquivo.</p>';
+      return;
+    }
+
+    lista.innerHTML = commits.map(function(c, idx) {
+      const data = new Date(c.commit.author.date).toLocaleString('pt-BR');
+      const msg = c.commit.message.split('\n')[0]; // só a primeira linha (a observação)
+      const autor = c.commit.author.name || '';
+      const ehAtual = idx === 0;
+      return '<div class="versao-item' + (ehAtual ? ' atual' : '') + '">' +
+        '<div class="versao-info">' +
+          '<div class="versao-msg">' + msg + (ehAtual ? '<span class="badge-atual">Versão atual</span>' : '') + '</div>' +
+          '<div class="versao-meta">' + data + ' · ' + autor + ' · ' + c.sha.slice(0,7) + '</div>' +
+        '</div>' +
+        (ehAtual ? '' : '<button class="btn-restaurar" onclick="restaurarVersao(\'' + c.sha + '\', \'' + msg.replace(/'/g, "\\'") + '\')">↩ Restaurar esta versão</button>') +
+      '</div>';
+    }).join('');
+  } catch(e) {
+    lista.innerHTML = '<p style="font-size:12.5px;color:#FCA5A5">Erro de conexão: ' + e.message + '</p>';
+  }
+}
+
+async function publicarNovaVersao() {
+  const arquivoInput = document.getElementById('github-arquivo-input');
+  const observacao = document.getElementById('github-observacao-input').value.trim();
+  if(!arquivoInput.files.length) { showToast('Selecione o arquivo .html primeiro.', 'error'); return; }
+  if(!observacao) { showToast('Descreva o que mudou nesta versão.', 'error'); return; }
+
+  const btn = document.getElementById('btn-publicar-versao');
+  btn.disabled = true; btn.textContent = 'Publicando...';
+
+  try {
+    const arquivo = arquivoInput.files[0];
+    const conteudoTexto = await arquivo.text();
+    // GitHub exige o conteúdo em base64. TextEncoder lida corretamente com
+    // acentos/emojis (btoa puro quebra com caracteres fora do ASCII).
+    const bytes = new TextEncoder().encode(conteudoTexto);
+    let binario = '';
+    bytes.forEach(function(b) { binario += String.fromCharCode(b); });
+    const conteudoBase64 = btoa(binario);
+
+    // Precisa do SHA do arquivo atual para o GitHub aceitar a atualização
+    const respAtual = await githubFetch('/contents/' + GH_ARQUIVO);
+    if(!respAtual.ok) { showToast('Erro ao obter versão atual do arquivo.', 'error'); return; }
+    const atual = await respAtual.json();
+
+    const respPublicar = await githubFetch('/contents/' + GH_ARQUIVO, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        message: observacao,
+        content: conteudoBase64,
+        sha: atual.sha
+      })
+    });
+
+    if(!respPublicar.ok) {
+      const erro = await respPublicar.json().catch(function(){ return {}; });
+      showToast('Erro ao publicar: ' + (erro.message || respPublicar.statusText), 'error');
+      return;
+    }
+
+    showToast('✅ Nova versão publicada com sucesso!', 'success');
+    arquivoInput.value = '';
+    document.getElementById('github-observacao-input').value = '';
+    carregarHistoricoVersoes();
+  } catch(e) {
+    showToast('Erro: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Publicar Nova Versão';
+  }
+}
+
+async function restaurarVersao(sha, descricaoVersao) {
+  if(!confirm('Restaurar a versão "' + descricaoVersao + '"?\n\nIsso vai sobrescrever o sistema atual com este conteúdo antigo. A versão atual continuará no histórico, então isso também pode ser desfeito depois.')) return;
+
+  try {
+    showToast('Restaurando versão...', '');
+    // Busca o conteúdo do arquivo exatamente como estava naquele commit
+    const respConteudo = await githubFetch('/contents/' + GH_ARQUIVO + '?ref=' + sha);
+    if(!respConteudo.ok) { showToast('Erro ao buscar conteúdo da versão antiga.', 'error'); return; }
+    const dadosAntigos = await respConteudo.json();
+    // dadosAntigos.content já vem em base64 (com quebras de linha) — decodifica corretamente
+    const conteudoDecodificado = decodeURIComponent(escape(atob(dadosAntigos.content.replace(/\n/g, ''))));
+    const bytes = new TextEncoder().encode(conteudoDecodificado);
+    let binario = '';
+    bytes.forEach(function(b) { binario += String.fromCharCode(b); });
+    const conteudoBase64 = btoa(binario);
+
+    // SHA atual (do HEAD), necessário para o PUT aceitar a sobrescrita
+    const respAtual = await githubFetch('/contents/' + GH_ARQUIVO);
+    const atual = await respAtual.json();
+
+    const respPublicar = await githubFetch('/contents/' + GH_ARQUIVO, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        message: 'Restaurado: ' + descricaoVersao,
+        content: conteudoBase64,
+        sha: atual.sha
+      })
+    });
+
+    if(!respPublicar.ok) {
+      const erro = await respPublicar.json().catch(function(){ return {}; });
+      showToast('Erro ao restaurar: ' + (erro.message || respPublicar.statusText), 'error');
+      return;
+    }
+
+    showToast('✅ Versão restaurada com sucesso!', 'success');
+    carregarHistoricoVersoes();
+  } catch(e) {
+    showToast('Erro: ' + e.message, 'error');
+  }
+}
+
 (async function() {
   const supabase = getSB();
   const { data } = await supabase.auth.getSession();
@@ -551,6 +785,7 @@ async function alterarStatus(escritorioId, novoStatus) {
       document.getElementById('tela-login').style.display = 'none';
       document.getElementById('tela-painel').style.display = 'block';
       carregarEscritorios();
+      iniciarBlocoGithub();
     }
   }
 })();
