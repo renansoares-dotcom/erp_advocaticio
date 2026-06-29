@@ -1036,6 +1036,10 @@ body.topbar-escura .notif-btn:hover { background: rgba(255,255,255,0.2); border-
     </div>
     <div class="nav-section">
       <span class="nav-label">Sistema</span>
+      <button class="nav-item" onclick="navigate('informativos',this)">
+        <span class="icon">📢</span> Informativos
+        <span class="notif-badge" id="informativos-badge" style="display:none"></span>
+      </button>
       <button class="nav-item" onclick="navigate('opcoes',this)">
         <span class="icon">⚙️</span> Opções
       </button>
@@ -1977,6 +1981,17 @@ body.topbar-escura .notif-btn:hover { background: rgba(255,255,255,0.2); border-
                 <tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:28px">Sem dados para exibir.</td></tr>
               </tbody>
             </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========== INFORMATIVOS ========== -->
+    <div class="page" id="page-informativos">
+      <div class="card">
+        <div class="card-body">
+          <div id="informativos-lista">
+            <div style="text-align:center;color:var(--text-muted);padding:40px">Carregando...</div>
           </div>
         </div>
       </div>
@@ -4786,6 +4801,62 @@ function exitoParaBanco(e, escritorioId) {
   };
 }
 
+// ==================== INFORMATIVOS (mural de avisos do admin) ====================
+
+function informativoDoBanco(row, lidoPorMim) {
+  return {
+    id: row.id,
+    titulo: row.titulo,
+    corpo: row.corpo || '',
+    tipo: row.tipo || 'normal',
+    escritorioId: row.escritorio_id || null, // null = para todos
+    anexoPath: row.anexo_path || null,
+    anexoNome: row.anexo_nome || '',
+    validoAte: row.valido_até || null,
+    criadoEm: row.criado_em,
+    lido: lidoPorMim
+  };
+}
+
+// Carrega os informativos visíveis para o usuário atual (já filtrados pelo
+// RLS — "para todos" ou destinados ao próprio escritório), e cruza com as
+// próprias marcas de leitura para saber o que já foi visto.
+async function carregarInformativos() {
+  const sb = await getSB();
+  if(!sb) return [];
+  const hoje = today();
+  const { data, error } = await sb
+    .from('informativos')
+    .select('*')
+    .or('valido_até.is.null,valido_até.gte.' + hoje)
+    .order('criado_em', { ascending: false });
+  if(error) { console.warn('Erro ao carregar informativos:', error.message); return []; }
+
+  const { data: lidos } = await sb.from('informativos_lidos').select('informativo_id');
+  const idsLidos = new Set((lidos || []).map(l => l.informativo_id));
+
+  return (data || []).map(row => informativoDoBanco(row, idsLidos.has(row.id)));
+}
+
+async function marcarInformativoLido(id) {
+  const sb = await getSB();
+  if(!sb) return false;
+  const { error } = await sb.from('informativos_lidos').upsert(
+    { informativo_id: id, usuario_id: getSessao().userId },
+    { onConflict: 'informativo_id,usuario_id', ignoreDuplicates: true }
+  );
+  if(error) { console.warn('Erro ao marcar como lido:', error.message); return false; }
+  return true;
+}
+
+async function obterUrlAnexoInformativo(path) {
+  const sb = await getSB();
+  if(!sb) return null;
+  const { data, error } = await sb.storage.from('informativos').createSignedUrl(path, 300);
+  if(error) { showToast('Erro ao abrir anexo: ' + error.message, 'error'); return null; }
+  return data.signedUrl;
+}
+
 async function carregarExitos() {
   const sb = await getSB();
   const escritorioId = getEscritorioId();
@@ -5567,6 +5638,7 @@ function normalizarStore() {
   if(!store.partes)      store.partes      = {};
   if(!store.contatos)    store.contatos    = {};
   if(!store.tags)            store.tags            = [];
+  if(!store.informativos)    store.informativos    = [];
   if(!store.clientesTags)    store.clientesTags    = {};
   if(!store.processosTags)   store.processosTags   = {};
   // Identidade Visual (cores + logo customizável)
@@ -5912,11 +5984,11 @@ let procTabFilter = 'todos';
 const pageTitles = {
   dashboard: 'Dashboard', tipos: 'Tipos de Processo', clientes: 'Clientes',
   processos: 'Processos', orcamentos: 'Orçamentos', agenda: 'Agenda', financeiro: 'Recebimentos',
-  despesas: 'Despesas', relatorios: 'Relatórios', opcoes: 'Opções'
+  despesas: 'Despesas', relatorios: 'Relatórios', informativos: 'Informativos', opcoes: 'Opções'
 };
 const pageActions = {
   dashboard: '', tipos: '', clientes: '', processos: '',
-  orcamentos: '', agenda: '', financeiro: '', despesas: '', relatorios: '⬇ Exportar', opcoes: ''
+  orcamentos: '', agenda: '', financeiro: '', despesas: '', relatorios: '⬇ Exportar', informativos: '', opcoes: ''
 };
 
 function navigate(page, btn) {
@@ -5982,6 +6054,7 @@ function refreshPage(page) {
   else if(page === 'financeiro') { renderParcelas(); renderFinVisao(); updateParcelasSelect(); }
   else if(page === 'despesas') renderDespesas();
   else if(page === 'relatorios') { gerarRelatorio(); renderConversao(); renderInadimplencia(); renderExito(); renderTaxaExito(); renderDuracao(); renderCargaTrabalho(); renderRelClientes(); }
+  else if(page === 'informativos') renderInformativos();
   else if(page === 'opcoes') renderOpcoes();
 }
 
@@ -8286,6 +8359,65 @@ function renderProximosEventos() {
       <span style="font-size:10.5px;font-weight:600;padding:2px 8px;border-radius:10px;background:${p.bg};color:${p.cor};flex-shrink:0">${diasFalta===0?'Hoje':diasFalta===1?'Amanhã':diasFalta+'d'}</span>
     </div>`;
   }).join('');
+}
+
+const INFORMATIVO_TIPOS = {
+  normal:      { icon: '📢', cor: '#185FA5', bg: '#E6F1FB', label: 'Aviso' },
+  urgente:     { icon: '⚠️', cor: '#B91C1C', bg: '#FEE2E2', label: 'Urgente' },
+  atualizacao: { icon: '🆕', cor: '#0B7B45', bg: '#E2F5EC', label: 'Atualização' }
+};
+
+async function renderInformativos() {
+  const lista = document.getElementById('informativos-lista');
+  if(!lista) return;
+  lista.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:40px">Carregando...</div>';
+
+  const informativos = await carregarInformativos();
+  store.informativos = informativos;
+  atualizarBadgeInformativos();
+
+  if(!informativos.length) {
+    lista.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:40px">Nenhum informativo no momento.</div>';
+    return;
+  }
+
+  lista.innerHTML = informativos.map(info => {
+    const tipo = INFORMATIVO_TIPOS[info.tipo] || INFORMATIVO_TIPOS.normal;
+    const data = new Date(info.criadoEm).toLocaleDateString('pt-BR', { day:'2-digit', month:'long', year:'numeric' });
+    return `<div style="border:1px solid ${info.lido?'var(--border)':tipo.cor};border-left:4px solid ${tipo.cor};border-radius:var(--radius);padding:16px 18px;margin-bottom:14px;background:${info.lido?'var(--surface)':tipo.bg}">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:8px">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:18px">${tipo.icon}</span>
+          <strong style="font-size:15px">${info.titulo}</strong>
+          <span class="badge" style="background:${tipo.bg};color:${tipo.cor};font-size:10.5px">${tipo.label}</span>
+          ${!info.lido?'<span class="badge badge-blue" style="font-size:10px">Novo</span>':''}
+        </div>
+        <span style="font-size:11.5px;color:var(--text-muted);white-space:nowrap">${data}</span>
+      </div>
+      ${info.corpo?`<div style="font-size:13.5px;color:var(--text-secondary);white-space:pre-wrap;margin-bottom:10px">${info.corpo}</div>`:''}
+      ${info.anexoPath?`<button class="btn btn-outline btn-sm" onclick="abrirAnexoInformativo('${info.anexoPath}')">📎 ${info.anexoNome||'Ver anexo'}</button>`:''}
+      ${!info.lido?`<div style="margin-top:10px"><button class="btn btn-primary btn-sm" onclick="marcarComoLidoUI('${info.id}')">✓ Marcar como lido</button></div>`:''}
+    </div>`;
+  }).join('');
+}
+
+async function marcarComoLidoUI(id) {
+  const ok = await marcarInformativoLido(id);
+  if(!ok) return;
+  const info = (store.informativos||[]).find(i => i.id === id);
+  if(info) info.lido = true;
+  renderInformativos();
+}
+
+async function abrirAnexoInformativo(path) {
+  const url = await obterUrlAnexoInformativo(path);
+  if(url) window.open(url, '_blank');
+}
+
+function atualizarBadgeInformativos() {
+  const naoLidos = (store.informativos||[]).filter(i => !i.lido).length;
+  const badge = document.getElementById('informativos-badge');
+  if(badge) { badge.textContent = naoLidos; badge.style.display = naoLidos ? '' : 'none'; }
 }
 
 function atualizarBadgeAgenda() {
@@ -12092,29 +12224,29 @@ function getEscritorioId() {
 const PERFIS = {
   admin: {
     label: 'Administrador', cor: '#185FA5', bg: '#E6F1FB',
-    paginas: ['dashboard','tipos','clientes','processos','orcamentos','agenda','financeiro','despesas','relatorios','opcoes'],
+    paginas: ['dashboard','tipos','clientes','processos','orcamentos','agenda','financeiro','despesas','relatorios','informativos','opcoes'],
     pode: { editarClientes:true, excluirClientes:true, verFinanceiro:true, gerenciarUsuarios:true, verOpcoes:true, exportarRelatorio:true }
   },
   advogado: {
     label: 'Advogado', cor: '#0B7B45', bg: '#E2F5EC',
-    paginas: ['dashboard','tipos','clientes','processos','orcamentos','agenda','financeiro','despesas','relatorios'],
+    paginas: ['dashboard','tipos','clientes','processos','orcamentos','agenda','financeiro','despesas','relatorios','informativos'],
     pode: { editarClientes:true, excluirClientes:false, verFinanceiro:true, gerenciarUsuarios:false, verOpcoes:false, exportarRelatorio:true }
   },
   financeiro: {
     label: 'Financeiro', cor: '#7C3AED', bg: '#F0E9FE',
-    paginas: ['dashboard','clientes','processos','orcamentos','agenda','financeiro','despesas','relatorios'],
+    paginas: ['dashboard','clientes','processos','orcamentos','agenda','financeiro','despesas','relatorios','informativos'],
     pode: { editarClientes:false, excluirClientes:false, verFinanceiro:true, gerenciarUsuarios:false, verOpcoes:false, exportarRelatorio:true }
   },
   assistente: {
     label: 'Assistente', cor: '#92400E', bg: '#FEF3C7',
-    paginas: ['dashboard','clientes','processos','agenda'],
+    paginas: ['dashboard','clientes','processos','agenda','informativos'],
     pode: { editarClientes:true, excluirClientes:false, verFinanceiro:false, gerenciarUsuarios:false, verOpcoes:false, exportarRelatorio:false }
   },
   // Mantido por compatibilidade com cadastros antigos do sistema local
   // (módulo de Usuários ainda não conectado ao banco real usa este nome).
   secretaria: {
     label: 'Secretária', cor: '#92400E', bg: '#FEF3C7',
-    paginas: ['dashboard','clientes','processos','agenda'],
+    paginas: ['dashboard','clientes','processos','agenda','informativos'],
     pode: { editarClientes:true, excluirClientes:false, verFinanceiro:false, gerenciarUsuarios:false, verOpcoes:false, exportarRelatorio:false }
   }
 };
@@ -12280,6 +12412,11 @@ async function entrarNoSistema() {
   mostrarLoadingDB(true);
   await sbLoad();
   mostrarLoadingDB(false);
+
+  // Carrega informativos só para já exibir o badge de não-lidos no menu,
+  // sem precisar que o usuário abra a página primeiro.
+  store.informativos = await carregarInformativos();
+  atualizarBadgeInformativos();
 
   setTimeout(() => {
     screen.style.display = 'none';
