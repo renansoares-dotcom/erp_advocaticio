@@ -333,6 +333,18 @@
   </div>
 </div>
 
+<div class="modal-overlay" id="modal-leitores">
+  <div class="modal-confirma" style="width:520px;max-height:75vh;overflow-y:auto;border-color:#2A4D6E">
+    <h3 style="color:#E8F0F8">👁 Quem leu — <span id="leitores-titulo-informativo"></span></h3>
+    <div id="leitores-lista" style="margin:14px 0">
+      <p style="font-size:12.5px;color:#9DB5D0">Carregando...</p>
+    </div>
+    <div class="modal-confirma-botoes">
+      <button class="btn-cancelar-modal" onclick="fecharModalLeitores()">Fechar</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -911,11 +923,13 @@ async function carregarListaInformativosAdmin() {
     const data_ = new Date(i.criado_em).toLocaleDateString('pt-BR');
     const destino = i.escritorio_id ? (i.escritorios ? i.escritorios.nome : 'escritório específico') : 'Todos os escritórios';
     const validade = i.valido_até ? ' · válido até ' + new Date(i.valido_até + 'T12:00:00').toLocaleDateString('pt-BR') : '';
+    const tituloEscapado = i.titulo.replace(/'/g, "\\'");
     return '<div class="versao-item">' +
       '<div class="versao-info">' +
         '<div class="versao-msg">' + (INFO_TIPO_LABEL[i.tipo] || i.tipo) + ' — ' + i.titulo + '</div>' +
         '<div class="versao-meta">' + data_ + ' · ' + destino + validade + '</div>' +
       '</div>' +
+      '<button class="btn-financeiro" onclick="abrirModalLeitores(\'' + i.id + '\', \'' + tituloEscapado + '\')">👁 Ver leitores</button>' +
       '<button class="btn-excluir" onclick="excluirInformativoAdmin(\'' + i.id + '\')">🗑 Excluir</button>' +
     '</div>';
   }).join('');
@@ -928,6 +942,49 @@ async function excluirInformativoAdmin(id) {
   if(error) { showToast('Erro ao excluir: ' + error.message, 'error'); return; }
   showToast('Informativo excluído.', 'success');
   carregarListaInformativosAdmin();
+}
+
+function abrirModalLeitores(informativoId, titulo) {
+  document.getElementById('leitores-titulo-informativo').textContent = titulo;
+  document.getElementById('modal-leitores').classList.add('aberto');
+  carregarLeitoresInformativo(informativoId);
+}
+
+function fecharModalLeitores() {
+  document.getElementById('modal-leitores').classList.remove('aberto');
+}
+
+async function carregarLeitoresInformativo(informativoId) {
+  const lista = document.getElementById('leitores-lista');
+  lista.innerHTML = '<p style="font-size:12.5px;color:#9DB5D0">Carregando...</p>';
+
+  const supabase = getSB();
+  const { data, error } = await supabase.rpc('listar_leitores_informativo', { p_informativo_id: informativoId });
+
+  if(error) {
+    lista.innerHTML = '<p style="font-size:12.5px;color:#FCA5A5">Erro: ' + error.message + '</p>';
+    return;
+  }
+  if(!data || !data.length) {
+    lista.innerHTML = '<p style="font-size:12.5px;color:#9DB5D0">Ainda ninguém leu este informativo.</p>';
+    return;
+  }
+
+  lista.innerHTML = '<table style="width:100%;border-collapse:collapse;font-size:13px">' +
+    '<thead><tr>' +
+      '<th style="text-align:left;padding:6px;color:#9DB5D0;font-size:11px;text-transform:uppercase">Escritório</th>' +
+      '<th style="text-align:left;padding:6px;color:#9DB5D0;font-size:11px;text-transform:uppercase">Pessoa</th>' +
+      '<th style="text-align:left;padding:6px;color:#9DB5D0;font-size:11px;text-transform:uppercase">Lido em</th>' +
+    '</tr></thead><tbody>' +
+    data.map(function(l) {
+      const lidoEm = new Date(l.lido_em).toLocaleString('pt-BR');
+      return '<tr style="border-top:1px solid #16243a">' +
+        '<td style="padding:7px 6px">' + l.escritorio_nome + '</td>' +
+        '<td style="padding:7px 6px"><strong>' + l.usuario_nome + '</strong><br><span style="font-size:11px;color:#9DB5D0">' + l.usuario_email + '</span></td>' +
+        '<td style="padding:7px 6px;font-size:12px;color:#9DB5D0">' + lidoEm + '</td>' +
+      '</tr>';
+    }).join('') +
+    '</tbody></table>';
 }
 
 (async function() {
