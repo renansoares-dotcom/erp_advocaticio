@@ -1035,6 +1035,9 @@ body.topbar-escura .notif-btn:hover { background: rgba(255,255,255,0.2); border-
         <button class="nav-item" onclick="navigate('clientes',this)">
           <span class="icon">👤</span> Clientes
         </button>
+        <button class="nav-item" onclick="navigate('historico-contatos',this)">
+          <span class="icon">📞</span> Histórico de Contatos
+        </button>
       </div>
     </div>
     <div class="nav-section" data-cat="operacional">
@@ -2031,6 +2034,26 @@ body.topbar-escura .notif-btn:hover { background: rgba(255,255,255,0.2); border-
       </div>
     </div>
 
+    <!-- ========== HISTÓRICO DE CONTATOS (por cliente) ========== -->
+    <div class="page" id="page-historico-contatos">
+      <div class="card">
+        <div class="card-body">
+          <div class="form-row" style="margin-bottom:18px">
+            <div class="form-group" style="max-width:340px">
+              <label class="form-label">Cliente</label>
+              <select class="form-control" id="hc-select-cliente" onchange="renderListaContatosCliente()"></select>
+            </div>
+            <div class="form-group" style="flex:0 0 auto;align-self:flex-end">
+              <button class="btn btn-primary" id="hc-btn-novo" onclick="abrirModalNovoContatoCliente()" style="display:none">+ Registrar Contato</button>
+            </div>
+          </div>
+          <div id="hc-lista-contatos">
+            <div style="text-align:center;color:var(--text-muted);padding:40px">Selecione um cliente para ver o histórico de contatos.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- ========== KANBAN ========== -->
     <div class="page" id="page-kanban">
       <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap">
@@ -2820,6 +2843,59 @@ body.topbar-escura .notif-btn:hover { background: rgba(255,255,255,0.2); border-
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="voltarParaDetalhe('modal-contato')">← Voltar</button>
       <button class="btn btn-primary" onclick="salvarContato()">💾 Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL CONTATO DE CLIENTE (Histórico de Contatos) -->
+<div class="modal-overlay" id="modal-contato-cliente">
+  <div class="modal" style="width:460px">
+    <div class="modal-header">
+      <span class="modal-title" id="modal-contato-cliente-title">📞 Registrar Contato</span>
+      <button class="btn btn-ghost btn-icon" onclick="closeModal('modal-contato-cliente')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="cc-cliente-id">
+      <input type="hidden" id="cc-edit-id">
+      <div class="form-group">
+        <label class="form-label">Processo relacionado (opcional)</label>
+        <select class="form-control" id="cc-processo"></select>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Tipo *</label>
+          <select class="form-control" id="cc-tipo">
+            <option value="ligacao">📞 Ligação</option>
+            <option value="reuniao">🤝 Reunião</option>
+            <option value="email">📧 E-mail</option>
+            <option value="whatsapp">💬 WhatsApp</option>
+            <option value="presencial">🏢 Visita Presencial</option>
+            <option value="outro">📌 Outro</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Data *</label>
+          <input type="date" class="form-control" id="cc-data">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group" style="margin-bottom:0">
+          <label class="form-label">Com quem</label>
+          <input type="text" class="form-control" id="cc-pessoa" placeholder="Nome do cliente ou contato">
+        </div>
+        <div class="form-group" style="margin-bottom:0">
+          <label class="form-label">Duração</label>
+          <input type="text" class="form-control" id="cc-duracao" placeholder="Ex: 30 min">
+        </div>
+      </div>
+      <div class="form-group" style="margin-top:12px;margin-bottom:0">
+        <label class="form-label">Resumo / Observações *</label>
+        <textarea class="form-control" id="cc-obs" rows="3" placeholder="Descreva o assunto tratado, decisões tomadas, próximos passos..."></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal-contato-cliente')">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarContatoCliente()">💾 Salvar</button>
     </div>
   </div>
 </div>
@@ -5383,6 +5459,156 @@ async function excluirContatoProcessoDoBanco(id) {
   return true;
 }
 
+// ---- Histórico de contatos por CLIENTE (consolida contatos vinculados
+// diretamente ao cliente + contatos de todos os processos dele) ----
+function contatoClienteDoBanco(row) {
+  return {
+    id: row.id, tipo: row.tipo, data: row.data_contato, pessoa: row.pessoa || '',
+    duracao: row.duracao || '', obs: row.observacoes,
+    clienteId: row.cliente_id || null, processoId: row.processo_id || null,
+    processoNumero: row.processos ? row.processos.numero : null
+  };
+}
+async function carregarContatosDoCliente(clienteId) {
+  const sb = await getSB();
+  const escritorioId = getEscritorioId();
+  if(!sb || !escritorioId) return [];
+  // Busca contatos vinculados diretamente ao cliente OU a qualquer processo
+  // que pertença a esse cliente — junta as duas origens numa lista só.
+  const idsProcessos = store.processos.filter(p => p.clienteId === clienteId).map(p => p.id);
+  let query = sb.from('contatos_processo').select('*, processos(numero)').eq('escritorio_id', escritorioId);
+  if(idsProcessos.length) {
+    query = query.or(`cliente_id.eq.${clienteId},processo_id.in.(${idsProcessos.join(',')})`);
+  } else {
+    query = query.eq('cliente_id', clienteId);
+  }
+  const { data, error } = await query.order('data_contato', { ascending: false });
+  if(error) { console.warn('Erro ao carregar contatos do cliente:', error.message); return []; }
+  return (data || []).map(contatoClienteDoBanco);
+}
+async function salvarContatoClienteNoBanco(clienteId, processoId, dados, editId) {
+  const sb = await getSB();
+  const escritorioId = getEscritorioId();
+  if(!sb || !escritorioId) { showToast('Sem conexão com o banco.', 'error'); return null; }
+  const payload = { tipo: dados.tipo, data_contato: dados.data || today(), pessoa: dados.pessoa || null, duracao: dados.duracao || null, observacoes: dados.obs };
+
+  if(editId) {
+    const { data, error } = await sb.from('contatos_processo').update(payload).eq('id', editId).eq('escritorio_id', escritorioId).select('*, processos(numero)').single();
+    if(error) { showToast('Erro ao atualizar contato: ' + error.message, 'error'); return null; }
+    return contatoClienteDoBanco(data);
+  } else {
+    const { data, error } = await sb.from('contatos_processo').insert({
+      ...payload, escritorio_id: escritorioId, cliente_id: clienteId, processo_id: processoId || null
+    }).select('*, processos(numero)').single();
+    if(error) { showToast('Erro ao registrar contato: ' + error.message, 'error'); return null; }
+    return contatoClienteDoBanco(data);
+  }
+}
+
+// ==================== UI: HISTÓRICO DE CONTATOS (por cliente) ====================
+
+let _hcContatosCache = []; // contatos do cliente atualmente selecionado
+
+function renderHistoricoContatos() {
+  const sel = document.getElementById('hc-select-cliente');
+  const valorAtual = sel.value;
+  sel.innerHTML = '<option value="">— Selecione um cliente —</option>' +
+    store.clientes.slice().sort((a,b) => a.nome.localeCompare(b.nome)).map(c => `<option value="${c.id}">${c.nome}</option>`).join('');
+  sel.value = valorAtual;
+  renderListaContatosCliente();
+}
+
+async function renderListaContatosCliente() {
+  const clienteId = document.getElementById('hc-select-cliente').value;
+  const lista = document.getElementById('hc-lista-contatos');
+  const btnNovo = document.getElementById('hc-btn-novo');
+
+  if(!clienteId) {
+    btnNovo.style.display = 'none';
+    lista.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:40px">Selecione um cliente para ver o histórico de contatos.</div>';
+    return;
+  }
+
+  btnNovo.style.display = '';
+  lista.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:30px">Carregando...</div>';
+
+  _hcContatosCache = await carregarContatosDoCliente(clienteId);
+
+  if(!_hcContatosCache.length) {
+    lista.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:30px">Nenhum contato registrado ainda com este cliente.</div>';
+    return;
+  }
+
+  const ICONES = { ligacao:'📞', reuniao:'🤝', email:'📧', whatsapp:'💬', presencial:'🏢', outro:'📌' };
+  lista.innerHTML = _hcContatosCache.map(c => {
+    const data = new Date(c.data + 'T12:00:00').toLocaleDateString('pt-BR');
+    return `<div style="border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:6px">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <span style="font-size:16px">${ICONES[c.tipo]||'📌'}</span>
+          <strong style="font-size:13.5px">${data}</strong>
+          ${c.pessoa?`<span style="font-size:12px;color:var(--text-muted)">com ${c.pessoa}</span>`:''}
+          ${c.duracao?`<span style="font-size:11px;color:var(--text-muted)">· ${c.duracao}</span>`:''}
+          ${c.processoNumero?`<span class="badge" style="background:var(--blue-50);color:var(--blue-600);font-size:10.5px">⚖️ ${c.processoNumero}</span>`:''}
+        </div>
+        <button onclick="excluirContatoClienteUI('${c.id}')" style="background:none;border:none;cursor:pointer;color:var(--danger);font-size:12px">🗑</button>
+      </div>
+      <div style="font-size:13px;color:var(--text-secondary);white-space:pre-wrap">${c.obs}</div>
+    </div>`;
+  }).join('');
+}
+
+function abrirModalNovoContatoCliente() {
+  const clienteId = document.getElementById('hc-select-cliente').value;
+  if(!clienteId) return;
+  document.getElementById('cc-cliente-id').value = clienteId;
+  document.getElementById('cc-edit-id').value = '';
+  document.getElementById('cc-tipo').value = 'ligacao';
+  document.getElementById('cc-data').value = today();
+  document.getElementById('cc-pessoa').value = '';
+  document.getElementById('cc-duracao').value = '';
+  document.getElementById('cc-obs').value = '';
+  document.getElementById('modal-contato-cliente-title').textContent = '📞 Registrar Contato';
+
+  const selProcesso = document.getElementById('cc-processo');
+  const processosDoCliente = store.processos.filter(p => p.clienteId === clienteId);
+  selProcesso.innerHTML = '<option value="">— Nenhum (contato geral) —</option>' +
+    processosDoCliente.map(p => `<option value="${p.id}">${p.numero}</option>`).join('');
+
+  openModal('modal-contato-cliente', false);
+}
+
+async function salvarContatoCliente() {
+  const clienteId = document.getElementById('cc-cliente-id').value;
+  const editId = document.getElementById('cc-edit-id').value;
+  const processoId = document.getElementById('cc-processo').value || null;
+  const obs = document.getElementById('cc-obs').value.trim();
+  if(!obs) { showToast('Descreva o assunto do contato.', 'error'); return; }
+
+  const dados = {
+    tipo: document.getElementById('cc-tipo').value,
+    data: document.getElementById('cc-data').value,
+    pessoa: document.getElementById('cc-pessoa').value.trim(),
+    duracao: document.getElementById('cc-duracao').value.trim(),
+    obs
+  };
+
+  const salvo = await salvarContatoClienteNoBanco(clienteId, processoId, dados, editId || null);
+  if(!salvo) return;
+
+  showToast(editId ? 'Contato atualizado!' : 'Contato registrado!', 'success');
+  closeModal('modal-contato-cliente');
+  renderListaContatosCliente();
+}
+
+async function excluirContatoClienteUI(id) {
+  if(!confirm('Excluir este registro de contato?')) return;
+  const ok = await excluirContatoProcessoDoBanco(id);
+  if(!ok) return;
+  showToast('Contato excluído.');
+  renderListaContatosCliente();
+}
+
 // ==================== TAREFAS (CHECKLIST) DO PROCESSO ====================
 
 function tarefaProcessoDoBanco(row) {
@@ -5668,32 +5894,8 @@ async function renderKanban() {
   store.kanbanQuadros = await carregarKanbanQuadros();
   store.kanbanColunas = await carregarKanbanColunas();
   store.kanbanCartoes = await carregarKanbanCartoes();
-
-  const sel = document.getElementById('kanban-select-quadro');
-  const semQuadros = document.getElementById('kanban-sem-quadros');
-  const board = document.getElementById('kanban-board');
-
-  if(!store.kanbanQuadros.length) {
-    sel.style.display = 'none';
-    document.getElementById('btn-editar-quadro').style.display = 'none';
-    document.getElementById('btn-nova-coluna').style.display = 'none';
-    semQuadros.style.display = 'block';
-    board.innerHTML = '';
-    return;
-  }
-
-  sel.style.display = '';
-  semQuadros.style.display = 'none';
-  document.getElementById('btn-editar-quadro').style.display = '';
-  document.getElementById('btn-nova-coluna').style.display = '';
-
-  // Mantém o quadro selecionado se ainda existir; senão, usa o primeiro.
-  if(!_kanbanQuadroAtual || !store.kanbanQuadros.some(q => q.id === _kanbanQuadroAtual)) {
-    _kanbanQuadroAtual = store.kanbanQuadros[0].id;
-  }
-  sel.innerHTML = store.kanbanQuadros.map(q => `<option value="${q.id}"${q.id===_kanbanQuadroAtual?' selected':''}>${q.nome}</option>`).join('');
-
-  renderKanbanBoard();
+  renderKanbanSelectQuadros();
+  if(store.kanbanQuadros.length) renderKanbanBoard();
 }
 
 function selecionarQuadro(quadroId) {
@@ -5819,7 +6021,12 @@ async function salvarQuadro() {
     showToast('Quadro criado! Agora adicione algumas colunas.', 'success');
   }
   closeModal('modal-quadro');
-  renderKanban();
+  // Re-renderiza a partir dos dados já atualizados em memória (store.kanbanQuadros
+  // já contém o quadro novo/editado), em vez de buscar tudo de novo no banco —
+  // evita o caso em que o select imediatamente após o insert ainda não enxerga
+  // o registro recém-criado (mesma causa já vista no admin-onboarding).
+  renderKanbanSelectQuadros();
+  renderKanbanBoard();
 }
 async function excluirQuadroAtual() {
   const editId = document.getElementById('quadro-edit-id').value;
@@ -5827,11 +6034,42 @@ async function excluirQuadroAtual() {
   if(!confirm('Excluir este quadro? Todas as colunas e cartões dele serão excluídos também.')) return;
   const ok = await excluirQuadroNoBanco(editId);
   if(!ok) return;
+  const idsColunasExcluidas = store.kanbanColunas.filter(c => c.quadroId === editId).map(c => c.id);
   store.kanbanQuadros = store.kanbanQuadros.filter(q => q.id !== editId);
+  store.kanbanColunas = store.kanbanColunas.filter(c => c.quadroId !== editId);
+  store.kanbanCartoes = store.kanbanCartoes.filter(c => !idsColunasExcluidas.includes(c.colunaId));
   _kanbanQuadroAtual = null;
   closeModal('modal-quadro');
   showToast('Quadro excluído.');
-  renderKanban();
+  renderKanbanSelectQuadros();
+  renderKanbanBoard();
+}
+
+// Repopula só o <select> de quadros (cabeçalho da página), sem buscar nada
+// no banco — usa o que já está em store.kanbanQuadros.
+function renderKanbanSelectQuadros() {
+  const sel = document.getElementById('kanban-select-quadro');
+  const semQuadros = document.getElementById('kanban-sem-quadros');
+  const board = document.getElementById('kanban-board');
+
+  if(!store.kanbanQuadros.length) {
+    sel.style.display = 'none';
+    document.getElementById('btn-editar-quadro').style.display = 'none';
+    document.getElementById('btn-nova-coluna').style.display = 'none';
+    semQuadros.style.display = 'block';
+    board.innerHTML = '';
+    return;
+  }
+
+  sel.style.display = '';
+  semQuadros.style.display = 'none';
+  document.getElementById('btn-editar-quadro').style.display = '';
+  document.getElementById('btn-nova-coluna').style.display = '';
+
+  if(!_kanbanQuadroAtual || !store.kanbanQuadros.some(q => q.id === _kanbanQuadroAtual)) {
+    _kanbanQuadroAtual = store.kanbanQuadros[0].id;
+  }
+  sel.innerHTML = store.kanbanQuadros.map(q => `<option value="${q.id}"${q.id===_kanbanQuadroAtual?' selected':''}>${q.nome}</option>`).join('');
 }
 
 // ---- Modal: Nova/Editar Coluna ----
@@ -6748,12 +6986,12 @@ let currentPage = 'dashboard';
 let procTabFilter = 'todos';
 
 const pageTitles = {
-  dashboard: 'Dashboard', tipos: 'Tipos de Processo', clientes: 'Clientes',
+  dashboard: 'Dashboard', tipos: 'Tipos de Processo', clientes: 'Clientes', 'historico-contatos': 'Histórico de Contatos',
   processos: 'Processos', orcamentos: 'Orçamentos', agenda: 'Agenda', kanban: 'Kanban', financeiro: 'Recebimentos',
   despesas: 'Despesas', relatorios: 'Relatórios', informativos: 'Informativos', opcoes: 'Opções'
 };
 const pageActions = {
-  dashboard: '', tipos: '', clientes: '', processos: '',
+  dashboard: '', tipos: '', clientes: '', 'historico-contatos': '', processos: '',
   orcamentos: '', agenda: '', kanban: '+ Novo Quadro', financeiro: '', despesas: '', relatorios: '⬇ Exportar', informativos: '', opcoes: ''
 };
 
@@ -6761,7 +6999,7 @@ const pageActions = {
 // automaticamente a categoria certa ao navegar (menu em cascata/acordeão).
 const PAGINA_CATEGORIA = {
   dashboard: 'principal',
-  tipos: 'cadastros', clientes: 'cadastros',
+  tipos: 'cadastros', clientes: 'cadastros', 'historico-contatos': 'cadastros',
   processos: 'operacional', orcamentos: 'operacional', agenda: 'operacional', kanban: 'operacional',
   financeiro: 'financeiro', despesas: 'financeiro', relatorios: 'financeiro',
   informativos: 'sistema', opcoes: 'sistema'
@@ -6851,6 +7089,7 @@ function refreshPage(page) {
   if(page === 'dashboard') updateDashboard();
   else if(page === 'tipos') renderTipos();
   else if(page === 'clientes') renderClientes();
+  else if(page === 'historico-contatos') renderHistoricoContatos();
   else if(page === 'orcamentos') renderOrcamentos();
   else if(page === 'processos') renderProcessos();
   else if(page === 'agenda') renderAgenda();
@@ -13051,29 +13290,29 @@ function getEscritorioId() {
 const PERFIS = {
   admin: {
     label: 'Administrador', cor: '#185FA5', bg: '#E6F1FB',
-    paginas: ['dashboard','tipos','clientes','processos','orcamentos','agenda','kanban','financeiro','despesas','relatorios','informativos','opcoes'],
+    paginas: ['dashboard','tipos','clientes','historico-contatos','processos','orcamentos','agenda','kanban','financeiro','despesas','relatorios','informativos','opcoes'],
     pode: { editarClientes:true, excluirClientes:true, verFinanceiro:true, gerenciarUsuarios:true, verOpcoes:true, exportarRelatorio:true }
   },
   advogado: {
     label: 'Advogado', cor: '#0B7B45', bg: '#E2F5EC',
-    paginas: ['dashboard','tipos','clientes','processos','orcamentos','agenda','kanban','financeiro','despesas','relatorios','informativos'],
+    paginas: ['dashboard','tipos','clientes','historico-contatos','processos','orcamentos','agenda','kanban','financeiro','despesas','relatorios','informativos'],
     pode: { editarClientes:true, excluirClientes:false, verFinanceiro:true, gerenciarUsuarios:false, verOpcoes:false, exportarRelatorio:true }
   },
   financeiro: {
     label: 'Financeiro', cor: '#7C3AED', bg: '#F0E9FE',
-    paginas: ['dashboard','clientes','processos','orcamentos','agenda','kanban','financeiro','despesas','relatorios','informativos'],
+    paginas: ['dashboard','clientes','historico-contatos','processos','orcamentos','agenda','kanban','financeiro','despesas','relatorios','informativos'],
     pode: { editarClientes:false, excluirClientes:false, verFinanceiro:true, gerenciarUsuarios:false, verOpcoes:false, exportarRelatorio:true }
   },
   assistente: {
     label: 'Assistente', cor: '#92400E', bg: '#FEF3C7',
-    paginas: ['dashboard','clientes','processos','agenda','kanban','informativos'],
+    paginas: ['dashboard','clientes','historico-contatos','processos','agenda','kanban','informativos'],
     pode: { editarClientes:true, excluirClientes:false, verFinanceiro:false, gerenciarUsuarios:false, verOpcoes:false, exportarRelatorio:false }
   },
   // Mantido por compatibilidade com cadastros antigos do sistema local
   // (módulo de Usuários ainda não conectado ao banco real usa este nome).
   secretaria: {
     label: 'Secretária', cor: '#92400E', bg: '#FEF3C7',
-    paginas: ['dashboard','clientes','processos','agenda','kanban','informativos'],
+    paginas: ['dashboard','clientes','historico-contatos','processos','agenda','kanban','informativos'],
     pode: { editarClientes:true, excluirClientes:false, verFinanceiro:false, gerenciarUsuarios:false, verOpcoes:false, exportarRelatorio:false }
   }
 };
