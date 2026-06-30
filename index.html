@@ -1054,6 +1054,9 @@ body.topbar-escura .notif-btn:hover { background: rgba(255,255,255,0.2); border-
           <span class="icon">📅</span> Agenda
           <span class="nav-badge" id="badge-agenda" style="display:none">0</span>
         </button>
+        <button class="nav-item" onclick="navigate('kanban',this)">
+          <span class="icon">🗂️</span> Kanban
+        </button>
       </div>
     </div>
     <div class="nav-section" data-cat="financeiro">
@@ -2028,6 +2031,21 @@ body.topbar-escura .notif-btn:hover { background: rgba(255,255,255,0.2); border-
       </div>
     </div>
 
+    <!-- ========== KANBAN ========== -->
+    <div class="page" id="page-kanban">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap">
+        <select class="form-control" id="kanban-select-quadro" onchange="selecionarQuadro(this.value)" style="max-width:280px"></select>
+        <button class="btn btn-outline btn-sm" onclick="abrirModalEditarQuadro()" id="btn-editar-quadro" style="display:none">✏️ Editar Quadro</button>
+        <button class="btn btn-outline btn-sm" onclick="abrirModalNovaColuna()" id="btn-nova-coluna" style="display:none">+ Nova Coluna</button>
+      </div>
+      <div id="kanban-sem-quadros" style="display:none;text-align:center;padding:60px 20px;color:var(--text-muted)">
+        <div style="font-size:40px;margin-bottom:12px">🗂️</div>
+        <div style="font-size:14px">Nenhum quadro criado ainda.</div>
+        <button class="btn btn-primary" style="margin-top:14px" onclick="abrirModalNovoQuadro()">+ Criar Primeiro Quadro</button>
+      </div>
+      <div id="kanban-board" style="display:flex;gap:14px;overflow-x:auto;padding-bottom:12px;align-items:flex-start"></div>
+    </div>
+
     <!-- ========== INFORMATIVOS ========== -->
     <div class="page" id="page-informativos">
       <div class="card">
@@ -2807,6 +2825,120 @@ body.topbar-escura .notif-btn:hover { background: rgba(255,255,255,0.2); border-
 </div>
 
 <!-- MODAL NOVA TAREFA -->
+<!-- MODAL QUADRO KANBAN -->
+<div class="modal-overlay" id="modal-quadro">
+  <div class="modal" style="width:420px">
+    <div class="modal-header">
+      <span class="modal-title" id="modal-quadro-titulo">+ Novo Quadro</span>
+      <button class="btn btn-ghost btn-icon" onclick="closeModal('modal-quadro')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="quadro-edit-id" value="">
+      <div class="form-group">
+        <label class="form-label">Nome do Quadro *</label>
+        <input type="text" class="form-control" id="quadro-nome" placeholder="Ex: Tarefas da Equipe, Processos Urgentes...">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Cor</label>
+        <div id="quadro-cor-wrap"></div>
+      </div>
+    </div>
+    <div class="modal-footer" style="justify-content:space-between">
+      <button class="btn btn-danger" id="quadro-btn-excluir" onclick="excluirQuadroAtual()" style="display:none">🗑 Excluir Quadro</button>
+      <div style="display:flex;gap:8px;margin-left:auto">
+        <button class="btn btn-outline" onclick="closeModal('modal-quadro')">Cancelar</button>
+        <button class="btn btn-primary" onclick="salvarQuadro()">💾 Salvar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL COLUNA KANBAN -->
+<div class="modal-overlay" id="modal-coluna">
+  <div class="modal" style="width:380px">
+    <div class="modal-header">
+      <span class="modal-title" id="modal-coluna-titulo">+ Nova Coluna</span>
+      <button class="btn btn-ghost btn-icon" onclick="closeModal('modal-coluna')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="coluna-edit-id" value="">
+      <div class="form-group" style="margin-bottom:0">
+        <label class="form-label">Nome da Coluna *</label>
+        <input type="text" class="form-control" id="coluna-nome" placeholder="Ex: A Fazer, Em Andamento, Concluído...">
+      </div>
+    </div>
+    <div class="modal-footer" style="justify-content:space-between">
+      <button class="btn btn-danger" id="coluna-btn-excluir" onclick="excluirColunaAtual()" style="display:none">🗑 Excluir</button>
+      <div style="display:flex;gap:8px;margin-left:auto">
+        <button class="btn btn-outline" onclick="closeModal('modal-coluna')">Cancelar</button>
+        <button class="btn btn-primary" onclick="salvarColuna()">💾 Salvar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL CARTÃO KANBAN -->
+<div class="modal-overlay" id="modal-cartao">
+  <div class="modal" style="width:480px;max-height:85vh;overflow-y:auto">
+    <div class="modal-header">
+      <span class="modal-title" id="modal-cartao-titulo">+ Novo Cartão</span>
+      <button class="btn btn-ghost btn-icon" onclick="closeModal('modal-cartao')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="cartao-edit-id" value="">
+      <input type="hidden" id="cartao-coluna-id" value="">
+      <div class="form-group">
+        <label class="form-label">Título *</label>
+        <input type="text" class="form-control" id="cartao-titulo" placeholder="Ex: Revisar contrato, Ligar para o cliente...">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Descrição</label>
+        <textarea class="form-control" id="cartao-descricao" placeholder="Detalhes adicionais..." style="min-height:60px"></textarea>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Responsável</label>
+          <input type="text" class="form-control" id="cartao-responsavel" placeholder="Nome">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Prazo</label>
+          <input type="date" class="form-control" id="cartao-prazo">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Cliente vinculado (opcional)</label>
+          <select class="form-control" id="cartao-cliente"></select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Processo vinculado (opcional)</label>
+          <select class="form-control" id="cartao-processo"></select>
+        </div>
+      </div>
+      <div class="form-group" style="margin-bottom:0">
+        <label class="form-label">Etiqueta de cor (opcional)</label>
+        <div id="cartao-cor-wrap"></div>
+      </div>
+
+      <div id="cartao-bloco-anexos-historico" style="display:none">
+        <div style="font-size:11px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--text-muted);margin:18px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--border)">Anexos</div>
+        <div id="cartao-anexos-lista" style="margin-bottom:10px"></div>
+        <input type="file" id="cartao-anexo-input" onchange="handleUploadAnexoCartao(this)" style="font-size:12px" multiple>
+
+        <div style="font-size:11px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--text-muted);margin:18px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--border)">Histórico</div>
+        <div id="cartao-historico-lista" style="max-height:160px;overflow-y:auto"></div>
+      </div>
+    </div>
+    <div class="modal-footer" style="justify-content:space-between">
+      <button class="btn btn-danger" id="cartao-btn-excluir" onclick="excluirCartaoAtual()" style="display:none">🗑 Excluir</button>
+      <div style="display:flex;gap:8px;margin-left:auto">
+        <button class="btn btn-outline" onclick="closeModal('modal-cartao')">Cancelar</button>
+        <button class="btn btn-primary" onclick="salvarCartao()">💾 Salvar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="modal-tarefa">
   <div class="modal" style="width:420px">
     <div class="modal-header">
@@ -5317,6 +5449,589 @@ async function excluirTarefaProcessoDoBanco(id) {
   return true;
 }
 
+// ==================== KANBAN (quadros, colunas, cartões) ====================
+// Todos os quadros são compartilhados dentro do mesmo escritório — qualquer
+// pessoa do tenant vê e edita qualquer quadro, sem dono exclusivo.
+
+function quadroKanbanDoBanco(row) {
+  return { id: row.id, nome: row.nome, cor: row.cor || '#1D3A5C' };
+}
+function colunaKanbanDoBanco(row) {
+  return { id: row.id, quadroId: row.quadro_id, nome: row.nome, ordem: row.ordem || 0 };
+}
+function cartaoKanbanDoBanco(row) {
+  return {
+    id: row.id, colunaId: row.coluna_id, titulo: row.titulo, descricao: row.descricao || '',
+    responsavel: row.responsavel || '', prazo: row.prazo || '', cor: row.cor || null,
+    clienteId: row.cliente_id || null, processoId: row.processo_id || null, ordem: row.ordem || 0
+  };
+}
+
+async function carregarKanbanQuadros() {
+  const sb = await getSB();
+  const escritorioId = getEscritorioId();
+  if(!sb || !escritorioId) return [];
+  const { data, error } = await sb.from('kanban_quadros').select('*').eq('escritorio_id', escritorioId).order('criado_em');
+  if(error) { console.warn('Erro ao carregar quadros:', error.message); return []; }
+  return (data || []).map(quadroKanbanDoBanco);
+}
+async function carregarKanbanColunas() {
+  const sb = await getSB();
+  const escritorioId = getEscritorioId();
+  if(!sb || !escritorioId) return [];
+  const { data, error } = await sb.from('kanban_colunas').select('*').eq('escritorio_id', escritorioId).order('ordem');
+  if(error) { console.warn('Erro ao carregar colunas:', error.message); return []; }
+  return (data || []).map(colunaKanbanDoBanco);
+}
+async function carregarKanbanCartoes() {
+  const sb = await getSB();
+  const escritorioId = getEscritorioId();
+  if(!sb || !escritorioId) return [];
+  const { data, error } = await sb.from('kanban_cartoes').select('*').eq('escritorio_id', escritorioId).order('ordem');
+  if(error) { console.warn('Erro ao carregar cartões:', error.message); return []; }
+  return (data || []).map(cartaoKanbanDoBanco);
+}
+
+async function criarQuadroNoBanco(nome, cor) {
+  const sb = await getSB();
+  const escritorioId = getEscritorioId();
+  if(!sb || !escritorioId) { showToast('Sem conexão com o banco.', 'error'); return null; }
+  const { data, error } = await sb.from('kanban_quadros').insert({ escritorio_id: escritorioId, nome, cor }).select().single();
+  if(error) { showToast('Erro ao criar quadro: ' + error.message, 'error'); return null; }
+  return quadroKanbanDoBanco(data);
+}
+async function atualizarQuadroNoBanco(id, nome, cor) {
+  const sb = await getSB();
+  const escritorioId = getEscritorioId();
+  if(!sb || !escritorioId) return null;
+  const { data, error } = await sb.from('kanban_quadros').update({ nome, cor }).eq('id', id).eq('escritorio_id', escritorioId).select().single();
+  if(error) { showToast('Erro ao atualizar quadro: ' + error.message, 'error'); return null; }
+  return quadroKanbanDoBanco(data);
+}
+async function excluirQuadroNoBanco(id) {
+  const sb = await getSB();
+  const escritorioId = getEscritorioId();
+  if(!sb || !escritorioId) return false;
+  const { error } = await sb.from('kanban_quadros').delete().eq('id', id).eq('escritorio_id', escritorioId);
+  if(error) { showToast('Erro ao excluir quadro: ' + error.message, 'error'); return false; }
+  return true;
+}
+
+async function criarColunaNoBanco(quadroId, nome, ordem) {
+  const sb = await getSB();
+  const escritorioId = getEscritorioId();
+  if(!sb || !escritorioId) { showToast('Sem conexão com o banco.', 'error'); return null; }
+  const { data, error } = await sb.from('kanban_colunas').insert({ escritorio_id: escritorioId, quadro_id: quadroId, nome, ordem }).select().single();
+  if(error) { showToast('Erro ao criar coluna: ' + error.message, 'error'); return null; }
+  return colunaKanbanDoBanco(data);
+}
+async function renomearColunaNoBanco(id, nome) {
+  const sb = await getSB();
+  const escritorioId = getEscritorioId();
+  if(!sb || !escritorioId) return null;
+  const { data, error } = await sb.from('kanban_colunas').update({ nome }).eq('id', id).eq('escritorio_id', escritorioId).select().single();
+  if(error) { showToast('Erro ao renomear coluna: ' + error.message, 'error'); return null; }
+  return colunaKanbanDoBanco(data);
+}
+async function excluirColunaNoBanco(id) {
+  const sb = await getSB();
+  const escritorioId = getEscritorioId();
+  if(!sb || !escritorioId) return false;
+  const { error } = await sb.from('kanban_colunas').delete().eq('id', id).eq('escritorio_id', escritorioId);
+  if(error) { showToast('Erro ao excluir coluna: ' + error.message, 'error'); return false; }
+  return true;
+}
+
+async function criarCartaoNoBanco(dados) {
+  const sb = await getSB();
+  const escritorioId = getEscritorioId();
+  if(!sb || !escritorioId) { showToast('Sem conexão com o banco.', 'error'); return null; }
+  const payload = {
+    escritorio_id: escritorioId, coluna_id: dados.colunaId, titulo: dados.titulo,
+    descricao: dados.descricao || null, responsavel: dados.responsavel || null,
+    prazo: dados.prazo || null, cor: dados.cor || null,
+    cliente_id: dados.clienteId || null, processo_id: dados.processoId || null,
+    ordem: dados.ordem || 0
+  };
+  const { data, error } = await sb.from('kanban_cartoes').insert(payload).select().single();
+  if(error) { showToast('Erro ao criar cartão: ' + error.message, 'error'); return null; }
+  return cartaoKanbanDoBanco(data);
+}
+async function atualizarCartaoNoBanco(id, dados) {
+  const sb = await getSB();
+  const escritorioId = getEscritorioId();
+  if(!sb || !escritorioId) { showToast('Sem conexão com o banco.', 'error'); return null; }
+  const payload = {
+    titulo: dados.titulo, descricao: dados.descricao || null, responsavel: dados.responsavel || null,
+    prazo: dados.prazo || null, cor: dados.cor || null,
+    cliente_id: dados.clienteId || null, processo_id: dados.processoId || null
+  };
+  const { data, error } = await sb.from('kanban_cartoes').update(payload).eq('id', id).eq('escritorio_id', escritorioId).select().single();
+  if(error) { showToast('Erro ao atualizar cartão: ' + error.message, 'error'); return null; }
+  return cartaoKanbanDoBanco(data);
+}
+// Move um cartão para outra coluna e/ou posição (drag and drop).
+async function moverCartaoNoBanco(id, colunaId, ordem) {
+  const sb = await getSB();
+  const escritorioId = getEscritorioId();
+  if(!sb || !escritorioId) return false;
+  const { error } = await sb.from('kanban_cartoes').update({ coluna_id: colunaId, ordem }).eq('id', id).eq('escritorio_id', escritorioId);
+  if(error) { showToast('Erro ao mover cartão: ' + error.message, 'error'); return false; }
+  return true;
+}
+async function excluirCartaoNoBanco(id) {
+  const sb = await getSB();
+  const escritorioId = getEscritorioId();
+  if(!sb || !escritorioId) return false;
+  const { error } = await sb.from('kanban_cartoes').delete().eq('id', id).eq('escritorio_id', escritorioId);
+  if(error) { showToast('Erro ao excluir cartão: ' + error.message, 'error'); return false; }
+  return true;
+}
+
+// ---- Anexos do cartão (Storage, mesmo padrão de "documentos") ----
+function anexoKanbanDoBanco(row) {
+  return {
+    id: row.id, nome: row.nome_arquivo, tamanho: row.tamanho_bytes || 0,
+    storagePath: row.storage_path, criadoEm: row.criado_em
+  };
+}
+async function carregarAnexosCartao(cartaoId) {
+  const sb = await getSB();
+  const escritorioId = getEscritorioId();
+  if(!sb || !escritorioId) return [];
+  const { data, error } = await sb.from('kanban_anexos').select('*').eq('cartao_id', cartaoId).eq('escritorio_id', escritorioId).order('criado_em');
+  if(error) { console.warn('Erro ao carregar anexos:', error.message); return []; }
+  return (data || []).map(anexoKanbanDoBanco);
+}
+async function enviarAnexoCartao(cartaoId, file) {
+  const sb = await getSB();
+  const escritorioId = getEscritorioId();
+  if(!sb || !escritorioId) { showToast('Sem conexão com o banco.', 'error'); return null; }
+  if(file.size > 5*1024*1024) { showToast(file.name+': muito grande (máx 5MB).', 'error'); return null; }
+  const nomeSeguro = file.name.replace(/[^a-zA-Z0-9.\-_]/g, '_');
+  const path = `${escritorioId}/cartoes/${cartaoId}/${Date.now()}_${nomeSeguro}`;
+  const { error: erroUpload } = await sb.storage.from('kanban-anexos').upload(path, file);
+  if(erroUpload) { showToast('Erro ao enviar anexo: ' + erroUpload.message, 'error'); return null; }
+  const { data, error } = await sb.from('kanban_anexos').insert({
+    escritorio_id: escritorioId, cartao_id: cartaoId, nome_arquivo: file.name,
+    tamanho_bytes: file.size, storage_path: path
+  }).select().single();
+  if(error) { await sb.storage.from('kanban-anexos').remove([path]); showToast('Erro ao registrar anexo: ' + error.message, 'error'); return null; }
+  return anexoKanbanDoBanco(data);
+}
+async function obterUrlAnexoCartao(path) {
+  const sb = await getSB();
+  if(!sb) return null;
+  const { data, error } = await sb.storage.from('kanban-anexos').createSignedUrl(path, 300);
+  if(error) { showToast('Erro ao abrir anexo: ' + error.message, 'error'); return null; }
+  return data.signedUrl;
+}
+async function excluirAnexoCartao(id, storagePath) {
+  const sb = await getSB();
+  const escritorioId = getEscritorioId();
+  if(!sb || !escritorioId) return false;
+  await sb.storage.from('kanban-anexos').remove([storagePath]);
+  const { error } = await sb.from('kanban_anexos').delete().eq('id', id).eq('escritorio_id', escritorioId);
+  if(error) { showToast('Erro ao excluir anexo: ' + error.message, 'error'); return false; }
+  return true;
+}
+
+// ---- Histórico do cartão ----
+function historicoKanbanDoBanco(row) {
+  return { id: row.id, acao: row.acao, descricao: row.descricao, autor: row.autor_nome || '—', criadoEm: row.criado_em };
+}
+async function carregarHistoricoCartao(cartaoId) {
+  const sb = await getSB();
+  const escritorioId = getEscritorioId();
+  if(!sb || !escritorioId) return [];
+  const { data, error } = await sb.from('kanban_historico').select('*').eq('cartao_id', cartaoId).eq('escritorio_id', escritorioId).order('criado_em', { ascending: false });
+  if(error) { console.warn('Erro ao carregar histórico:', error.message); return []; }
+  return (data || []).map(historicoKanbanDoBanco);
+}
+async function registrarHistoricoCartao(cartaoId, acao, descricao) {
+  const sb = await getSB();
+  const escritorioId = getEscritorioId();
+  if(!sb || !escritorioId) return null;
+  const autorNome = getSessao().nome || getSessao().email || null;
+  const { error } = await sb.from('kanban_historico').insert({
+    escritorio_id: escritorioId, cartao_id: cartaoId, acao, descricao,
+    autor_id: getSessao().userId || null, autor_nome: autorNome
+  });
+  if(error) console.warn('Erro ao registrar histórico do cartão:', error.message);
+}
+
+// ==================== UI DO KANBAN ====================
+
+let _kanbanQuadroAtual = null; // id do quadro selecionado no momento
+
+async function renderKanban() {
+  store.kanbanQuadros = await carregarKanbanQuadros();
+  store.kanbanColunas = await carregarKanbanColunas();
+  store.kanbanCartoes = await carregarKanbanCartoes();
+
+  const sel = document.getElementById('kanban-select-quadro');
+  const semQuadros = document.getElementById('kanban-sem-quadros');
+  const board = document.getElementById('kanban-board');
+
+  if(!store.kanbanQuadros.length) {
+    sel.style.display = 'none';
+    document.getElementById('btn-editar-quadro').style.display = 'none';
+    document.getElementById('btn-nova-coluna').style.display = 'none';
+    semQuadros.style.display = 'block';
+    board.innerHTML = '';
+    return;
+  }
+
+  sel.style.display = '';
+  semQuadros.style.display = 'none';
+  document.getElementById('btn-editar-quadro').style.display = '';
+  document.getElementById('btn-nova-coluna').style.display = '';
+
+  // Mantém o quadro selecionado se ainda existir; senão, usa o primeiro.
+  if(!_kanbanQuadroAtual || !store.kanbanQuadros.some(q => q.id === _kanbanQuadroAtual)) {
+    _kanbanQuadroAtual = store.kanbanQuadros[0].id;
+  }
+  sel.innerHTML = store.kanbanQuadros.map(q => `<option value="${q.id}"${q.id===_kanbanQuadroAtual?' selected':''}>${q.nome}</option>`).join('');
+
+  renderKanbanBoard();
+}
+
+function selecionarQuadro(quadroId) {
+  _kanbanQuadroAtual = quadroId;
+  renderKanbanBoard();
+}
+
+function renderKanbanBoard() {
+  const board = document.getElementById('kanban-board');
+  if(!_kanbanQuadroAtual) { board.innerHTML = ''; return; }
+
+  const colunas = store.kanbanColunas.filter(c => c.quadroId === _kanbanQuadroAtual).sort((a,b) => a.ordem - b.ordem);
+
+  if(!colunas.length) {
+    board.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:40px;width:100%">Este quadro ainda não tem colunas. Clique em "+ Nova Coluna" para começar.</div>';
+    return;
+  }
+
+  board.innerHTML = colunas.map(col => {
+    const cartoes = store.kanbanCartoes.filter(c => c.colunaId === col.id).sort((a,b) => a.ordem - b.ordem);
+    return `<div class="kanban-coluna" data-coluna-id="${col.id}" style="background:var(--surface);border-radius:var(--radius);min-width:270px;max-width:270px;display:flex;flex-direction:column;max-height:calc(100vh - 220px)">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-bottom:1px solid var(--border)">
+        <strong style="font-size:13px">${col.nome}</strong>
+        <div style="display:flex;align-items:center;gap:6px">
+          <span style="font-size:11px;color:var(--text-muted)">${cartoes.length}</span>
+          <button onclick="abrirModalEditarColuna('${col.id}')" style="background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:13px;padding:2px" title="Editar coluna">⋯</button>
+        </div>
+      </div>
+      <div class="kanban-cartoes-lista" data-coluna-id="${col.id}" style="flex:1;overflow-y:auto;padding:10px;min-height:60px"
+        ondragover="event.preventDefault()" ondrop="onDropCartao(event,'${col.id}')">
+        ${cartoes.map(c => renderCartaoHTML(c)).join('')}
+      </div>
+      <button onclick="abrirModalNovoCartao('${col.id}')" style="margin:8px 10px 10px;padding:7px;border:1px dashed var(--border);border-radius:var(--radius);background:none;color:var(--text-muted);font-size:12.5px;cursor:pointer">+ Adicionar cartão</button>
+    </div>`;
+  }).join('') + `<div style="min-width:40px"></div>`; // espaço final para não cortar a última coluna
+}
+
+function renderCartaoHTML(c) {
+  const cliente = c.clienteId ? store.clientes.find(cl => cl.id === c.clienteId) : null;
+  const processo = c.processoId ? store.processos.find(p => p.id === c.processoId) : null;
+  const corBarra = c.cor || 'transparent';
+  const prazoVencido = c.prazo && c.prazo < today();
+  return `<div class="kanban-cartao" draggable="true" data-cartao-id="${c.id}"
+      ondragstart="onDragStartCartao(event,'${c.id}')"
+      onclick="abrirModalEditarCartao('${c.id}')"
+      style="background:var(--white);border-radius:8px;padding:10px 12px;margin-bottom:8px;cursor:grab;box-shadow:0 1px 2px rgba(0,0,0,0.06);border-left:3px solid ${corBarra}">
+    <div style="font-size:13px;font-weight:500;margin-bottom:4px">${c.titulo}</div>
+    ${(cliente||processo)?`<div style="font-size:11px;color:var(--blue-600);margin-bottom:4px">${cliente?'👤 '+cliente.nome:''}${cliente&&processo?' · ':''}${processo?'⚖️ '+processo.numero:''}</div>`:''}
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:6px">
+      <span style="font-size:11px;color:var(--text-muted)">${c.responsavel||''}</span>
+      ${c.prazo?`<span style="font-size:10.5px;color:${prazoVencido?'var(--danger)':'var(--text-muted)'}">${prazoVencido?'⚠️ ':'📅 '}${fmtDate(c.prazo)}</span>`:''}
+    </div>
+  </div>`;
+}
+
+// ---- Drag and drop (API HTML5 nativa) ----
+let _cartaoArrastando = null;
+
+function onDragStartCartao(ev, cartaoId) {
+  _cartaoArrastando = cartaoId;
+  ev.dataTransfer.effectAllowed = 'move';
+}
+
+async function onDropCartao(ev, colunaDestinoId) {
+  ev.preventDefault();
+  if(!_cartaoArrastando) return;
+  const cartao = store.kanbanCartoes.find(c => c.id === _cartaoArrastando);
+  if(!cartao) return;
+
+  const colunaOrigemId = cartao.colunaId;
+  if(colunaOrigemId === colunaDestinoId) { _cartaoArrastando = null; return; } // soltou na mesma coluna, nada a fazer
+
+  const novaOrdem = store.kanbanCartoes.filter(c => c.colunaId === colunaDestinoId).length;
+  const ok = await moverCartaoNoBanco(cartao.id, colunaDestinoId, novaOrdem);
+  if(!ok) return;
+
+  cartao.colunaId = colunaDestinoId;
+  cartao.ordem = novaOrdem;
+  _cartaoArrastando = null;
+  renderKanbanBoard();
+
+  const colOrigem = store.kanbanColunas.find(c => c.id === colunaOrigemId);
+  const colDestino = store.kanbanColunas.find(c => c.id === colunaDestinoId);
+  registrarHistoricoCartao(cartao.id, 'moveu', `Moveu de "${colOrigem?.nome||'?'}" para "${colDestino?.nome||'?'}"`);
+}
+
+// ---- Modal: Novo/Editar Quadro ----
+function abrirModalNovoQuadro() {
+  document.getElementById('quadro-edit-id').value = '';
+  document.getElementById('quadro-nome').value = '';
+  document.getElementById('modal-quadro-titulo').textContent = '+ Novo Quadro';
+  document.getElementById('quadro-btn-excluir').style.display = 'none';
+  document.getElementById('quadro-cor-wrap').innerHTML = renderSeletorCorTag('quadro-cor');
+  openModal('modal-quadro', false);
+}
+function abrirModalEditarQuadro() {
+  const q = store.kanbanQuadros.find(q => q.id === _kanbanQuadroAtual);
+  if(!q) return;
+  document.getElementById('quadro-edit-id').value = q.id;
+  document.getElementById('quadro-nome').value = q.nome;
+  document.getElementById('modal-quadro-titulo').textContent = '✏️ Editar Quadro';
+  document.getElementById('quadro-btn-excluir').style.display = '';
+  document.getElementById('quadro-cor-wrap').innerHTML = renderSeletorCorTag('quadro-cor', q.cor);
+  openModal('modal-quadro', false);
+}
+async function salvarQuadro() {
+  const nome = document.getElementById('quadro-nome').value.trim();
+  if(!nome) { showToast('Dê um nome ao quadro.', 'error'); return; }
+  const cor = document.getElementById('quadro-cor').value;
+  const editId = document.getElementById('quadro-edit-id').value;
+
+  if(editId) {
+    const salvo = await atualizarQuadroNoBanco(editId, nome, cor);
+    if(!salvo) return;
+    const idx = store.kanbanQuadros.findIndex(q => q.id === editId);
+    if(idx >= 0) store.kanbanQuadros[idx] = salvo;
+    showToast('Quadro atualizado!', 'success');
+  } else {
+    const salvo = await criarQuadroNoBanco(nome, cor);
+    if(!salvo) return;
+    store.kanbanQuadros.push(salvo);
+    _kanbanQuadroAtual = salvo.id;
+    showToast('Quadro criado! Agora adicione algumas colunas.', 'success');
+  }
+  closeModal('modal-quadro');
+  renderKanban();
+}
+async function excluirQuadroAtual() {
+  const editId = document.getElementById('quadro-edit-id').value;
+  if(!editId) return;
+  if(!confirm('Excluir este quadro? Todas as colunas e cartões dele serão excluídos também.')) return;
+  const ok = await excluirQuadroNoBanco(editId);
+  if(!ok) return;
+  store.kanbanQuadros = store.kanbanQuadros.filter(q => q.id !== editId);
+  _kanbanQuadroAtual = null;
+  closeModal('modal-quadro');
+  showToast('Quadro excluído.');
+  renderKanban();
+}
+
+// ---- Modal: Nova/Editar Coluna ----
+function abrirModalNovaColuna() {
+  document.getElementById('coluna-edit-id').value = '';
+  document.getElementById('coluna-nome').value = '';
+  document.getElementById('modal-coluna-titulo').textContent = '+ Nova Coluna';
+  document.getElementById('coluna-btn-excluir').style.display = 'none';
+  openModal('modal-coluna', false);
+}
+function abrirModalEditarColuna(colunaId) {
+  const col = store.kanbanColunas.find(c => c.id === colunaId);
+  if(!col) return;
+  document.getElementById('coluna-edit-id').value = col.id;
+  document.getElementById('coluna-nome').value = col.nome;
+  document.getElementById('modal-coluna-titulo').textContent = '✏️ Editar Coluna';
+  document.getElementById('coluna-btn-excluir').style.display = '';
+  openModal('modal-coluna', false);
+}
+async function salvarColuna() {
+  const nome = document.getElementById('coluna-nome').value.trim();
+  if(!nome) { showToast('Dê um nome à coluna.', 'error'); return; }
+  const editId = document.getElementById('coluna-edit-id').value;
+
+  if(editId) {
+    const salvo = await renomearColunaNoBanco(editId, nome);
+    if(!salvo) return;
+    const idx = store.kanbanColunas.findIndex(c => c.id === editId);
+    if(idx >= 0) store.kanbanColunas[idx] = salvo;
+    showToast('Coluna atualizada!', 'success');
+  } else {
+    const ordem = store.kanbanColunas.filter(c => c.quadroId === _kanbanQuadroAtual).length;
+    const salvo = await criarColunaNoBanco(_kanbanQuadroAtual, nome, ordem);
+    if(!salvo) return;
+    store.kanbanColunas.push(salvo);
+    showToast('Coluna criada!', 'success');
+  }
+  closeModal('modal-coluna');
+  renderKanbanBoard();
+}
+async function excluirColunaAtual() {
+  const editId = document.getElementById('coluna-edit-id').value;
+  if(!editId) return;
+  if(!confirm('Excluir esta coluna? Os cartões dela serão excluídos também.')) return;
+  const ok = await excluirColunaNoBanco(editId);
+  if(!ok) return;
+  store.kanbanColunas = store.kanbanColunas.filter(c => c.id !== editId);
+  store.kanbanCartoes = store.kanbanCartoes.filter(c => c.colunaId !== editId);
+  closeModal('modal-coluna');
+  showToast('Coluna excluída.');
+  renderKanbanBoard();
+}
+
+// ---- Modal: Novo/Editar Cartão ----
+function popularSelectsCartaoKanban() {
+  const selCliente = document.getElementById('cartao-cliente');
+  const cur1 = selCliente.value;
+  selCliente.innerHTML = '<option value="">— Nenhum —</option>' +
+    store.clientes.map(c => `<option value="${c.id}">${c.nome}</option>`).join('');
+  selCliente.value = cur1;
+
+  const selProcesso = document.getElementById('cartao-processo');
+  const cur2 = selProcesso.value;
+  selProcesso.innerHTML = '<option value="">— Nenhum —</option>' +
+    store.processos.map(p => `<option value="${p.id}">${p.numero}</option>`).join('');
+  selProcesso.value = cur2;
+}
+function abrirModalNovoCartao(colunaId) {
+  document.getElementById('cartao-edit-id').value = '';
+  document.getElementById('cartao-coluna-id').value = colunaId;
+  document.getElementById('cartao-titulo').value = '';
+  document.getElementById('cartao-descricao').value = '';
+  document.getElementById('cartao-responsavel').value = '';
+  document.getElementById('cartao-prazo').value = '';
+  document.getElementById('modal-cartao-titulo').textContent = '+ Novo Cartão';
+  document.getElementById('cartao-btn-excluir').style.display = 'none';
+  popularSelectsCartaoKanban();
+  document.getElementById('cartao-cliente').value = '';
+  document.getElementById('cartao-processo').value = '';
+  document.getElementById('cartao-cor-wrap').innerHTML = renderSeletorCorTag('cartao-cor');
+  document.getElementById('cartao-bloco-anexos-historico').style.display = 'none'; // só existe para cartão já salvo
+  openModal('modal-cartao', false);
+}
+async function abrirModalEditarCartao(cartaoId) {
+  const c = store.kanbanCartoes.find(c => c.id === cartaoId);
+  if(!c) return;
+  document.getElementById('cartao-edit-id').value = c.id;
+  document.getElementById('cartao-coluna-id').value = c.colunaId;
+  document.getElementById('cartao-titulo').value = c.titulo;
+  document.getElementById('cartao-descricao').value = c.descricao || '';
+  document.getElementById('cartao-responsavel').value = c.responsavel || '';
+  document.getElementById('cartao-prazo').value = c.prazo || '';
+  document.getElementById('modal-cartao-titulo').textContent = '✏️ Editar Cartão';
+  // Excluir cartão é restrito a admin do escritório — quem não é admin nem
+  // vê o botão (mesma regra já aplicada no banco via RLS).
+  document.getElementById('cartao-btn-excluir').style.display = getPerfilAtual() === 'admin' ? '' : 'none';
+  popularSelectsCartaoKanban();
+  document.getElementById('cartao-cliente').value = c.clienteId || '';
+  document.getElementById('cartao-processo').value = c.processoId || '';
+  document.getElementById('cartao-cor-wrap').innerHTML = renderSeletorCorTag('cartao-cor', c.cor);
+  document.getElementById('cartao-bloco-anexos-historico').style.display = '';
+  openModal('modal-cartao', false);
+  renderAnexosCartao(cartaoId);
+  renderHistoricoCartao(cartaoId);
+}
+async function salvarCartao() {
+  const titulo = document.getElementById('cartao-titulo').value.trim();
+  if(!titulo) { showToast('Dê um título ao cartão.', 'error'); return; }
+  const editId = document.getElementById('cartao-edit-id').value;
+  const dados = {
+    colunaId: document.getElementById('cartao-coluna-id').value,
+    titulo,
+    descricao: document.getElementById('cartao-descricao').value.trim(),
+    responsavel: document.getElementById('cartao-responsavel').value.trim(),
+    prazo: document.getElementById('cartao-prazo').value,
+    cor: document.getElementById('cartao-cor').value,
+    clienteId: document.getElementById('cartao-cliente').value || null,
+    processoId: document.getElementById('cartao-processo').value || null
+  };
+
+  if(editId) {
+    const salvo = await atualizarCartaoNoBanco(editId, dados);
+    if(!salvo) return;
+    const idx = store.kanbanCartoes.findIndex(c => c.id === editId);
+    if(idx >= 0) store.kanbanCartoes[idx] = salvo;
+    showToast('Cartão atualizado!', 'success');
+    registrarHistoricoCartao(editId, 'editou', 'Editou os dados do cartão');
+  } else {
+    dados.ordem = store.kanbanCartoes.filter(c => c.colunaId === dados.colunaId).length;
+    const salvo = await criarCartaoNoBanco(dados);
+    if(!salvo) return;
+    store.kanbanCartoes.push(salvo);
+    showToast('Cartão criado!', 'success');
+    registrarHistoricoCartao(salvo.id, 'criou', 'Criou o cartão');
+  }
+  closeModal('modal-cartao');
+  renderKanbanBoard();
+}
+async function excluirCartaoAtual() {
+  const editId = document.getElementById('cartao-edit-id').value;
+  if(!editId) return;
+  if(getPerfilAtual() !== 'admin') { showToast('Apenas o administrador do escritório pode excluir cartões.', 'error'); return; }
+  if(!confirm('Excluir este cartão? O histórico e os anexos dele também serão excluídos.')) return;
+  const ok = await excluirCartaoNoBanco(editId);
+  if(!ok) return;
+  store.kanbanCartoes = store.kanbanCartoes.filter(c => c.id !== editId);
+  closeModal('modal-cartao');
+  showToast('Cartão excluído.');
+  renderKanbanBoard();
+}
+
+// ---- Anexos e histórico dentro do modal de cartão ----
+async function renderAnexosCartao(cartaoId) {
+  const lista = document.getElementById('cartao-anexos-lista');
+  lista.innerHTML = '<span style="font-size:12px;color:var(--text-muted)">Carregando...</span>';
+  const anexos = await carregarAnexosCartao(cartaoId);
+  if(!anexos.length) { lista.innerHTML = '<span style="font-size:12px;color:var(--text-muted)">Nenhum anexo ainda.</span>'; return; }
+  lista.innerHTML = anexos.map(a => `
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 10px;background:var(--surface);border-radius:6px;margin-bottom:5px;font-size:12.5px">
+      <span style="cursor:pointer;color:var(--blue-600)" onclick="abrirAnexoCartao('${a.storagePath}')">📎 ${a.nome} ${a.tamanho?'('+Math.round(a.tamanho/1024)+'KB)':''}</span>
+      <button onclick="excluirAnexoCartaoUI('${a.id}','${a.storagePath}','${cartaoId}')" style="background:none;border:none;cursor:pointer;color:var(--danger);font-size:12px">✕</button>
+    </div>`).join('');
+}
+async function handleUploadAnexoCartao(input) {
+  const cartaoId = document.getElementById('cartao-edit-id').value;
+  if(!cartaoId || !input.files.length) return;
+  for(const file of Array.from(input.files)) {
+    const salvo = await enviarAnexoCartao(cartaoId, file);
+    if(salvo) registrarHistoricoCartao(cartaoId, 'anexou', `Anexou o arquivo "${file.name}"`);
+  }
+  input.value = '';
+  renderAnexosCartao(cartaoId);
+  renderHistoricoCartao(cartaoId);
+}
+async function abrirAnexoCartao(path) {
+  const url = await obterUrlAnexoCartao(path);
+  if(url) window.open(url, '_blank');
+}
+async function excluirAnexoCartaoUI(anexoId, storagePath, cartaoId) {
+  if(!confirm('Excluir este anexo?')) return;
+  const ok = await excluirAnexoCartao(anexoId, storagePath);
+  if(!ok) return;
+  renderAnexosCartao(cartaoId);
+  showToast('Anexo excluído.');
+}
+
+async function renderHistoricoCartao(cartaoId) {
+  const lista = document.getElementById('cartao-historico-lista');
+  lista.innerHTML = '<span style="font-size:12px;color:var(--text-muted)">Carregando...</span>';
+  const historico = await carregarHistoricoCartao(cartaoId);
+  if(!historico.length) { lista.innerHTML = '<span style="font-size:12px;color:var(--text-muted)">Sem histórico ainda.</span>'; return; }
+  lista.innerHTML = historico.map(h => {
+    const data = new Date(h.criadoEm).toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
+    return `<div style="font-size:12px;padding:5px 0;border-bottom:1px solid var(--border)">
+      <strong>${h.autor}</strong> ${h.descricao}
+      <div style="font-size:10.5px;color:var(--text-muted)">${data}</div>
+    </div>`;
+  }).join('');
+}
+
 // ==================== UI DE TAGS (modais de Cliente e Processo) ====================
 
 // Renderiza a lista de tags já vinculadas a um cliente, dentro do modal.
@@ -5600,7 +6315,7 @@ async function sbLoad() {
   }
 
   console.log('🔄 Carregando dados reais do escritório...');
-  const [clientes, processos, tipos, parcelas, despesas, eventos, intimacoes, orcamentos, documentosLista, dadosEscritorio, exitos, tags, clientesTags, processosTags, andamentos, partes, contatosProcesso, tarefas] = await Promise.all([
+  const [clientes, processos, tipos, parcelas, despesas, eventos, intimacoes, orcamentos, documentosLista, dadosEscritorio, exitos, tags, clientesTags, processosTags, andamentos, partes, contatosProcesso, tarefas, kanbanQuadros, kanbanColunas, kanbanCartoes] = await Promise.all([
     carregarClientes(),
     carregarProcessos(),
     carregarTipos(),
@@ -5618,7 +6333,10 @@ async function sbLoad() {
     carregarAndamentos(),
     carregarPartesProcesso(),
     carregarContatosProcesso(),
-    carregarTarefasProcesso()
+    carregarTarefasProcesso(),
+    carregarKanbanQuadros(),
+    carregarKanbanColunas(),
+    carregarKanbanCartoes()
   ]);
 
   store.clientes = clientes;
@@ -5638,6 +6356,9 @@ async function sbLoad() {
   store.partes = partes;
   store.contatos = contatosProcesso;
   store.checklist = tarefas;
+  store.kanbanQuadros = kanbanQuadros;
+  store.kanbanColunas = kanbanColunas;
+  store.kanbanCartoes = kanbanCartoes;
 
   // store.documentos (por processo) e store.docsCliente (por cliente) são
   // objetos indexados por ID, derivados da mesma lista plana carregada do
@@ -5681,6 +6402,9 @@ function normalizarStore() {
   if(!store.contatos)    store.contatos    = {};
   if(!store.tags)            store.tags            = [];
   if(!store.informativos)    store.informativos    = [];
+  if(!store.kanbanQuadros)   store.kanbanQuadros   = [];
+  if(!store.kanbanColunas)   store.kanbanColunas   = [];
+  if(!store.kanbanCartoes)   store.kanbanCartoes   = [];
   if(!store.clientesTags)    store.clientesTags    = {};
   if(!store.processosTags)   store.processosTags   = {};
   // Identidade Visual (cores + logo customizável)
@@ -6025,12 +6749,12 @@ let procTabFilter = 'todos';
 
 const pageTitles = {
   dashboard: 'Dashboard', tipos: 'Tipos de Processo', clientes: 'Clientes',
-  processos: 'Processos', orcamentos: 'Orçamentos', agenda: 'Agenda', financeiro: 'Recebimentos',
+  processos: 'Processos', orcamentos: 'Orçamentos', agenda: 'Agenda', kanban: 'Kanban', financeiro: 'Recebimentos',
   despesas: 'Despesas', relatorios: 'Relatórios', informativos: 'Informativos', opcoes: 'Opções'
 };
 const pageActions = {
   dashboard: '', tipos: '', clientes: '', processos: '',
-  orcamentos: '', agenda: '', financeiro: '', despesas: '', relatorios: '⬇ Exportar', informativos: '', opcoes: ''
+  orcamentos: '', agenda: '', kanban: '+ Novo Quadro', financeiro: '', despesas: '', relatorios: '⬇ Exportar', informativos: '', opcoes: ''
 };
 
 // Mapa de qual categoria do menu cada página pertence — usado para abrir
@@ -6038,7 +6762,7 @@ const pageActions = {
 const PAGINA_CATEGORIA = {
   dashboard: 'principal',
   tipos: 'cadastros', clientes: 'cadastros',
-  processos: 'operacional', orcamentos: 'operacional', agenda: 'operacional',
+  processos: 'operacional', orcamentos: 'operacional', agenda: 'operacional', kanban: 'operacional',
   financeiro: 'financeiro', despesas: 'financeiro', relatorios: 'financeiro',
   informativos: 'sistema', opcoes: 'sistema'
 };
@@ -6117,7 +6841,8 @@ function topbarAction() {
     tipos: () => openModal('modal-tipo'),
     clientes: () => openModal('modal-cliente'),
     processos: () => openModal('modal-processo'),
-    relatorios: () => exportarCSV()
+    relatorios: () => exportarCSV(),
+    kanban: () => abrirModalNovoQuadro()
   };
   if(actions[currentPage]) actions[currentPage]();
 }
@@ -6129,6 +6854,7 @@ function refreshPage(page) {
   else if(page === 'orcamentos') renderOrcamentos();
   else if(page === 'processos') renderProcessos();
   else if(page === 'agenda') renderAgenda();
+  else if(page === 'kanban') renderKanban();
   else if(page === 'financeiro') { renderParcelas(); renderFinVisao(); updateParcelasSelect(); }
   else if(page === 'despesas') renderDespesas();
   else if(page === 'relatorios') { gerarRelatorio(); renderConversao(); renderInadimplencia(); renderExito(); renderTaxaExito(); renderDuracao(); renderCargaTrabalho(); renderRelClientes(); }
@@ -12325,29 +13051,29 @@ function getEscritorioId() {
 const PERFIS = {
   admin: {
     label: 'Administrador', cor: '#185FA5', bg: '#E6F1FB',
-    paginas: ['dashboard','tipos','clientes','processos','orcamentos','agenda','financeiro','despesas','relatorios','informativos','opcoes'],
+    paginas: ['dashboard','tipos','clientes','processos','orcamentos','agenda','kanban','financeiro','despesas','relatorios','informativos','opcoes'],
     pode: { editarClientes:true, excluirClientes:true, verFinanceiro:true, gerenciarUsuarios:true, verOpcoes:true, exportarRelatorio:true }
   },
   advogado: {
     label: 'Advogado', cor: '#0B7B45', bg: '#E2F5EC',
-    paginas: ['dashboard','tipos','clientes','processos','orcamentos','agenda','financeiro','despesas','relatorios','informativos'],
+    paginas: ['dashboard','tipos','clientes','processos','orcamentos','agenda','kanban','financeiro','despesas','relatorios','informativos'],
     pode: { editarClientes:true, excluirClientes:false, verFinanceiro:true, gerenciarUsuarios:false, verOpcoes:false, exportarRelatorio:true }
   },
   financeiro: {
     label: 'Financeiro', cor: '#7C3AED', bg: '#F0E9FE',
-    paginas: ['dashboard','clientes','processos','orcamentos','agenda','financeiro','despesas','relatorios','informativos'],
+    paginas: ['dashboard','clientes','processos','orcamentos','agenda','kanban','financeiro','despesas','relatorios','informativos'],
     pode: { editarClientes:false, excluirClientes:false, verFinanceiro:true, gerenciarUsuarios:false, verOpcoes:false, exportarRelatorio:true }
   },
   assistente: {
     label: 'Assistente', cor: '#92400E', bg: '#FEF3C7',
-    paginas: ['dashboard','clientes','processos','agenda','informativos'],
+    paginas: ['dashboard','clientes','processos','agenda','kanban','informativos'],
     pode: { editarClientes:true, excluirClientes:false, verFinanceiro:false, gerenciarUsuarios:false, verOpcoes:false, exportarRelatorio:false }
   },
   // Mantido por compatibilidade com cadastros antigos do sistema local
   // (módulo de Usuários ainda não conectado ao banco real usa este nome).
   secretaria: {
     label: 'Secretária', cor: '#92400E', bg: '#FEF3C7',
-    paginas: ['dashboard','clientes','processos','agenda','informativos'],
+    paginas: ['dashboard','clientes','processos','agenda','kanban','informativos'],
     pode: { editarClientes:true, excluirClientes:false, verFinanceiro:false, gerenciarUsuarios:false, verOpcoes:false, exportarRelatorio:false }
   }
 };
