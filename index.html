@@ -1069,6 +1069,10 @@ body.topbar-escura .notif-btn:hover { background: rgba(255,255,255,0.2); border-
         <button class="nav-item" onclick="navigate('modelos-documentos',this)">
           <span class="icon">📄</span> Modelos de Documentos
         </button>
+        <button class="nav-item" onclick="navigate('leads',this)">
+          <span class="icon">🎯</span> Leads
+          <span class="nav-badge" id="badge-leads" style="display:none">0</span>
+        </button>
       </div>
     </div>
     <div class="nav-section" data-cat="financeiro">
@@ -2043,6 +2047,21 @@ body.topbar-escura .notif-btn:hover { background: rgba(255,255,255,0.2); border-
       </div>
     </div>
 
+    <!-- ========== LEADS ========== -->
+    <div class="page" id="page-leads">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap">
+        <select class="form-control" id="leads-select-funil" onchange="selecionarFunil(this.value)" style="max-width:280px"></select>
+        <button class="btn btn-outline btn-sm" onclick="abrirModalEditarFunil()" id="btn-editar-funil" style="display:none">✏️ Editar Funil</button>
+        <button class="btn btn-outline btn-sm" onclick="abrirModalNovaColunаLead()" id="btn-nova-coluna-lead" style="display:none">+ Nova Coluna</button>
+      </div>
+      <div id="leads-sem-funis" style="display:none;text-align:center;padding:60px 20px;color:var(--text-muted)">
+        <div style="font-size:40px;margin-bottom:12px">🎯</div>
+        <div style="font-size:14px">Nenhum funil criado ainda.</div>
+        <button class="btn btn-primary" style="margin-top:14px" onclick="abrirModalNovoFunil()">+ Criar Primeiro Funil</button>
+      </div>
+      <div id="leads-board" style="display:flex;gap:14px;overflow-x:auto;padding-bottom:12px;align-items:flex-start"></div>
+    </div>
+
     <!-- ========== MODELOS DE DOCUMENTOS ========== -->
     <div class="page" id="page-modelos-documentos">
       <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start">
@@ -2997,6 +3016,145 @@ body.topbar-escura .notif-btn:hover { background: rgba(255,255,255,0.2); border-
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="closeModal('modal-contato-cliente')">Cancelar</button>
       <button class="btn btn-primary" onclick="salvarContatoCliente()">💾 Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL FUNIL LEADS -->
+<div class="modal-overlay" id="modal-funil-lead">
+  <div class="modal" style="width:400px">
+    <div class="modal-header">
+      <span class="modal-title" id="modal-funil-lead-titulo">+ Novo Funil</span>
+      <button class="btn btn-ghost btn-icon" onclick="closeModal('modal-funil-lead')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="funil-edit-id">
+      <div class="form-group" style="margin-bottom:0">
+        <label class="form-label">Nome do Funil *</label>
+        <input type="text" class="form-control" id="funil-nome" placeholder="Ex: Funil Previdenciário, Funil Geral...">
+      </div>
+    </div>
+    <div class="modal-footer" style="justify-content:space-between">
+      <button class="btn btn-danger" id="funil-btn-excluir" onclick="excluirFunilAtual()" style="display:none">🗑 Excluir</button>
+      <div style="display:flex;gap:8px;margin-left:auto">
+        <button class="btn btn-outline" onclick="closeModal('modal-funil-lead')">Cancelar</button>
+        <button class="btn btn-primary" onclick="salvarFunil()">💾 Salvar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL COLUNA LEADS -->
+<div class="modal-overlay" id="modal-coluna-lead">
+  <div class="modal" style="width:380px">
+    <div class="modal-header">
+      <span class="modal-title" id="modal-coluna-lead-titulo">+ Nova Coluna</span>
+      <button class="btn btn-ghost btn-icon" onclick="closeModal('modal-coluna-lead')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="coluna-lead-edit-id">
+      <div class="form-group" style="margin-bottom:0">
+        <label class="form-label">Nome da Etapa *</label>
+        <input type="text" class="form-control" id="coluna-lead-nome" placeholder="Ex: Contato Inicial, Consulta Agendada...">
+      </div>
+    </div>
+    <div class="modal-footer" style="justify-content:space-between">
+      <button class="btn btn-danger" id="coluna-lead-btn-excluir" onclick="excluirColunaLeadAtual()" style="display:none">🗑 Excluir</button>
+      <div style="display:flex;gap:8px;margin-left:auto">
+        <button class="btn btn-outline" onclick="closeModal('modal-coluna-lead')">Cancelar</button>
+        <button class="btn btn-primary" onclick="salvarColunaLead()">💾 Salvar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL LEAD -->
+<div class="modal-overlay" id="modal-lead">
+  <div class="modal" style="width:500px;max-height:88vh;overflow-y:auto">
+    <div class="modal-header">
+      <span class="modal-title" id="modal-lead-titulo">+ Novo Lead</span>
+      <button class="btn btn-ghost btn-icon" onclick="closeModal('modal-lead')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="lead-edit-id">
+      <input type="hidden" id="lead-coluna-id">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Nome *</label>
+          <input type="text" class="form-control" id="lead-nome" placeholder="Nome do potencial cliente">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Telefone / WhatsApp</label>
+          <input type="text" class="form-control" id="lead-telefone" placeholder="(XX) XXXXX-XXXX">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">E-mail</label>
+          <input type="email" class="form-control" id="lead-email">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Origem</label>
+          <input type="text" class="form-control" id="lead-origem" placeholder="Indicação, Instagram, Site...">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Área do Direito</label>
+          <input type="text" class="form-control" id="lead-area" placeholder="Previdenciário, Trabalhista...">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Valor estimado (R$)</label>
+          <input type="number" class="form-control" id="lead-valor" step="0.01" placeholder="0,00">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group" style="margin-bottom:0">
+          <label class="form-label">Responsável</label>
+          <input type="text" class="form-control" id="lead-responsavel" placeholder="Nome do advogado responsável">
+        </div>
+      </div>
+      <div class="form-group" style="margin-top:12px;margin-bottom:0">
+        <label class="form-label">Observações</label>
+        <textarea class="form-control" id="lead-obs" rows="3" placeholder="Resumo do caso, contexto..."></textarea>
+      </div>
+
+      <!-- Atividades: só aparece ao editar lead existente -->
+      <div id="lead-bloco-atividades" style="display:none">
+        <div style="font-size:11px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--text-muted);margin:18px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--border)">Registrar Atividade</div>
+        <div class="form-row">
+          <div class="form-group">
+            <select class="form-control" id="atividade-tipo">
+              <option value="ligacao">📞 Ligação</option>
+              <option value="whatsapp">💬 WhatsApp</option>
+              <option value="email">📧 E-mail</option>
+              <option value="reuniao">🤝 Reunião</option>
+              <option value="anotacao">📝 Anotação</option>
+              <option value="outro">📌 Outro</option>
+            </select>
+          </div>
+          <div class="form-group" style="flex:2">
+            <input type="text" class="form-control" id="atividade-descricao" placeholder="Descreva o contato ou anotação...">
+          </div>
+          <div style="flex:0 0 auto;align-self:flex-end;padding-bottom:0">
+            <button class="btn btn-outline btn-sm" onclick="registrarAtividadeLead()" style="white-space:nowrap">+ Registrar</button>
+          </div>
+        </div>
+        <div style="font-size:11px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--text-muted);margin:10px 0 8px">Histórico</div>
+        <div id="lead-historico-lista" style="max-height:160px;overflow-y:auto"></div>
+        <div style="font-size:11px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--text-muted);margin:18px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--border)">Converter em Cliente</div>
+        <div id="lead-conversar-bloco">
+          <p style="font-size:12.5px;color:var(--text-secondary);margin-bottom:8px">O lead virou cliente? Crie o cadastro automaticamente com os dados já preenchidos.</p>
+          <button class="btn btn-primary btn-sm" onclick="converterLeadEmCliente()" id="btn-converter-lead">✅ Converter em Cliente</button>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer" style="justify-content:space-between">
+      <button class="btn btn-danger" id="lead-btn-excluir" onclick="excluirLeadAtual()" style="display:none">🗑 Excluir</button>
+      <div style="display:flex;gap:8px;margin-left:auto">
+        <button class="btn btn-outline" onclick="closeModal('modal-lead')">Cancelar</button>
+        <button class="btn btn-primary" onclick="salvarLead()">💾 Salvar</button>
+      </div>
     </div>
   </div>
 </div>
@@ -5879,6 +6037,457 @@ async function excluirContatoClienteUI(id) {
   renderListaContatosCliente();
 }
 
+// ==================== LEADS (funil de prospecção) ====================
+
+function leadFunilDoBanco(row) { return { id: row.id, nome: row.nome }; }
+function leadColunaDoBanco(row) { return { id: row.id, funilId: row.funil_id, nome: row.nome, ordem: row.ordem || 0, cor: row.cor || '#1D3A5C' }; }
+function leadDoBanco(row) {
+  return { id: row.id, colunaId: row.coluna_id, nome: row.nome, email: row.email || '', telefone: row.telefone || '',
+    origem: row.origem || '', areaDireito: row.area_direito || '', valorEstimado: row.valor_estimado || null,
+    responsavel: row.responsavel || '', observacoes: row.observacoes || '', ordem: row.ordem || 0,
+    convertido: row.convertido || false, clienteId: row.cliente_id || null };
+}
+function atividadeLeadDoBanco(row) { return { id: row.id, tipo: row.tipo, descricao: row.descricao, autorNome: row.autor_nome || '', criadoEm: row.criado_em }; }
+
+async function carregarLeadsFunis() {
+  const sb = await getSB(); const eid = getEscritorioId();
+  if(!sb || !eid) return [];
+  const { data, error } = await sb.from('leads_funis').select('*').eq('escritorio_id', eid).order('criado_em');
+  if(error) { console.warn(error.message); return []; }
+  return (data || []).map(leadFunilDoBanco);
+}
+async function carregarLeadsColunas() {
+  const sb = await getSB(); const eid = getEscritorioId();
+  if(!sb || !eid) return [];
+  const { data, error } = await sb.from('leads_colunas').select('*').eq('escritorio_id', eid).order('ordem');
+  if(error) { console.warn(error.message); return []; }
+  return (data || []).map(leadColunaDoBanco);
+}
+async function carregarLeads() {
+  const sb = await getSB(); const eid = getEscritorioId();
+  if(!sb || !eid) return [];
+  const { data, error } = await sb.from('leads').select('*').eq('escritorio_id', eid).order('ordem');
+  if(error) { console.warn(error.message); return []; }
+  return (data || []).map(leadDoBanco);
+}
+async function carregarAtividadesLead(leadId) {
+  const sb = await getSB(); const eid = getEscritorioId();
+  if(!sb || !eid) return [];
+  const { data, error } = await sb.from('leads_atividades').select('*').eq('lead_id', leadId).eq('escritorio_id', eid).order('criado_em', { ascending: false });
+  if(error) { console.warn(error.message); return []; }
+  return (data || []).map(atividadeLeadDoBanco);
+}
+
+async function salvarFunilNoBanco(nome, editId) {
+  const sb = await getSB(); const eid = getEscritorioId();
+  if(!sb || !eid) { showToast('Sem conexão.', 'error'); return null; }
+  if(editId) {
+    const { data, error } = await sb.from('leads_funis').update({ nome }).eq('id', editId).eq('escritorio_id', eid).select().single();
+    if(error) { showToast('Erro: ' + error.message, 'error'); return null; }
+    return leadFunilDoBanco(data);
+  } else {
+    const { data, error } = await sb.from('leads_funis').insert({ escritorio_id: eid, nome }).select().single();
+    if(error) { showToast('Erro: ' + error.message, 'error'); return null; }
+    return leadFunilDoBanco(data);
+  }
+}
+async function excluirFunilNoBanco(id) {
+  const sb = await getSB(); const eid = getEscritorioId();
+  if(!sb || !eid) return false;
+  const { error } = await sb.from('leads_funis').delete().eq('id', id).eq('escritorio_id', eid);
+  if(error) { showToast('Erro: ' + error.message, 'error'); return false; }
+  return true;
+}
+async function salvarColunаLeadNoBanco(funilId, nome, ordem, editId) {
+  const sb = await getSB(); const eid = getEscritorioId();
+  if(!sb || !eid) { showToast('Sem conexão.', 'error'); return null; }
+  if(editId) {
+    const { data, error } = await sb.from('leads_colunas').update({ nome }).eq('id', editId).eq('escritorio_id', eid).select().single();
+    if(error) { showToast('Erro: ' + error.message, 'error'); return null; }
+    return leadColunaDoBanco(data);
+  } else {
+    const { data, error } = await sb.from('leads_colunas').insert({ escritorio_id: eid, funil_id: funilId, nome, ordem }).select().single();
+    if(error) { showToast('Erro: ' + error.message, 'error'); return null; }
+    return leadColunaDoBanco(data);
+  }
+}
+async function excluirColunaLeadNoBanco(id) {
+  const sb = await getSB(); const eid = getEscritorioId();
+  if(!sb || !eid) return false;
+  const { error } = await sb.from('leads_colunas').delete().eq('id', id).eq('escritorio_id', eid);
+  if(error) { showToast('Erro: ' + error.message, 'error'); return false; }
+  return true;
+}
+async function salvarLeadNoBanco(dados, editId) {
+  const sb = await getSB(); const eid = getEscritorioId();
+  if(!sb || !eid) { showToast('Sem conexão.', 'error'); return null; }
+  const payload = { coluna_id: dados.colunaId, nome: dados.nome, email: dados.email || null, telefone: dados.telefone || null,
+    origem: dados.origem || null, area_direito: dados.areaDireito || null, valor_estimado: dados.valorEstimado || null,
+    responsavel: dados.responsavel || null, observacoes: dados.observacoes || null, ordem: dados.ordem || 0 };
+  if(editId) {
+    const { data, error } = await sb.from('leads').update(payload).eq('id', editId).eq('escritorio_id', eid).select().single();
+    if(error) { showToast('Erro: ' + error.message, 'error'); return null; }
+    return leadDoBanco(data);
+  } else {
+    const { data, error } = await sb.from('leads').insert({ ...payload, escritorio_id: eid }).select().single();
+    if(error) { showToast('Erro: ' + error.message, 'error'); return null; }
+    return leadDoBanco(data);
+  }
+}
+async function moverLeadNoBanco(id, colunaId, ordem) {
+  const sb = await getSB(); const eid = getEscritorioId();
+  if(!sb || !eid) return false;
+  const { error } = await sb.from('leads').update({ coluna_id: colunaId, ordem }).eq('id', id).eq('escritorio_id', eid);
+  if(error) { showToast('Erro: ' + error.message, 'error'); return false; }
+  return true;
+}
+async function excluirLeadNoBanco(id) {
+  const sb = await getSB(); const eid = getEscritorioId();
+  if(!sb || !eid) return false;
+  const { error } = await sb.from('leads').delete().eq('id', id).eq('escritorio_id', eid);
+  if(error) { showToast('Erro: ' + error.message, 'error'); return false; }
+  return true;
+}
+async function registrarAtividadeLeadNoBanco(leadId, tipo, descricao) {
+  const sb = await getSB(); const eid = getEscritorioId();
+  if(!sb || !eid) return null;
+  const autorNome = getSessao().nome || getSessao().email || null;
+  const { data, error } = await sb.from('leads_atividades').insert({ escritorio_id: eid, lead_id: leadId, tipo, descricao, autor_nome: autorNome }).select().single();
+  if(error) { showToast('Erro: ' + error.message, 'error'); return null; }
+  return atividadeLeadDoBanco(data);
+}
+
+// ---- UI do Kanban de Leads ----
+let _leadsFunilAtual = null;
+let _leadArrastando = null;
+
+async function renderLeads() {
+  store.leadsFunis = await carregarLeadsFunis();
+  store.leadsColunas = await carregarLeadsColunas();
+  store.leadsCards = await carregarLeads();
+  atualizarBadgeLeads();
+  renderLeadsSelectFunil();
+  if(store.leadsFunis.length) renderLeadsBoard();
+}
+
+function atualizarBadgeLeads() {
+  const novos = (store.leadsCards||[]).filter(l => !l.convertido).length;
+  const badge = document.getElementById('badge-leads');
+  if(badge) { badge.textContent = novos; badge.style.display = novos ? '' : 'none'; }
+}
+
+function renderLeadsSelectFunil() {
+  const sel = document.getElementById('leads-select-funil');
+  const semFunis = document.getElementById('leads-sem-funis');
+  const board = document.getElementById('leads-board');
+
+  if(!store.leadsFunis.length) {
+    sel.style.display = 'none';
+    document.getElementById('btn-editar-funil').style.display = 'none';
+    document.getElementById('btn-nova-coluna-lead').style.display = 'none';
+    semFunis.style.display = 'block';
+    board.innerHTML = '';
+    return;
+  }
+
+  sel.style.display = '';
+  semFunis.style.display = 'none';
+  document.getElementById('btn-editar-funil').style.display = '';
+  document.getElementById('btn-nova-coluna-lead').style.display = '';
+
+  if(!_leadsFunilAtual || !store.leadsFunis.some(f => f.id === _leadsFunilAtual)) {
+    _leadsFunilAtual = store.leadsFunis[0].id;
+  }
+  sel.innerHTML = store.leadsFunis.map(f => `<option value="${f.id}"${f.id===_leadsFunilAtual?' selected':''}>${f.nome}</option>`).join('');
+}
+
+function selecionarFunil(funilId) { _leadsFunilAtual = funilId; renderLeadsBoard(); }
+
+function renderLeadsBoard() {
+  const board = document.getElementById('leads-board');
+  if(!_leadsFunilAtual) { board.innerHTML = ''; return; }
+
+  const colunas = (store.leadsColunas||[]).filter(c => c.funilId === _leadsFunilAtual).sort((a,b) => a.ordem - b.ordem);
+
+  if(!colunas.length) {
+    board.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:40px;width:100%">Funil sem etapas. Clique em "+ Nova Coluna" para começar.</div>';
+    return;
+  }
+
+  board.innerHTML = colunas.map(col => {
+    const leads = (store.leadsCards||[]).filter(l => l.colunaId === col.id).sort((a,b) => a.ordem - b.ordem);
+    return `<div class="kanban-coluna" data-coluna-id="${col.id}" style="background:var(--surface);border-radius:var(--radius);min-width:270px;max-width:270px;display:flex;flex-direction:column;max-height:calc(100vh - 220px)">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-bottom:1px solid var(--border)">
+        <strong style="font-size:13px">${col.nome}</strong>
+        <div style="display:flex;align-items:center;gap:6px">
+          <span style="font-size:11px;color:var(--text-muted)">${leads.length}</span>
+          <button onclick="abrirModalEditarColunaLead('${col.id}')" style="background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:13px;padding:2px" title="Editar etapa">⋯</button>
+        </div>
+      </div>
+      <div class="kanban-cartoes-lista" data-coluna-id="${col.id}" style="flex:1;overflow-y:auto;padding:10px;min-height:60px"
+        ondragover="event.preventDefault()" ondrop="onDropLead(event,'${col.id}')">
+        ${leads.map(l => renderLeadCardHTML(l)).join('')}
+      </div>
+      <button onclick="abrirModalNovoLead('${col.id}')" style="margin:8px 10px 10px;padding:7px;border:1px dashed var(--border);border-radius:var(--radius);background:none;color:var(--text-muted);font-size:12.5px;cursor:pointer">+ Adicionar lead</button>
+    </div>`;
+  }).join('') + '<div style="min-width:40px"></div>';
+}
+
+const ICONES_ORIGEM = { 'Indicação': '🤝', 'Instagram': '📸', 'Site': '🌐', 'Google': '🔍', 'WhatsApp': '💬' };
+function renderLeadCardHTML(l) {
+  const tagConvertido = l.convertido ? '<span style="font-size:10px;background:#0A2E1C;color:#6FCF97;padding:1px 6px;border-radius:10px;font-weight:600">✅ Cliente</span>' : '';
+  const valor = l.valorEstimado ? 'R$ ' + Number(l.valorEstimado).toLocaleString('pt-BR', { minimumFractionDigits: 0 }) : '';
+  return `<div class="kanban-cartao" draggable="true" data-lead-id="${l.id}"
+    ondragstart="onDragStartLead(event,'${l.id}')"
+    onclick="abrirModalEditarLead('${l.id}')"
+    style="background:var(--white);border-radius:8px;padding:10px 12px;margin-bottom:8px;cursor:grab;box-shadow:0 1px 2px rgba(0,0,0,0.06);${l.convertido?'opacity:0.65':''}">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:4px;margin-bottom:4px">
+      <strong style="font-size:13px">${l.nome}</strong>${tagConvertido}
+    </div>
+    ${l.origem?`<div style="font-size:11.5px;color:var(--text-muted);margin-bottom:3px">${ICONES_ORIGEM[l.origem]||'📌'} ${l.origem}</div>`:''}
+    ${l.areaDireito?`<div style="font-size:11.5px;color:var(--blue-600)">${l.areaDireito}</div>`:''}
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;margin-top:5px">
+      <span style="font-size:11px;color:var(--text-muted)">${l.responsavel||''}</span>
+      ${valor?`<span style="font-size:11px;color:#0B7B45;font-weight:600">${valor}</span>`:''}
+    </div>
+  </div>`;
+}
+
+function onDragStartLead(ev, leadId) { _leadArrastando = leadId; ev.dataTransfer.effectAllowed = 'move'; }
+async function onDropLead(ev, colunaDestinoId) {
+  ev.preventDefault();
+  if(!_leadArrastando) return;
+  const lead = (store.leadsCards||[]).find(l => l.id === _leadArrastando);
+  if(!lead || lead.colunaId === colunaDestinoId) { _leadArrastando = null; return; }
+  const novaOrdem = (store.leadsCards||[]).filter(l => l.colunaId === colunaDestinoId).length;
+  const ok = await moverLeadNoBanco(lead.id, colunaDestinoId, novaOrdem);
+  if(!ok) return;
+  lead.colunaId = colunaDestinoId; lead.ordem = novaOrdem;
+  _leadArrastando = null;
+  renderLeadsBoard();
+}
+
+// ---- Modais: Funil ----
+function abrirModalNovoFunil() {
+  document.getElementById('funil-edit-id').value = '';
+  document.getElementById('funil-nome').value = '';
+  document.getElementById('modal-funil-lead-titulo').textContent = '+ Novo Funil';
+  document.getElementById('funil-btn-excluir').style.display = 'none';
+  openModal('modal-funil-lead', false);
+}
+function abrirModalEditarFunil() {
+  const f = (store.leadsFunis||[]).find(f => f.id === _leadsFunilAtual);
+  if(!f) return;
+  document.getElementById('funil-edit-id').value = f.id;
+  document.getElementById('funil-nome').value = f.nome;
+  document.getElementById('modal-funil-lead-titulo').textContent = '✏️ Editar Funil';
+  document.getElementById('funil-btn-excluir').style.display = '';
+  openModal('modal-funil-lead', false);
+}
+async function salvarFunil() {
+  const nome = document.getElementById('funil-nome').value.trim();
+  if(!nome) { showToast('Dê um nome ao funil.', 'error'); return; }
+  const editId = document.getElementById('funil-edit-id').value;
+  const salvo = await salvarFunilNoBanco(nome, editId || null);
+  if(!salvo) return;
+  if(editId) {
+    const idx = (store.leadsFunis||[]).findIndex(f => f.id === editId);
+    if(idx >= 0) store.leadsFunis[idx] = salvo;
+    showToast('Funil atualizado!', 'success');
+  } else {
+    store.leadsFunis = store.leadsFunis || [];
+    store.leadsFunis.push(salvo);
+    _leadsFunilAtual = salvo.id;
+    showToast('Funil criado!', 'success');
+  }
+  closeModal('modal-funil-lead');
+  renderLeadsSelectFunil();
+  renderLeadsBoard();
+}
+async function excluirFunilAtual() {
+  const editId = document.getElementById('funil-edit-id').value;
+  if(!editId || !confirm('Excluir este funil e todos os leads nele?')) return;
+  const ok = await excluirFunilNoBanco(editId);
+  if(!ok) return;
+  store.leadsFunis = (store.leadsFunis||[]).filter(f => f.id !== editId);
+  _leadsFunilAtual = null;
+  closeModal('modal-funil-lead');
+  showToast('Funil excluído.');
+  renderLeadsSelectFunil();
+  renderLeadsBoard();
+}
+
+// ---- Modais: Coluna ----
+function abrirModalNovaColunаLead() {
+  document.getElementById('coluna-lead-edit-id').value = '';
+  document.getElementById('coluna-lead-nome').value = '';
+  document.getElementById('modal-coluna-lead-titulo').textContent = '+ Nova Etapa';
+  document.getElementById('coluna-lead-btn-excluir').style.display = 'none';
+  openModal('modal-coluna-lead', false);
+}
+function abrirModalEditarColunaLead(colunaId) {
+  const col = (store.leadsColunas||[]).find(c => c.id === colunaId);
+  if(!col) return;
+  document.getElementById('coluna-lead-edit-id').value = col.id;
+  document.getElementById('coluna-lead-nome').value = col.nome;
+  document.getElementById('modal-coluna-lead-titulo').textContent = '✏️ Editar Etapa';
+  document.getElementById('coluna-lead-btn-excluir').style.display = '';
+  openModal('modal-coluna-lead', false);
+}
+async function salvarColunaLead() {
+  const nome = document.getElementById('coluna-lead-nome').value.trim();
+  if(!nome) { showToast('Dê um nome à etapa.', 'error'); return; }
+  const editId = document.getElementById('coluna-lead-edit-id').value;
+  const ordem = (store.leadsColunas||[]).filter(c => c.funilId === _leadsFunilAtual).length;
+  const salvo = await salvarColunаLeadNoBanco(_leadsFunilAtual, nome, ordem, editId || null);
+  if(!salvo) return;
+  store.leadsColunas = store.leadsColunas || [];
+  if(editId) { const idx = store.leadsColunas.findIndex(c => c.id === editId); if(idx >= 0) store.leadsColunas[idx] = salvo; }
+  else store.leadsColunas.push(salvo);
+  showToast(editId ? 'Etapa atualizada!' : 'Etapa criada!', 'success');
+  closeModal('modal-coluna-lead');
+  renderLeadsBoard();
+}
+async function excluirColunaLeadAtual() {
+  const editId = document.getElementById('coluna-lead-edit-id').value;
+  if(!editId || !confirm('Excluir esta etapa? Os leads nela também serão excluídos.')) return;
+  const ok = await excluirColunaLeadNoBanco(editId);
+  if(!ok) return;
+  store.leadsColunas = (store.leadsColunas||[]).filter(c => c.id !== editId);
+  store.leadsCards = (store.leadsCards||[]).filter(l => l.colunaId !== editId);
+  closeModal('modal-coluna-lead');
+  showToast('Etapa excluída.');
+  renderLeadsBoard();
+}
+
+// ---- Modal: Lead ----
+function abrirModalNovoLead(colunaId) {
+  document.getElementById('lead-edit-id').value = '';
+  document.getElementById('lead-coluna-id').value = colunaId;
+  ['lead-nome','lead-telefone','lead-email','lead-origem','lead-area','lead-valor','lead-responsavel','lead-obs'].forEach(id => { const el = document.getElementById(id); if(el) el.value = ''; });
+  document.getElementById('modal-lead-titulo').textContent = '+ Novo Lead';
+  document.getElementById('lead-btn-excluir').style.display = 'none';
+  document.getElementById('lead-bloco-atividades').style.display = 'none';
+  openModal('modal-lead', false);
+}
+async function abrirModalEditarLead(leadId) {
+  const l = (store.leadsCards||[]).find(l => l.id === leadId);
+  if(!l) return;
+  document.getElementById('lead-edit-id').value = l.id;
+  document.getElementById('lead-coluna-id').value = l.colunaId;
+  document.getElementById('lead-nome').value = l.nome;
+  document.getElementById('lead-telefone').value = l.telefone;
+  document.getElementById('lead-email').value = l.email;
+  document.getElementById('lead-origem').value = l.origem;
+  document.getElementById('lead-area').value = l.areaDireito;
+  document.getElementById('lead-valor').value = l.valorEstimado || '';
+  document.getElementById('lead-responsavel').value = l.responsavel;
+  document.getElementById('lead-obs').value = l.observacoes;
+  document.getElementById('modal-lead-titulo').textContent = '✏️ ' + l.nome;
+  document.getElementById('lead-btn-excluir').style.display = '';
+  document.getElementById('lead-bloco-atividades').style.display = '';
+
+  // Esconde botão de converter se já foi convertido
+  const btnConverter = document.getElementById('btn-converter-lead');
+  if(btnConverter) btnConverter.style.display = l.convertido ? 'none' : '';
+
+  openModal('modal-lead', false);
+  renderHistoricoAtividadesLead(leadId);
+}
+async function salvarLead() {
+  const nome = document.getElementById('lead-nome').value.trim();
+  if(!nome) { showToast('Informe o nome do lead.', 'error'); return; }
+  const editId = document.getElementById('lead-edit-id').value;
+  const dados = {
+    colunaId: document.getElementById('lead-coluna-id').value,
+    nome, telefone: document.getElementById('lead-telefone').value.trim(),
+    email: document.getElementById('lead-email').value.trim(),
+    origem: document.getElementById('lead-origem').value.trim(),
+    areaDireito: document.getElementById('lead-area').value.trim(),
+    valorEstimado: parseFloat(document.getElementById('lead-valor').value) || null,
+    responsavel: document.getElementById('lead-responsavel').value.trim(),
+    observacoes: document.getElementById('lead-obs').value.trim(),
+    ordem: editId ? null : (store.leadsCards||[]).filter(l => l.colunaId === document.getElementById('lead-coluna-id').value).length
+  };
+  const salvo = await salvarLeadNoBanco(dados, editId || null);
+  if(!salvo) return;
+  store.leadsCards = store.leadsCards || [];
+  if(editId) { const idx = store.leadsCards.findIndex(l => l.id === editId); if(idx >= 0) store.leadsCards[idx] = salvo; }
+  else store.leadsCards.push(salvo);
+  showToast(editId ? 'Lead atualizado!' : 'Lead criado!', 'success');
+  closeModal('modal-lead');
+  renderLeadsBoard();
+}
+async function excluirLeadAtual() {
+  const editId = document.getElementById('lead-edit-id').value;
+  if(!editId || !confirm('Excluir este lead?')) return;
+  const ok = await excluirLeadNoBanco(editId);
+  if(!ok) return;
+  store.leadsCards = (store.leadsCards||[]).filter(l => l.id !== editId);
+  closeModal('modal-lead');
+  showToast('Lead excluído.');
+  atualizarBadgeLeads();
+  renderLeadsBoard();
+}
+
+// ---- Atividades do lead ----
+async function renderHistoricoAtividadesLead(leadId) {
+  const lista = document.getElementById('lead-historico-lista');
+  lista.innerHTML = '<span style="font-size:12px;color:var(--text-muted)">Carregando...</span>';
+  const atividades = await carregarAtividadesLead(leadId);
+  if(!atividades.length) { lista.innerHTML = '<span style="font-size:12px;color:var(--text-muted)">Nenhuma atividade registrada ainda.</span>'; return; }
+  const ICONES_ATIV = { ligacao:'📞', whatsapp:'💬', email:'📧', reuniao:'🤝', anotacao:'📝', outro:'📌' };
+  lista.innerHTML = atividades.map(a => {
+    const data = new Date(a.criadoEm).toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
+    return `<div style="font-size:12px;padding:5px 0;border-bottom:1px solid var(--border)">
+      ${ICONES_ATIV[a.tipo]||'📌'} <strong>${a.autorNome}</strong>: ${a.descricao}
+      <div style="font-size:10.5px;color:var(--text-muted)">${data}</div>
+    </div>`;
+  }).join('');
+}
+async function registrarAtividadeLead() {
+  const leadId = document.getElementById('lead-edit-id').value;
+  const tipo = document.getElementById('atividade-tipo').value;
+  const descricao = document.getElementById('atividade-descricao').value.trim();
+  if(!leadId || !descricao) { showToast('Descreva a atividade.', 'error'); return; }
+  const salvo = await registrarAtividadeLeadNoBanco(leadId, tipo, descricao);
+  if(!salvo) return;
+  document.getElementById('atividade-descricao').value = '';
+  showToast('Atividade registrada!', 'success');
+  renderHistoricoAtividadesLead(leadId);
+}
+
+// ---- Converter lead em cliente ----
+async function converterLeadEmCliente() {
+  const leadId = document.getElementById('lead-edit-id').value;
+  const lead = (store.leadsCards||[]).find(l => l.id === leadId);
+  if(!lead) return;
+  if(!confirm('Criar um cliente com os dados deste lead?')) return;
+
+  const sb = await getSB(); const eid = getEscritorioId();
+  if(!sb || !eid) { showToast('Sem conexão.', 'error'); return; }
+
+  // Cria o cliente com os dados do lead
+  const { data: clienteNovo, error } = await sb.from('clientes').insert({
+    escritorio_id: eid, nome: lead.nome, email: lead.email || null, telefone: lead.telefone || null
+  }).select().single();
+  if(error) { showToast('Erro ao criar cliente: ' + error.message, 'error'); return; }
+
+  // Marca o lead como convertido e vincula ao cliente criado
+  await sb.from('leads').update({ convertido: true, cliente_id: clienteNovo.id }).eq('id', leadId).eq('escritorio_id', eid);
+  const idx = (store.leadsCards||[]).findIndex(l => l.id === leadId);
+  if(idx >= 0) { store.leadsCards[idx].convertido = true; store.leadsCards[idx].clienteId = clienteNovo.id; }
+
+  // Recarrega clientes no store
+  store.clientes = await carregarClientes();
+
+  document.getElementById('btn-converter-lead').style.display = 'none';
+  closeModal('modal-lead');
+  showToast('Cliente criado com sucesso! Você pode completar o cadastro na aba Clientes.', 'success');
+  atualizarBadgeLeads();
+  renderLeadsBoard();
+}
+
 // ==================== UI: DIÁRIO OFICIAL ====================
 
 const STATUS_PUBLICACAO = {
@@ -7394,7 +8003,7 @@ async function sbLoad() {
   }
 
   console.log('🔄 Carregando dados reais do escritório...');
-  const [clientes, processos, tipos, parcelas, despesas, eventos, intimacoes, orcamentos, documentosLista, dadosEscritorio, exitos, tags, clientesTags, processosTags, andamentos, partes, contatosProcesso, tarefas, kanbanQuadros, kanbanColunas, kanbanCartoes, publicacoesDiario, modelosDocumento] = await Promise.all([
+  const [clientes, processos, tipos, parcelas, despesas, eventos, intimacoes, orcamentos, documentosLista, dadosEscritorio, exitos, tags, clientesTags, processosTags, andamentos, partes, contatosProcesso, tarefas, kanbanQuadros, kanbanColunas, kanbanCartoes, publicacoesDiario, modelosDocumento, leadsFunis, leadsColunas, leadsCards] = await Promise.all([
     carregarClientes(),
     carregarProcessos(),
     carregarTipos(),
@@ -7417,7 +8026,10 @@ async function sbLoad() {
     carregarKanbanColunas(),
     carregarKanbanCartoes(),
     carregarPublicacoesDiario(),
-    carregarModelosDocumento()
+    carregarModelosDocumento(),
+    carregarLeadsFunis(),
+    carregarLeadsColunas(),
+    carregarLeads()
   ]);
 
   store.clientes = clientes;
@@ -7442,6 +8054,9 @@ async function sbLoad() {
   store.kanbanCartoes = kanbanCartoes;
   store.publicacoesDiario = publicacoesDiario;
   store.modelosDocumento = modelosDocumento;
+  store.leadsFunis = leadsFunis;
+  store.leadsColunas = leadsColunas;
+  store.leadsCards = leadsCards;
 
   // store.documentos (por processo) e store.docsCliente (por cliente) são
   // objetos indexados por ID, derivados da mesma lista plana carregada do
@@ -7490,6 +8105,9 @@ function normalizarStore() {
   if(!store.kanbanCartoes)   store.kanbanCartoes   = [];
   if(!store.publicacoesDiario) store.publicacoesDiario = [];
   if(!store.modelosDocumento)  store.modelosDocumento  = [];
+  if(!store.leadsFunis)       store.leadsFunis       = [];
+  if(!store.leadsColunas)     store.leadsColunas     = [];
+  if(!store.leadsCards)       store.leadsCards       = [];
   if(!store.clientesTags)    store.clientesTags    = {};
   if(!store.processosTags)   store.processosTags   = {};
   // Identidade Visual (cores + logo customizável)
@@ -7834,12 +8452,12 @@ let procTabFilter = 'todos';
 
 const pageTitles = {
   dashboard: 'Dashboard', tipos: 'Tipos de Processo', clientes: 'Clientes', 'historico-contatos': 'Histórico de Contatos',
-  processos: 'Processos', orcamentos: 'Orçamentos', agenda: 'Agenda', kanban: 'Kanban', 'diario-oficial': 'Diário Oficial', 'modelos-documentos': 'Modelos de Documentos', financeiro: 'Recebimentos',
+  processos: 'Processos', orcamentos: 'Orçamentos', agenda: 'Agenda', kanban: 'Kanban', 'diario-oficial': 'Diário Oficial', 'modelos-documentos': 'Modelos de Documentos', 'leads': 'Leads', financeiro: 'Recebimentos',
   despesas: 'Despesas', relatorios: 'Relatórios', informativos: 'Informativos', opcoes: 'Opções'
 };
 const pageActions = {
   dashboard: '', tipos: '', clientes: '', 'historico-contatos': '', processos: '',
-  orcamentos: '', agenda: '', kanban: '+ Novo Quadro', 'diario-oficial': '+ Cadastrar Publicação', 'modelos-documentos': '+ Novo Modelo', financeiro: '', despesas: '', relatorios: '⬇ Exportar', informativos: '', opcoes: ''
+  orcamentos: '', agenda: '', kanban: '+ Novo Quadro', 'diario-oficial': '+ Cadastrar Publicação', 'modelos-documentos': '+ Novo Modelo', 'leads': '+ Novo Lead', financeiro: '', despesas: '', relatorios: '⬇ Exportar', informativos: '', opcoes: ''
 };
 
 // Mapa de qual categoria do menu cada página pertence — usado para abrir
@@ -7847,7 +8465,7 @@ const pageActions = {
 const PAGINA_CATEGORIA = {
   dashboard: 'principal',
   tipos: 'cadastros', clientes: 'cadastros', 'historico-contatos': 'cadastros',
-  processos: 'operacional', orcamentos: 'operacional', agenda: 'operacional', kanban: 'operacional', 'diario-oficial': 'operacional', 'modelos-documentos': 'operacional',
+  processos: 'operacional', orcamentos: 'operacional', agenda: 'operacional', kanban: 'operacional', 'diario-oficial': 'operacional', 'modelos-documentos': 'operacional', 'leads': 'operacional',
   financeiro: 'financeiro', despesas: 'financeiro', relatorios: 'financeiro',
   informativos: 'sistema', opcoes: 'sistema'
 };
@@ -7929,7 +8547,8 @@ function topbarAction() {
     relatorios: () => exportarCSV(),
     kanban: () => abrirModalNovoQuadro(),
     'diario-oficial': () => abrirModalNovaPublicacao(),
-    'modelos-documentos': () => abrirModalNovoModelo()
+    'modelos-documentos': () => abrirModalNovoModelo(),
+    'leads': () => abrirModalNovoLead()
   };
   if(actions[currentPage]) actions[currentPage]();
 }
@@ -7945,6 +8564,7 @@ function refreshPage(page) {
   else if(page === 'kanban') renderKanban();
   else if(page === 'diario-oficial') renderDiarioOficial();
   else if(page === 'modelos-documentos') renderModelosDocumentos();
+  else if(page === 'leads') renderLeads();
   else if(page === 'financeiro') { renderParcelas(); renderFinVisao(); updateParcelasSelect(); }
   else if(page === 'despesas') renderDespesas();
   else if(page === 'relatorios') { gerarRelatorio(); renderConversao(); renderInadimplencia(); renderExito(); renderTaxaExito(); renderDuracao(); renderCargaTrabalho(); renderRelClientes(); }
@@ -14141,29 +14761,29 @@ function getEscritorioId() {
 const PERFIS = {
   admin: {
     label: 'Administrador', cor: '#185FA5', bg: '#E6F1FB',
-    paginas: ['dashboard','tipos','clientes','historico-contatos','processos','orcamentos','agenda','kanban','diario-oficial','modelos-documentos','financeiro','despesas','relatorios','informativos','opcoes'],
+    paginas: ['dashboard','tipos','clientes','historico-contatos','processos','orcamentos','agenda','kanban','diario-oficial','modelos-documentos','leads','financeiro','despesas','relatorios','informativos','opcoes'],
     pode: { editarClientes:true, excluirClientes:true, verFinanceiro:true, gerenciarUsuarios:true, verOpcoes:true, exportarRelatorio:true }
   },
   advogado: {
     label: 'Advogado', cor: '#0B7B45', bg: '#E2F5EC',
-    paginas: ['dashboard','tipos','clientes','historico-contatos','processos','orcamentos','agenda','kanban','diario-oficial','modelos-documentos','financeiro','despesas','relatorios','informativos'],
+    paginas: ['dashboard','tipos','clientes','historico-contatos','processos','orcamentos','agenda','kanban','diario-oficial','modelos-documentos','leads','financeiro','despesas','relatorios','informativos'],
     pode: { editarClientes:true, excluirClientes:false, verFinanceiro:true, gerenciarUsuarios:false, verOpcoes:false, exportarRelatorio:true }
   },
   financeiro: {
     label: 'Financeiro', cor: '#7C3AED', bg: '#F0E9FE',
-    paginas: ['dashboard','clientes','historico-contatos','processos','orcamentos','agenda','kanban','diario-oficial','modelos-documentos','financeiro','despesas','relatorios','informativos'],
+    paginas: ['dashboard','clientes','historico-contatos','processos','orcamentos','agenda','kanban','diario-oficial','modelos-documentos','leads','financeiro','despesas','relatorios','informativos'],
     pode: { editarClientes:false, excluirClientes:false, verFinanceiro:true, gerenciarUsuarios:false, verOpcoes:false, exportarRelatorio:true }
   },
   assistente: {
     label: 'Assistente', cor: '#92400E', bg: '#FEF3C7',
-    paginas: ['dashboard','clientes','historico-contatos','processos','agenda','kanban','diario-oficial','modelos-documentos','informativos'],
+    paginas: ['dashboard','clientes','historico-contatos','processos','agenda','kanban','diario-oficial','modelos-documentos','leads','informativos'],
     pode: { editarClientes:true, excluirClientes:false, verFinanceiro:false, gerenciarUsuarios:false, verOpcoes:false, exportarRelatorio:false }
   },
   // Mantido por compatibilidade com cadastros antigos do sistema local
   // (módulo de Usuários ainda não conectado ao banco real usa este nome).
   secretaria: {
     label: 'Secretária', cor: '#92400E', bg: '#FEF3C7',
-    paginas: ['dashboard','clientes','historico-contatos','processos','agenda','kanban','diario-oficial','modelos-documentos','informativos'],
+    paginas: ['dashboard','clientes','historico-contatos','processos','agenda','kanban','diario-oficial','modelos-documentos','leads','informativos'],
     pode: { editarClientes:true, excluirClientes:false, verFinanceiro:false, gerenciarUsuarios:false, verOpcoes:false, exportarRelatorio:false }
   }
 };
@@ -14335,7 +14955,8 @@ async function entrarNoSistema() {
   store.informativos = await carregarInformativos();
   atualizarBadgeInformativos();
   atualizarBadgeNotif();
-  atualizarBadgeDiario(); // store.publicacoesDiario já veio no sbLoad() acima
+  atualizarBadgeDiario();
+  atualizarBadgeLeads(); // store.leadsCards já veio no sbLoad() acima
 
   setTimeout(() => {
     screen.style.display = 'none';
