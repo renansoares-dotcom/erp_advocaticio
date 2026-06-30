@@ -18,6 +18,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/docx@9.6.1/dist/index.iife.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <style>
 :root {
   --blue-50: #EEF2F7;
@@ -1064,6 +1066,9 @@ body.topbar-escura .notif-btn:hover { background: rgba(255,255,255,0.2); border-
           <span class="icon">📰</span> Diário Oficial
           <span class="nav-badge" id="badge-diario" style="display:none">0</span>
         </button>
+        <button class="nav-item" onclick="navigate('modelos-documentos',this)">
+          <span class="icon">📄</span> Modelos de Documentos
+        </button>
       </div>
     </div>
     <div class="nav-section" data-cat="financeiro">
@@ -2038,6 +2043,68 @@ body.topbar-escura .notif-btn:hover { background: rgba(255,255,255,0.2); border-
       </div>
     </div>
 
+    <!-- ========== MODELOS DE DOCUMENTOS ========== -->
+    <div class="page" id="page-modelos-documentos">
+      <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start">
+        <!-- Lista de modelos (coluna esquerda) -->
+        <div style="flex:0 0 260px">
+          <div class="form-group" style="margin-bottom:10px">
+            <select class="form-control" id="md-filtro-categoria" onchange="renderModelosDocumentos()">
+              <option value="">Todas as categorias</option>
+              <option value="procuracao">Procuração</option>
+              <option value="contrato_honorarios">Contrato de Honorários</option>
+              <option value="peticao_inicial">Petição Inicial</option>
+              <option value="recurso">Recurso</option>
+              <option value="notificacao_extrajudicial">Notificação Extrajudicial</option>
+            </select>
+          </div>
+          <div id="md-lista-modelos" style="display:flex;flex-direction:column;gap:6px"></div>
+        </div>
+        <!-- Área de edição/visualização (coluna direita) -->
+        <div style="flex:1;min-width:0">
+          <div id="md-area-vazia" style="text-align:center;color:var(--text-muted);padding:60px 20px">
+            <div style="font-size:36px;margin-bottom:12px">📄</div>
+            <div>Selecione um modelo para editar ou clique em "+ Novo Modelo"</div>
+          </div>
+          <div id="md-editor" style="display:none">
+            <div class="card" style="margin-bottom:12px">
+              <div class="card-body">
+                <div class="form-row">
+                  <div class="form-group">
+                    <label class="form-label">Nome do modelo *</label>
+                    <input type="text" class="form-control" id="md-nome" placeholder="Ex: Procuração Padrão">
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Categoria *</label>
+                    <select class="form-control" id="md-categoria">
+                      <option value="procuracao">Procuração</option>
+                      <option value="contrato_honorarios">Contrato de Honorários</option>
+                      <option value="peticao_inicial">Petição Inicial</option>
+                      <option value="recurso">Recurso</option>
+                      <option value="notificacao_extrajudicial">Notificação Extrajudicial</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="form-group" style="margin-bottom:6px">
+                  <label class="form-label">Conteúdo do modelo</label>
+                  <div style="font-size:11.5px;color:var(--text-muted);margin-bottom:8px">
+                    Use variáveis como <code>[NOME_CLIENTE]</code>, <code>[CPF_CLIENTE]</code>, <code>[NUMERO_PROCESSO]</code>, <code>[NOME_ADVOGADO]</code>, <code>[DATA_HOJE]</code> — serão substituídas automaticamente ao gerar o documento.
+                  </div>
+                  <textarea class="form-control" id="md-conteudo" rows="20" style="font-family:monospace;font-size:13px;line-height:1.6"></textarea>
+                </div>
+                <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+                  <button class="btn btn-primary" onclick="salvarModelo()">💾 Salvar modelo</button>
+                  <button class="btn btn-outline" onclick="abrirModalGerarDocumento()">▶ Gerar documento</button>
+                  <button class="btn btn-outline" onclick="abrirModalHistoricoModelo()">🕐 Histórico de versões</button>
+                  <button class="btn btn-danger" id="md-btn-excluir" onclick="excluirModeloAtual()" style="margin-left:auto;display:none">🗑 Excluir</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- ========== DIÁRIO OFICIAL ========== -->
     <div class="page" id="page-diario-oficial">
       <div class="card">
@@ -2930,6 +2997,53 @@ body.topbar-escura .notif-btn:hover { background: rgba(255,255,255,0.2); border-
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="closeModal('modal-contato-cliente')">Cancelar</button>
       <button class="btn btn-primary" onclick="salvarContatoCliente()">💾 Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL GERAR DOCUMENTO -->
+<div class="modal-overlay" id="modal-gerar-documento">
+  <div class="modal" style="width:480px">
+    <div class="modal-header">
+      <span class="modal-title">▶ Gerar Documento</span>
+      <button class="btn btn-ghost btn-icon" onclick="closeModal('modal-gerar-documento')">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:13px;color:var(--text-secondary);margin-bottom:16px">
+        Selecione o cliente e/ou processo para preencher as variáveis automaticamente.
+      </p>
+      <div class="form-group" style="position:relative">
+        <label class="form-label">Cliente (opcional)</label>
+        <input type="text" class="form-control" id="gd-busca-cliente" placeholder="Buscar por nome ou CPF/CNPJ..."
+          autocomplete="off" oninput="filtrarSugestoesClienteGD(this.value)" onfocus="filtrarSugestoesClienteGD(this.value)">
+        <input type="hidden" id="gd-cliente-id">
+        <div id="gd-sugestoes-cliente" style="display:none;position:absolute;top:100%;left:0;right:0;background:var(--white);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-lg);max-height:220px;overflow-y:auto;z-index:20;margin-top:4px"></div>
+      </div>
+      <div class="form-group" style="margin-bottom:0">
+        <label class="form-label">Processo (opcional)</label>
+        <select class="form-control" id="gd-processo"></select>
+      </div>
+    </div>
+    <div class="modal-footer" style="gap:8px;flex-wrap:wrap">
+      <button class="btn btn-outline" onclick="closeModal('modal-gerar-documento')">Cancelar</button>
+      <button class="btn btn-outline" onclick="gerarDocumento('docx')">⬇ Baixar .docx</button>
+      <button class="btn btn-primary" onclick="gerarDocumento('pdf')">⬇ Baixar PDF</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL HISTÓRICO DE VERSÕES DO MODELO -->
+<div class="modal-overlay" id="modal-historico-modelo">
+  <div class="modal" style="width:520px;max-height:80vh;overflow-y:auto">
+    <div class="modal-header">
+      <span class="modal-title">🕐 Histórico de Versões</span>
+      <button class="btn btn-ghost btn-icon" onclick="closeModal('modal-historico-modelo')">✕</button>
+    </div>
+    <div class="modal-body" id="historico-modelo-lista">
+      <div style="text-align:center;color:var(--text-muted);padding:30px">Carregando...</div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal-historico-modelo')">Fechar</button>
     </div>
   </div>
 </div>
@@ -5970,6 +6084,316 @@ async function excluirPublicacaoAtual() {
   renderListaPublicacoes();
 }
 
+// ==================== MODELOS DE DOCUMENTOS ====================
+
+const CATEGORIAS_MODELO = {
+  procuracao: 'Procuração',
+  contrato_honorarios: 'Contrato de Honorários',
+  peticao_inicial: 'Petição Inicial',
+  recurso: 'Recurso',
+  notificacao_extrajudicial: 'Notificação Extrajudicial'
+};
+
+// Variáveis disponíveis para substituição automática
+const VARIAVEIS_MODELO = [
+  '[NOME_CLIENTE]', '[CPF_CLIENTE]', '[CNPJ_CLIENTE]', '[ENDERECO_CLIENTE]',
+  '[NUMERO_PROCESSO]', '[VARA_PROCESSO]', '[COMARCA_PROCESSO]',
+  '[NOME_ADVOGADO]', '[OAB_ADVOGADO]', '[NOME_ESCRITORIO]',
+  '[DATA_HOJE]', '[ANO_ATUAL]'
+];
+
+let _mdModeloAtual = null; // modelo aberto no editor
+
+function modeloDoBanco(row) {
+  return {
+    id: row.id, nome: row.nome, categoria: row.categoria,
+    conteudo: row.conteudo, versaoAtual: row.versao_atual || 1,
+    criadoEm: row.criado_em
+  };
+}
+function versaoModeloDoBanco(row) {
+  return { id: row.id, versao: row.versao, conteudo: row.conteudo, editadoEm: row.editado_em };
+}
+
+async function carregarModelosDocumento() {
+  const sb = await getSB();
+  const escritorioId = getEscritorioId();
+  if(!sb || !escritorioId) return [];
+  const { data, error } = await sb.from('modelos_documento').select('*').eq('escritorio_id', escritorioId).order('categoria').order('nome');
+  if(error) { console.warn('Erro ao carregar modelos:', error.message); return []; }
+  return (data || []).map(modeloDoBanco);
+}
+async function carregarVersoesModelo(modeloId) {
+  const sb = await getSB();
+  const escritorioId = getEscritorioId();
+  if(!sb || !escritorioId) return [];
+  const { data, error } = await sb.from('modelos_documento_versoes').select('*').eq('modelo_id', modeloId).eq('escritorio_id', escritorioId).order('versao', { ascending: false });
+  if(error) { console.warn('Erro ao carregar versões:', error.message); return []; }
+  return (data || []).map(versaoModeloDoBanco);
+}
+async function salvarModeloNoBanco(dados, editId) {
+  const sb = await getSB();
+  const escritorioId = getEscritorioId();
+  if(!sb || !escritorioId) { showToast('Sem conexão com o banco.', 'error'); return null; }
+
+  if(editId) {
+    // Antes de sobrescrever, copia a versão atual para o histórico
+    const modeloAtual = store.modelosDocumento.find(m => m.id === editId);
+    if(modeloAtual) {
+      await sb.from('modelos_documento_versoes').insert({
+        modelo_id: editId, escritorio_id: escritorioId,
+        versao: modeloAtual.versaoAtual, conteudo: modeloAtual.conteudo
+      });
+    }
+    const novaVersao = (modeloAtual ? modeloAtual.versaoAtual : 1) + 1;
+    const { data, error } = await sb.from('modelos_documento').update({ nome: dados.nome, categoria: dados.categoria, conteudo: dados.conteudo, versao_atual: novaVersao }).eq('id', editId).eq('escritorio_id', escritorioId).select().single();
+    if(error) { showToast('Erro ao salvar modelo: ' + error.message, 'error'); return null; }
+    return modeloDoBanco(data);
+  } else {
+    const { data, error } = await sb.from('modelos_documento').insert({ escritorio_id: escritorioId, nome: dados.nome, categoria: dados.categoria, conteudo: dados.conteudo }).select().single();
+    if(error) { showToast('Erro ao criar modelo: ' + error.message, 'error'); return null; }
+    return modeloDoBanco(data);
+  }
+}
+async function excluirModeloNoBanco(id) {
+  const sb = await getSB();
+  const escritorioId = getEscritorioId();
+  if(!sb || !escritorioId) return false;
+  const { error } = await sb.from('modelos_documento').delete().eq('id', id).eq('escritorio_id', escritorioId);
+  if(error) { showToast('Erro ao excluir modelo: ' + error.message, 'error'); return false; }
+  return true;
+}
+
+// Substitui as variáveis do modelo pelos dados reais do cliente/processo
+function preencherVariaveis(texto, cliente, processo) {
+  const agora = new Date();
+  const dataHoje = agora.toLocaleDateString('pt-BR', { day:'2-digit', month:'long', year:'numeric' });
+  const anoAtual = String(agora.getFullYear());
+  const escritorio = store.escritorio || {};
+  const advogado = getSessao();
+
+  return texto
+    .replace(/\[NOME_CLIENTE\]/g, cliente ? cliente.nome : '[NOME_CLIENTE]')
+    .replace(/\[CPF_CLIENTE\]/g, cliente ? (cliente.cpf || '[CPF_CLIENTE]') : '[CPF_CLIENTE]')
+    .replace(/\[CNPJ_CLIENTE\]/g, cliente ? (cliente.cnpj || '[CNPJ_CLIENTE]') : '[CNPJ_CLIENTE]')
+    .replace(/\[ENDERECO_CLIENTE\]/g, cliente ? (cliente.endereco || '[ENDERECO_CLIENTE]') : '[ENDERECO_CLIENTE]')
+    .replace(/\[NUMERO_PROCESSO\]/g, processo ? processo.numero : '[NUMERO_PROCESSO]')
+    .replace(/\[VARA_PROCESSO\]/g, processo ? (processo.vara || '[VARA_PROCESSO]') : '[VARA_PROCESSO]')
+    .replace(/\[COMARCA_PROCESSO\]/g, processo ? (processo.comarca || '[COMARCA_PROCESSO]') : '[COMARCA_PROCESSO]')
+    .replace(/\[NOME_ESCRITORIO\]/g, escritorio.nome || '[NOME_ESCRITORIO]')
+    .replace(/\[NOME_ADVOGADO\]/g, advogado.nome || advogado.email || '[NOME_ADVOGADO]')
+    .replace(/\[OAB_ADVOGADO\]/g, '[OAB_ADVOGADO]')
+    .replace(/\[DATA_HOJE\]/g, dataHoje)
+    .replace(/\[ANO_ATUAL\]/g, anoAtual);
+}
+
+// ---- UI ----
+async function renderModelosDocumentos() {
+  const filtro = document.getElementById('md-filtro-categoria').value;
+  store.modelosDocumento = await carregarModelosDocumento();
+
+  const lista = document.getElementById('md-lista-modelos');
+  const modelos = filtro ? store.modelosDocumento.filter(m => m.categoria === filtro) : store.modelosDocumento;
+
+  if(!modelos.length) {
+    lista.innerHTML = '<div style="text-align:center;color:var(--text-muted);font-size:12.5px;padding:20px">Nenhum modelo nesta categoria.</div>';
+    return;
+  }
+
+  const porCategoria = {};
+  modelos.forEach(m => {
+    if(!porCategoria[m.categoria]) porCategoria[m.categoria] = [];
+    porCategoria[m.categoria].push(m);
+  });
+
+  lista.innerHTML = Object.entries(porCategoria).map(([cat, items]) => `
+    <div style="margin-bottom:10px">
+      <div style="font-size:10px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--text-muted);padding:4px 8px">${CATEGORIAS_MODELO[cat]||cat}</div>
+      ${items.map(m => `<button onclick="abrirEditorModelo('${m.id}')" style="width:100%;text-align:left;background:${_mdModeloAtual&&_mdModeloAtual.id===m.id?'var(--nav-active-bg)':'none'};border:none;border-radius:6px;padding:8px 10px;cursor:pointer;font-size:13px;color:${_mdModeloAtual&&_mdModeloAtual.id===m.id?'var(--blue-200)':'var(--text-primary)'}">
+        📄 ${m.nome}
+        <span style="font-size:10px;color:var(--text-muted);display:block">v${m.versaoAtual}</span>
+      </button>`).join('')}
+    </div>`).join('');
+}
+
+function abrirEditorModelo(id) {
+  const modelo = store.modelosDocumento.find(m => m.id === id);
+  if(!modelo) return;
+  _mdModeloAtual = modelo;
+  document.getElementById('md-area-vazia').style.display = 'none';
+  document.getElementById('md-editor').style.display = 'block';
+  document.getElementById('md-nome').value = modelo.nome;
+  document.getElementById('md-categoria').value = modelo.categoria;
+  document.getElementById('md-conteudo').value = modelo.conteudo;
+  document.getElementById('md-btn-excluir').style.display = '';
+  renderModelosDocumentos();
+}
+
+function abrirModalNovoModelo() {
+  _mdModeloAtual = null;
+  document.getElementById('md-area-vazia').style.display = 'none';
+  document.getElementById('md-editor').style.display = 'block';
+  document.getElementById('md-nome').value = '';
+  document.getElementById('md-categoria').value = 'procuracao';
+  document.getElementById('md-conteudo').value = '';
+  document.getElementById('md-btn-excluir').style.display = 'none';
+  renderModelosDocumentos();
+  document.getElementById('md-nome').focus();
+}
+
+async function salvarModelo() {
+  const nome = document.getElementById('md-nome').value.trim();
+  const categoria = document.getElementById('md-categoria').value;
+  const conteudo = document.getElementById('md-conteudo').value;
+  if(!nome) { showToast('Dê um nome ao modelo.', 'error'); return; }
+  if(!conteudo.trim()) { showToast('O modelo não pode ser vazio.', 'error'); return; }
+
+  const salvo = await salvarModeloNoBanco({ nome, categoria, conteudo }, _mdModeloAtual ? _mdModeloAtual.id : null);
+  if(!salvo) return;
+
+  if(_mdModeloAtual) {
+    const idx = store.modelosDocumento.findIndex(m => m.id === _mdModeloAtual.id);
+    if(idx >= 0) store.modelosDocumento[idx] = salvo;
+    showToast('Modelo atualizado! (v' + salvo.versaoAtual + ')', 'success');
+  } else {
+    store.modelosDocumento.push(salvo);
+    showToast('Modelo criado!', 'success');
+  }
+  _mdModeloAtual = salvo;
+  renderModelosDocumentos();
+}
+
+async function excluirModeloAtual() {
+  if(!_mdModeloAtual) return;
+  if(!confirm('Excluir este modelo e todo o seu histórico de versões?')) return;
+  const ok = await excluirModeloNoBanco(_mdModeloAtual.id);
+  if(!ok) return;
+  store.modelosDocumento = store.modelosDocumento.filter(m => m.id !== _mdModeloAtual.id);
+  _mdModeloAtual = null;
+  document.getElementById('md-editor').style.display = 'none';
+  document.getElementById('md-area-vazia').style.display = 'block';
+  showToast('Modelo excluído.');
+  renderModelosDocumentos();
+}
+
+// ---- Gerar documento ----
+function abrirModalGerarDocumento() {
+  if(!_mdModeloAtual) return;
+  document.getElementById('gd-busca-cliente').value = '';
+  document.getElementById('gd-cliente-id').value = '';
+  document.getElementById('gd-sugestoes-cliente').style.display = 'none';
+  popularSelectProcessosGD(null);
+  openModal('modal-gerar-documento', false);
+}
+
+function filtrarSugestoesClienteGD(termo) {
+  const caixa = document.getElementById('gd-sugestoes-cliente');
+  const termoLimpo = termo.trim().toLowerCase();
+  const termoSoDigitos = termo.replace(/\D/g, '');
+  if(!termoLimpo) { caixa.style.display = 'none'; return; }
+  const encontrados = store.clientes.filter(c => {
+    return c.nome.toLowerCase().includes(termoLimpo) || (termoSoDigitos.length >= 3 && (c.cpf||'').replace(/\D/g,'').includes(termoSoDigitos));
+  }).slice(0, 30);
+  if(!encontrados.length) { caixa.innerHTML = '<div style="padding:10px 14px;font-size:12.5px;color:var(--text-muted)">Nenhum cliente encontrado.</div>'; caixa.style.display = 'block'; return; }
+  caixa.innerHTML = encontrados.map(c => `<div onclick="selecionarClienteGD('${c.id}','${c.nome.replace(/'/g,"\\'")}')" style="padding:9px 14px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--border)" onmouseover="this.style.background='var(--surface)'" onmouseout="this.style.background='none'"><strong>${c.nome}</strong>${c.cpf?` <span style="color:var(--text-muted);font-size:11.5px">${c.cpf}</span>`:''}</div>`).join('');
+  caixa.style.display = 'block';
+}
+function selecionarClienteGD(clienteId, nome) {
+  document.getElementById('gd-busca-cliente').value = nome;
+  document.getElementById('gd-cliente-id').value = clienteId;
+  document.getElementById('gd-sugestoes-cliente').style.display = 'none';
+  popularSelectProcessosGD(clienteId);
+}
+function popularSelectProcessosGD(clienteId) {
+  const sel = document.getElementById('gd-processo');
+  const lista = clienteId ? store.processos.filter(p => p.clienteId === clienteId) : store.processos;
+  sel.innerHTML = '<option value="">— Nenhum —</option>' + lista.map(p => `<option value="${p.id}">${p.numero}</option>`).join('');
+}
+document.addEventListener('click', function(e) {
+  const caixa = document.getElementById('gd-sugestoes-cliente');
+  const input = document.getElementById('gd-busca-cliente');
+  if(caixa && !caixa.contains(e.target) && e.target !== input) caixa.style.display = 'none';
+});
+
+async function gerarDocumento(formato) {
+  if(!_mdModeloAtual) return;
+  const clienteId = document.getElementById('gd-cliente-id').value;
+  const processoId = document.getElementById('gd-processo').value;
+  const cliente = clienteId ? store.clientes.find(c => c.id === clienteId) : null;
+  const processo = processoId ? store.processos.find(p => p.id === processoId) : null;
+  const textoPreenchido = preencherVariaveis(_mdModeloAtual.conteudo, cliente, processo);
+  const nomeArquivo = _mdModeloAtual.nome.replace(/[^a-zA-Z0-9-_]/g, '_');
+
+  if(formato === 'pdf') {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+    const margem = 20;
+    const largura = doc.internal.pageSize.getWidth() - margem * 2;
+    doc.setFont('helvetica');
+    doc.setFontSize(11);
+    const linhas = doc.splitTextToSize(textoPreenchido, largura);
+    let y = margem;
+    linhas.forEach(linha => {
+      if(y > doc.internal.pageSize.getHeight() - margem) { doc.addPage(); y = margem; }
+      doc.text(linha, margem, y);
+      y += 6;
+    });
+    doc.save(nomeArquivo + '.pdf');
+    closeModal('modal-gerar-documento');
+    showToast('PDF gerado!', 'success');
+    return;
+  }
+
+  // .docx via biblioteca docx
+  const { Document, Packer, Paragraph, TextRun } = window.docx;
+  const paragrafos = textoPreenchido.split('\n').map(linha =>
+    new Paragraph({ children: [new TextRun(linha)], spacing: { after: 120 } })
+  );
+  const doc = new Document({ sections: [{ children: paragrafos }] });
+  const buffer = await Packer.toBlob(doc);
+  const url = URL.createObjectURL(buffer);
+  const a = document.createElement('a');
+  a.href = url; a.download = nomeArquivo + '.docx'; a.click();
+  URL.revokeObjectURL(url);
+  closeModal('modal-gerar-documento');
+  showToast('Documento Word gerado!', 'success');
+}
+
+// ---- Histórico de versões ----
+async function abrirModalHistoricoModelo() {
+  if(!_mdModeloAtual) return;
+  document.getElementById('historico-modelo-lista').innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:30px">Carregando...</div>';
+  openModal('modal-historico-modelo', false);
+
+  const versoes = await carregarVersoesModelo(_mdModeloAtual.id);
+  if(!versoes.length) {
+    document.getElementById('historico-modelo-lista').innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:30px">Nenhuma versão anterior registrada.</div>';
+    return;
+  }
+
+  document.getElementById('historico-modelo-lista').innerHTML = versoes.map(v => {
+    const data = new Date(v.editadoEm).toLocaleString('pt-BR');
+    const trecho = v.conteudo.length > 150 ? v.conteudo.slice(0, 150) + '…' : v.conteudo;
+    return `<div style="border:1px solid var(--border);border-radius:var(--radius);padding:12px 16px;margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <strong>Versão ${v.versao}</strong>
+        <div style="display:flex;gap:8px;align-items:center">
+          <span style="font-size:11.5px;color:var(--text-muted)">${data}</span>
+          <button onclick="restaurarVersaoModelo(${v.versao},'${v.conteudo.replace(/'/g,"\\'").replace(/\n/g,'\\n')}')" class="btn btn-outline" style="font-size:11.5px;padding:3px 10px">↩ Restaurar</button>
+        </div>
+      </div>
+      <div style="font-size:12px;color:var(--text-secondary);white-space:pre-wrap;background:var(--surface);padding:8px;border-radius:4px">${trecho}</div>
+    </div>`;
+  }).join('');
+}
+
+function restaurarVersaoModelo(versao, conteudo) {
+  if(!confirm('Restaurar a versão ' + versao + '? O conteúdo atual será versionado e substituído.')) return;
+  document.getElementById('md-conteudo').value = conteudo;
+  closeModal('modal-historico-modelo');
+  showToast('Versão ' + versao + ' restaurada no editor — clique em Salvar para confirmar.', 'success');
+}
+
 // ==================== TAREFAS (CHECKLIST) DO PROCESSO ====================
 
 function tarefaProcessoDoBanco(row) {
@@ -6970,7 +7394,7 @@ async function sbLoad() {
   }
 
   console.log('🔄 Carregando dados reais do escritório...');
-  const [clientes, processos, tipos, parcelas, despesas, eventos, intimacoes, orcamentos, documentosLista, dadosEscritorio, exitos, tags, clientesTags, processosTags, andamentos, partes, contatosProcesso, tarefas, kanbanQuadros, kanbanColunas, kanbanCartoes, publicacoesDiario] = await Promise.all([
+  const [clientes, processos, tipos, parcelas, despesas, eventos, intimacoes, orcamentos, documentosLista, dadosEscritorio, exitos, tags, clientesTags, processosTags, andamentos, partes, contatosProcesso, tarefas, kanbanQuadros, kanbanColunas, kanbanCartoes, publicacoesDiario, modelosDocumento] = await Promise.all([
     carregarClientes(),
     carregarProcessos(),
     carregarTipos(),
@@ -6992,7 +7416,8 @@ async function sbLoad() {
     carregarKanbanQuadros(),
     carregarKanbanColunas(),
     carregarKanbanCartoes(),
-    carregarPublicacoesDiario()
+    carregarPublicacoesDiario(),
+    carregarModelosDocumento()
   ]);
 
   store.clientes = clientes;
@@ -7016,6 +7441,7 @@ async function sbLoad() {
   store.kanbanColunas = kanbanColunas;
   store.kanbanCartoes = kanbanCartoes;
   store.publicacoesDiario = publicacoesDiario;
+  store.modelosDocumento = modelosDocumento;
 
   // store.documentos (por processo) e store.docsCliente (por cliente) são
   // objetos indexados por ID, derivados da mesma lista plana carregada do
@@ -7063,6 +7489,7 @@ function normalizarStore() {
   if(!store.kanbanColunas)   store.kanbanColunas   = [];
   if(!store.kanbanCartoes)   store.kanbanCartoes   = [];
   if(!store.publicacoesDiario) store.publicacoesDiario = [];
+  if(!store.modelosDocumento)  store.modelosDocumento  = [];
   if(!store.clientesTags)    store.clientesTags    = {};
   if(!store.processosTags)   store.processosTags   = {};
   // Identidade Visual (cores + logo customizável)
@@ -7407,12 +7834,12 @@ let procTabFilter = 'todos';
 
 const pageTitles = {
   dashboard: 'Dashboard', tipos: 'Tipos de Processo', clientes: 'Clientes', 'historico-contatos': 'Histórico de Contatos',
-  processos: 'Processos', orcamentos: 'Orçamentos', agenda: 'Agenda', kanban: 'Kanban', 'diario-oficial': 'Diário Oficial', financeiro: 'Recebimentos',
+  processos: 'Processos', orcamentos: 'Orçamentos', agenda: 'Agenda', kanban: 'Kanban', 'diario-oficial': 'Diário Oficial', 'modelos-documentos': 'Modelos de Documentos', financeiro: 'Recebimentos',
   despesas: 'Despesas', relatorios: 'Relatórios', informativos: 'Informativos', opcoes: 'Opções'
 };
 const pageActions = {
   dashboard: '', tipos: '', clientes: '', 'historico-contatos': '', processos: '',
-  orcamentos: '', agenda: '', kanban: '+ Novo Quadro', 'diario-oficial': '+ Cadastrar Publicação', financeiro: '', despesas: '', relatorios: '⬇ Exportar', informativos: '', opcoes: ''
+  orcamentos: '', agenda: '', kanban: '+ Novo Quadro', 'diario-oficial': '+ Cadastrar Publicação', 'modelos-documentos': '+ Novo Modelo', financeiro: '', despesas: '', relatorios: '⬇ Exportar', informativos: '', opcoes: ''
 };
 
 // Mapa de qual categoria do menu cada página pertence — usado para abrir
@@ -7420,7 +7847,7 @@ const pageActions = {
 const PAGINA_CATEGORIA = {
   dashboard: 'principal',
   tipos: 'cadastros', clientes: 'cadastros', 'historico-contatos': 'cadastros',
-  processos: 'operacional', orcamentos: 'operacional', agenda: 'operacional', kanban: 'operacional', 'diario-oficial': 'operacional',
+  processos: 'operacional', orcamentos: 'operacional', agenda: 'operacional', kanban: 'operacional', 'diario-oficial': 'operacional', 'modelos-documentos': 'operacional',
   financeiro: 'financeiro', despesas: 'financeiro', relatorios: 'financeiro',
   informativos: 'sistema', opcoes: 'sistema'
 };
@@ -7501,7 +7928,8 @@ function topbarAction() {
     processos: () => openModal('modal-processo'),
     relatorios: () => exportarCSV(),
     kanban: () => abrirModalNovoQuadro(),
-    'diario-oficial': () => abrirModalNovaPublicacao()
+    'diario-oficial': () => abrirModalNovaPublicacao(),
+    'modelos-documentos': () => abrirModalNovoModelo()
   };
   if(actions[currentPage]) actions[currentPage]();
 }
@@ -7516,6 +7944,7 @@ function refreshPage(page) {
   else if(page === 'agenda') renderAgenda();
   else if(page === 'kanban') renderKanban();
   else if(page === 'diario-oficial') renderDiarioOficial();
+  else if(page === 'modelos-documentos') renderModelosDocumentos();
   else if(page === 'financeiro') { renderParcelas(); renderFinVisao(); updateParcelasSelect(); }
   else if(page === 'despesas') renderDespesas();
   else if(page === 'relatorios') { gerarRelatorio(); renderConversao(); renderInadimplencia(); renderExito(); renderTaxaExito(); renderDuracao(); renderCargaTrabalho(); renderRelClientes(); }
@@ -13712,29 +14141,29 @@ function getEscritorioId() {
 const PERFIS = {
   admin: {
     label: 'Administrador', cor: '#185FA5', bg: '#E6F1FB',
-    paginas: ['dashboard','tipos','clientes','historico-contatos','processos','orcamentos','agenda','kanban','diario-oficial','financeiro','despesas','relatorios','informativos','opcoes'],
+    paginas: ['dashboard','tipos','clientes','historico-contatos','processos','orcamentos','agenda','kanban','diario-oficial','modelos-documentos','financeiro','despesas','relatorios','informativos','opcoes'],
     pode: { editarClientes:true, excluirClientes:true, verFinanceiro:true, gerenciarUsuarios:true, verOpcoes:true, exportarRelatorio:true }
   },
   advogado: {
     label: 'Advogado', cor: '#0B7B45', bg: '#E2F5EC',
-    paginas: ['dashboard','tipos','clientes','historico-contatos','processos','orcamentos','agenda','kanban','diario-oficial','financeiro','despesas','relatorios','informativos'],
+    paginas: ['dashboard','tipos','clientes','historico-contatos','processos','orcamentos','agenda','kanban','diario-oficial','modelos-documentos','financeiro','despesas','relatorios','informativos'],
     pode: { editarClientes:true, excluirClientes:false, verFinanceiro:true, gerenciarUsuarios:false, verOpcoes:false, exportarRelatorio:true }
   },
   financeiro: {
     label: 'Financeiro', cor: '#7C3AED', bg: '#F0E9FE',
-    paginas: ['dashboard','clientes','historico-contatos','processos','orcamentos','agenda','kanban','diario-oficial','financeiro','despesas','relatorios','informativos'],
+    paginas: ['dashboard','clientes','historico-contatos','processos','orcamentos','agenda','kanban','diario-oficial','modelos-documentos','financeiro','despesas','relatorios','informativos'],
     pode: { editarClientes:false, excluirClientes:false, verFinanceiro:true, gerenciarUsuarios:false, verOpcoes:false, exportarRelatorio:true }
   },
   assistente: {
     label: 'Assistente', cor: '#92400E', bg: '#FEF3C7',
-    paginas: ['dashboard','clientes','historico-contatos','processos','agenda','kanban','diario-oficial','informativos'],
+    paginas: ['dashboard','clientes','historico-contatos','processos','agenda','kanban','diario-oficial','modelos-documentos','informativos'],
     pode: { editarClientes:true, excluirClientes:false, verFinanceiro:false, gerenciarUsuarios:false, verOpcoes:false, exportarRelatorio:false }
   },
   // Mantido por compatibilidade com cadastros antigos do sistema local
   // (módulo de Usuários ainda não conectado ao banco real usa este nome).
   secretaria: {
     label: 'Secretária', cor: '#92400E', bg: '#FEF3C7',
-    paginas: ['dashboard','clientes','historico-contatos','processos','agenda','kanban','diario-oficial','informativos'],
+    paginas: ['dashboard','clientes','historico-contatos','processos','agenda','kanban','diario-oficial','modelos-documentos','informativos'],
     pode: { editarClientes:true, excluirClientes:false, verFinanceiro:false, gerenciarUsuarios:false, verOpcoes:false, exportarRelatorio:false }
   }
 };
