@@ -2038,17 +2038,20 @@ body.topbar-escura .notif-btn:hover { background: rgba(255,255,255,0.2); border-
     <div class="page" id="page-historico-contatos">
       <div class="card">
         <div class="card-body">
-          <div class="form-row" style="margin-bottom:18px">
-            <div class="form-group" style="max-width:340px">
+          <div class="form-row" style="margin-bottom:18px;align-items:flex-end">
+            <div class="form-group" style="max-width:380px;position:relative;margin-bottom:0">
               <label class="form-label">Cliente</label>
-              <select class="form-control" id="hc-select-cliente" onchange="renderListaContatosCliente()"></select>
+              <input type="text" class="form-control" id="hc-busca-cliente" placeholder="Buscar por nome ou CPF/CNPJ..."
+                autocomplete="off" oninput="filtrarSugestoesClienteHC(this.value)" onfocus="filtrarSugestoesClienteHC(this.value)">
+              <input type="hidden" id="hc-select-cliente">
+              <div id="hc-sugestoes-cliente" style="display:none;position:absolute;top:100%;left:0;right:0;background:var(--white);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-lg);max-height:280px;overflow-y:auto;z-index:20;margin-top:4px"></div>
             </div>
-            <div class="form-group" style="flex:0 0 auto;align-self:flex-end">
+            <div class="form-group" style="flex:0 0 auto;margin-bottom:0">
               <button class="btn btn-primary" id="hc-btn-novo" onclick="abrirModalNovoContatoCliente()" style="display:none">+ Registrar Contato</button>
             </div>
           </div>
           <div id="hc-lista-contatos">
-            <div style="text-align:center;color:var(--text-muted);padding:40px">Selecione um cliente para ver o histórico de contatos.</div>
+            <div style="text-align:center;color:var(--text-muted);padding:40px">Busque um cliente para ver o histórico de contatos.</div>
           </div>
         </div>
       </div>
@@ -5508,15 +5511,63 @@ async function salvarContatoClienteNoBanco(clienteId, processoId, dados, editId)
 // ==================== UI: HISTÓRICO DE CONTATOS (por cliente) ====================
 
 let _hcContatosCache = []; // contatos do cliente atualmente selecionado
+let _hcClienteAtual = null; // { id, nome } do cliente selecionado, para exibir no título do modal
 
 function renderHistoricoContatos() {
-  const sel = document.getElementById('hc-select-cliente');
-  const valorAtual = sel.value;
-  sel.innerHTML = '<option value="">— Selecione um cliente —</option>' +
-    store.clientes.slice().sort((a,b) => a.nome.localeCompare(b.nome)).map(c => `<option value="${c.id}">${c.nome}</option>`).join('');
-  sel.value = valorAtual;
+  // Limpa a seleção ao trocar de página — evita mostrar histórico de um
+  // cliente que não está mais visível no campo de busca.
+  document.getElementById('hc-busca-cliente').value = '';
+  document.getElementById('hc-select-cliente').value = '';
+  document.getElementById('hc-sugestoes-cliente').style.display = 'none';
+  _hcClienteAtual = null;
   renderListaContatosCliente();
 }
+
+// Filtra clientes por nome OU CPF/CNPJ (ignorando pontuação), mostrando
+// até 30 sugestões — suficiente mesmo com 500+ clientes, sem travar a
+// digitação renderizando uma lista enorme a cada tecla.
+function filtrarSugestoesClienteHC(termo) {
+  const caixa = document.getElementById('hc-sugestoes-cliente');
+  const termoLimpo = termo.trim().toLowerCase();
+  const termoSoDigitos = termo.replace(/\D/g, '');
+
+  if(!termoLimpo) { caixa.style.display = 'none'; caixa.innerHTML = ''; return; }
+
+  const encontrados = store.clientes.filter(c => {
+    const nomeMatch = c.nome.toLowerCase().includes(termoLimpo);
+    const docMatch = termoSoDigitos.length >= 3 && (c.cpf||'').replace(/\D/g,'').includes(termoSoDigitos);
+    return nomeMatch || docMatch;
+  }).slice(0, 30);
+
+  if(!encontrados.length) {
+    caixa.innerHTML = '<div style="padding:10px 14px;font-size:12.5px;color:var(--text-muted)">Nenhum cliente encontrado.</div>';
+    caixa.style.display = 'block';
+    return;
+  }
+
+  caixa.innerHTML = encontrados.map(c => `
+    <div onclick="selecionarClienteHC('${c.id}','${c.nome.replace(/'/g,"\\'")}')"
+      style="padding:9px 14px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--border)"
+      onmouseover="this.style.background='var(--surface)'" onmouseout="this.style.background='none'">
+      <strong>${c.nome}</strong>${c.cpf?` <span style="color:var(--text-muted);font-size:11.5px">${c.cpf}</span>`:''}
+    </div>`).join('');
+  caixa.style.display = 'block';
+}
+
+function selecionarClienteHC(clienteId, nome) {
+  document.getElementById('hc-busca-cliente').value = nome;
+  document.getElementById('hc-select-cliente').value = clienteId;
+  document.getElementById('hc-sugestoes-cliente').style.display = 'none';
+  _hcClienteAtual = { id: clienteId, nome };
+  renderListaContatosCliente();
+}
+
+// Fecha a lista de sugestões ao clicar fora dela.
+document.addEventListener('click', function(e) {
+  const caixa = document.getElementById('hc-sugestoes-cliente');
+  const input = document.getElementById('hc-busca-cliente');
+  if(caixa && !caixa.contains(e.target) && e.target !== input) caixa.style.display = 'none';
+});
 
 async function renderListaContatosCliente() {
   const clienteId = document.getElementById('hc-select-cliente').value;
@@ -5525,7 +5576,7 @@ async function renderListaContatosCliente() {
 
   if(!clienteId) {
     btnNovo.style.display = 'none';
-    lista.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:40px">Selecione um cliente para ver o histórico de contatos.</div>';
+    lista.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:40px">Busque um cliente para ver o histórico de contatos.</div>';
     return;
   }
 
@@ -5539,23 +5590,30 @@ async function renderListaContatosCliente() {
     return;
   }
 
+  // Visual de linha do tempo: mais recente no topo, indo para o mais
+  // antigo embaixo — uma linha vertical conecta os pontos.
   const ICONES = { ligacao:'📞', reuniao:'🤝', email:'📧', whatsapp:'💬', presencial:'🏢', outro:'📌' };
-  lista.innerHTML = _hcContatosCache.map(c => {
-    const data = new Date(c.data + 'T12:00:00').toLocaleDateString('pt-BR');
-    return `<div style="border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;margin-bottom:10px">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:6px">
-        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-          <span style="font-size:16px">${ICONES[c.tipo]||'📌'}</span>
-          <strong style="font-size:13.5px">${data}</strong>
-          ${c.pessoa?`<span style="font-size:12px;color:var(--text-muted)">com ${c.pessoa}</span>`:''}
-          ${c.duracao?`<span style="font-size:11px;color:var(--text-muted)">· ${c.duracao}</span>`:''}
-          ${c.processoNumero?`<span class="badge" style="background:var(--blue-50);color:var(--blue-600);font-size:10.5px">⚖️ ${c.processoNumero}</span>`:''}
+  lista.innerHTML = '<div style="position:relative;padding-left:28px">' +
+    '<div style="position:absolute;left:9px;top:6px;bottom:6px;width:2px;background:var(--border)"></div>' +
+    _hcContatosCache.map(c => {
+      const data = new Date(c.data + 'T12:00:00').toLocaleDateString('pt-BR');
+      return `<div style="position:relative;margin-bottom:16px">
+        <div style="position:absolute;left:-28px;top:2px;width:20px;height:20px;border-radius:50%;background:var(--white);border:2px solid var(--blue-600);display:flex;align-items:center;justify-content:center;font-size:11px">${ICONES[c.tipo]||'📌'}</div>
+        <div style="border:1px solid var(--border);border-radius:var(--radius);padding:12px 16px">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:6px">
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+              <strong style="font-size:13.5px">${data}</strong>
+              ${c.pessoa?`<span style="font-size:12px;color:var(--text-muted)">com ${c.pessoa}</span>`:''}
+              ${c.duracao?`<span style="font-size:11px;color:var(--text-muted)">· ${c.duracao}</span>`:''}
+              ${c.processoNumero?`<span class="badge" style="background:var(--blue-50);color:var(--blue-600);font-size:10.5px">⚖️ ${c.processoNumero}</span>`:''}
+            </div>
+            <button onclick="excluirContatoClienteUI('${c.id}')" style="background:none;border:none;cursor:pointer;color:var(--danger);font-size:12px">🗑</button>
+          </div>
+          <div style="font-size:13px;color:var(--text-secondary);white-space:pre-wrap">${c.obs}</div>
         </div>
-        <button onclick="excluirContatoClienteUI('${c.id}')" style="background:none;border:none;cursor:pointer;color:var(--danger);font-size:12px">🗑</button>
-      </div>
-      <div style="font-size:13px;color:var(--text-secondary);white-space:pre-wrap">${c.obs}</div>
-    </div>`;
-  }).join('');
+      </div>`;
+    }).join('') +
+  '</div>';
 }
 
 function abrirModalNovoContatoCliente() {
@@ -5568,7 +5626,7 @@ function abrirModalNovoContatoCliente() {
   document.getElementById('cc-pessoa').value = '';
   document.getElementById('cc-duracao').value = '';
   document.getElementById('cc-obs').value = '';
-  document.getElementById('modal-contato-cliente-title').textContent = '📞 Registrar Contato';
+  document.getElementById('modal-contato-cliente-title').textContent = '📞 Registrar Contato — ' + (_hcClienteAtual ? _hcClienteAtual.nome : '');
 
   const selProcesso = document.getElementById('cc-processo');
   const processosDoCliente = store.processos.filter(p => p.clienteId === clienteId);
