@@ -6536,7 +6536,8 @@ async function carregarMensagensPortal() {
     .eq('escritorio_id', eid)
     .order('criado_em', { ascending: false });
   if(error) { console.warn(error.message); return []; }
-  return data || [];
+  store.mensagensPortal = data || [];
+  return store.mensagensPortal;
 }
 
 function atualizarBadgeMsgsPortal(mensagens) {
@@ -6548,6 +6549,7 @@ function atualizarBadgeMsgsPortal(mensagens) {
 async function renderMensagensPortal() {
   const msgs = await carregarMensagensPortal();
   atualizarBadgeMsgsPortal(msgs);
+  atualizarBadgeNotif();
 
   // Agrupar por cliente
   const porCliente = {};
@@ -6647,12 +6649,26 @@ async function responderMensagemPortal() {
   if(!conteudo) return;
 
   const sb = await getSB(); const eid = getEscritorioId();
+
+  // --- DIAGNÓSTICO TEMPORÁRIO ---
+  const { data: userData } = await sb.auth.getUser();
+  const { data: rpcEscritorioIds, error: rpcErr } = await sb.rpc('escritorio_ids');
+  console.log('=== DIAGNÓSTICO RESPOSTA MENSAGEM PORTAL (ERP) ===');
+  console.log('auth.uid():', userData?.user?.id);
+  console.log('eid local (getEscritorioId()):', eid);
+  console.log('escritorio_ids() via RPC:', rpcEscritorioIds, rpcErr);
+  // --- FIM DIAGNÓSTICO ---
+
   const { data, error } = await sb.from('portal_mensagens').insert({
     escritorio_id: eid, cliente_id: _mpClienteAtual.clienteId,
     remetente: 'escritorio', conteudo
   }).select().single();
 
-  if(error) { showToast('Erro ao enviar: ' + error.message, 'error'); return; }
+  if(error) {
+    console.error('Erro ao enviar mensagem (ERP):', error);
+    showToast('Erro ao enviar: ' + error.message + ' | eid=' + eid + ' | escritorio_ids()=' + JSON.stringify(rpcEscritorioIds), 'error');
+    return;
+  }
   input.value = '';
   _mpMensagensCache.push(data);
   renderMensagensConversaPortal();
@@ -11454,11 +11470,12 @@ function gerarNotificacoesAutomaticas() {
 function atualizarBadgeNotif() {
   const notifs = getNotifs();
   const naoInformativos = (store.informativos||[]).filter(i => !i.lido).length;
-  const nao = notifs.filter(n=>!n.lida).length + naoInformativos;
+  const naoMsgsPortal = (store.mensagensPortal||[]).filter(m => m.remetente === 'cliente' && !m.lida).length;
+  const nao = notifs.filter(n=>!n.lida).length + naoInformativos + naoMsgsPortal;
   const badge = document.getElementById('notif-badge');
   if(badge) { badge.textContent = nao>9?'9+':nao; badge.style.display = nao>0?'flex':'none'; }
   const sub = document.getElementById('notif-sub'); if(sub) sub.textContent = nao+' não lida(s)';
-  const tot = document.getElementById('notif-total'); if(tot) tot.textContent = (notifs.length+naoInformativos)+' notificação(ões)';
+  const tot = document.getElementById('notif-total'); if(tot) tot.textContent = (notifs.length+naoInformativos+naoMsgsPortal)+' notificação(ões)';
 }
 function renderNotifList() {
   const notifs = getNotifs(); const el = document.getElementById('notif-list'); if(!el) return;
@@ -11479,9 +11496,29 @@ function renderNotifList() {
     '</div>';
   }).join('');
 
-  if(!notifs.length && !infoNaoLidos.length) { el.innerHTML='<div style="text-align:center;color:var(--text-muted);font-size:13px;padding:32px 0">✅ Sem notificações.</div>'; return; }
+  // Mensagens do portal não lidas entram como itens "virtuais" também,
+  // agrupadas por cliente para não poluir a lista com uma linha por mensagem.
+  const msgsPortalNaoLidas = (store.mensagensPortal||[]).filter(m => m.remetente === 'cliente' && !m.lida);
+  const porClienteMsgPortal = {};
+  msgsPortalNaoLidas.forEach(m => {
+    const cid = m.cliente_id;
+    if(!porClienteMsgPortal[cid]) porClienteMsgPortal[cid] = { nome: m.clientes?.nome || 'Cliente', count: 0 };
+    porClienteMsgPortal[cid].count++;
+  });
+  const itensMsgsPortal = Object.values(porClienteMsgPortal).map(c => {
+    return '<div class="notif-item unread" onclick="toggleNotifPanel();navigate(\'mensagens-portal\',document.querySelector(\'.nav-item[onclick*=mensagens-portal]\'))">' +
+      '<div class="notif-icon" style="background:var(--blue-50);color:var(--blue-600)">💬</div>' +
+      '<div style="flex:1;min-width:0">' +
+        '<div style="font-size:13px;font-weight:600;color:var(--text-primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+c.nome+'</div>' +
+        '<div style="font-size:11.5px;color:var(--text-secondary);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+c.count+' mensagem(ns) não lida(s)</div>' +
+      '</div>' +
+      '<div style="width:8px;height:8px;border-radius:50%;background:var(--blue-600);flex-shrink:0;margin-top:4px"></div>' +
+    '</div>';
+  }).join('');
 
-  el.innerHTML = itensInfo + notifs.map(n => {
+  if(!notifs.length && !infoNaoLidos.length && !msgsPortalNaoLidas.length) { el.innerHTML='<div style="text-align:center;color:var(--text-muted);font-size:13px;padding:32px 0">✅ Sem notificações.</div>'; return; }
+
+  el.innerHTML = itensInfo + itensMsgsPortal + notifs.map(n => {
     const t = NOTIF_TIPOS[n.tipo]||NOTIF_TIPOS.lembrete;
     return '<div class="notif-item '+(n.lida?'':'unread')+'" onclick="clicarNotif('+n.id+')">' +
       '<div class="notif-icon" style="background:'+t.bg+';color:'+t.cor+'">'+t.icon+'</div>' +
@@ -15050,7 +15087,9 @@ async function entrarNoSistema() {
   // Carrega informativos só para já exibir o badge de não-lidos no menu,
   // sem precisar que o usuário abra a página primeiro.
   store.informativos = await carregarInformativos();
+  store.mensagensPortal = await carregarMensagensPortal();
   atualizarBadgeInformativos();
+  atualizarBadgeMsgsPortal(store.mensagensPortal);
   atualizarBadgeNotif();
   atualizarBadgeDiario();
   atualizarBadgeLeads(); // store.leadsCards já veio no sbLoad() acima
