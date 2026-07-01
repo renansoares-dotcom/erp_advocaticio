@@ -4879,7 +4879,15 @@ async function salvarClienteNoBanco(c, editId) {
       .eq('escritorio_id', escritorioId) // defesa extra, além do RLS
       .select()
       .single();
-    if(error) { showToast('Erro ao atualizar cliente: ' + error.message, 'error'); return null; }
+    if(error) {
+      console.error('Erro ao atualizar cliente:', error);
+      const { data: existente } = await sb.from('clientes').select('id, escritorio_id, nome').eq('id', editId).maybeSingle();
+      console.log('Diagnóstico — editId enviado:', editId);
+      console.log('Diagnóstico — escritorioId da sessão:', escritorioId);
+      console.log('Diagnóstico — registro encontrado por id (sem filtro de escritório):', existente);
+      showToast('Erro ao atualizar cliente: ' + error.message + ' | editId=' + editId + ' | escritorioId sessão=' + escritorioId + (existente ? (' | cliente existe, escritorio_id=' + existente.escritorio_id) : ' | cliente NÃO encontrado no banco com esse id'), 'error');
+      return null;
+    }
     return clienteDoBanco(data);
   } else {
     const { data, error } = await sb
