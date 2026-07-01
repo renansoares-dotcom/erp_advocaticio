@@ -12341,6 +12341,12 @@ async function salvarCliente() {
     if(errSenha) console.warn('Erro ao salvar senha do INSS:', errSenha.message);
   }
 
+  // Gera de fato as parcelas no banco (o campo "Financeiro" do modal, até
+  // aqui, só salvava valor/nParcelas como números soltos no cliente — nunca
+  // criava as linhas reais em `parcelas`, por isso não apareciam nem no
+  // Financeiro do ERP nem no Portal do Cliente).
+  await salvarParcelasGeraisCliente(salvo.id, data.valor, data.nParcelas);
+
   if(editId) {
     const idx = store.clientes.findIndex(c => c.id === editId);
     if(idx >= 0) store.clientes[idx] = salvo; else store.clientes.unshift(salvo);
@@ -12352,6 +12358,41 @@ async function salvarCliente() {
     showToast('Cliente cadastrado!', 'success');
   }
   closeModal('modal-cliente'); renderClientes(); updateDashboard();
+}
+
+// Gera/atualiza as parcelas "gerais" de um cliente — um plano de honorários
+// lançado direto no cadastro do cliente, sem vínculo a um processo
+// específico. Sempre remove as parcelas gerais existentes (processo_id nulo)
+// e recria a partir do estado atual do formulário, mesmo padrão já usado
+// para parcelas vinculadas a processo (excluirParcelasDoProcesso).
+async function salvarParcelasGeraisCliente(clienteId, valorTotal, nParcelas) {
+  const sb = await getSB();
+  const escritorioId = getEscritorioId();
+  if(!sb || !escritorioId) return;
+
+  const { error: errDelete } = await sb.from('parcelas').delete()
+    .eq('cliente_id', clienteId).eq('escritorio_id', escritorioId).is('processo_id', null);
+  if(errDelete) console.warn('Erro ao limpar parcelas gerais anteriores:', errDelete.message);
+
+  // Reflete a remoção no estado local também, para a tela de Financeiro do
+  // ERP não precisar de reload pra mostrar a mudança.
+  store.parcelas = store.parcelas.filter(p => !(p.clienteId === clienteId && !p.processoId));
+
+  if(!valorTotal || valorTotal <= 0 || !nParcelas || nParcelas < 1) return; // nada a gerar
+
+  const datas = lerDatasCliente();
+  if(!datas.length || !datas[0]) return; // sem data da 1ª parcela, não gera nada
+
+  const valorParcela = parseFloat((valorTotal / nParcelas).toFixed(2));
+  const parcelas = datas.map((dt, i) => ({
+    processoId: null, clienteId,
+    num: i + 1, total: nParcelas,
+    vencimento: dt, valor: valorParcela,
+    status: 'pendente', dtPagamento: null, obs: ''
+  }));
+
+  const salvas = await criarParcelasNoBanco(parcelas);
+  store.parcelas.push(...salvas);
 }
 
 function editarCliente(id) {
