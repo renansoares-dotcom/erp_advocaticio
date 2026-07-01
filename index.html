@@ -4882,10 +4882,14 @@ async function salvarClienteNoBanco(c, editId) {
     if(error) {
       console.error('Erro ao atualizar cliente:', error);
       const { data: existente } = await sb.from('clientes').select('id, escritorio_id, nome').eq('id', editId).maybeSingle();
+      const { data: rpcEscritorioIds } = await sb.rpc('escritorio_ids');
+      const { data: userData } = await sb.auth.getUser();
       console.log('Diagnóstico — editId enviado:', editId);
       console.log('Diagnóstico — escritorioId da sessão:', escritorioId);
       console.log('Diagnóstico — registro encontrado por id (sem filtro de escritório):', existente);
-      showToast('Erro ao atualizar cliente: ' + error.message + ' | editId=' + editId + ' | escritorioId sessão=' + escritorioId + (existente ? (' | cliente existe, escritorio_id=' + existente.escritorio_id) : ' | cliente NÃO encontrado no banco com esse id'), 'error');
+      console.log('Diagnóstico — auth.uid():', userData?.user?.id);
+      console.log('Diagnóstico — escritorio_ids() via RPC:', rpcEscritorioIds);
+      showToast('Erro: ' + error.message + ' | auth.uid=' + (userData?.user?.id||'N/A') + ' | escritorio_ids()=' + JSON.stringify(rpcEscritorioIds) + ' | escritorioId sessão=' + escritorioId, 'error');
       return null;
     }
     return clienteDoBanco(data);
