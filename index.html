@@ -12370,23 +12370,38 @@ async function salvarParcelasGeraisCliente(clienteId, valorTotal, nParcelas) {
   const escritorioId = getEscritorioId();
   if(!sb || !escritorioId) return;
 
-  const { error: errDelete } = await sb.from('parcelas').delete()
+  // Parcelas gerais (sem processo) já existentes deste cliente. As que já
+  // foram pagas ou canceladas ficam congeladas — nunca são apagadas nem
+  // renumeradas. Só as pendentes (em aberto) entram na renegociação.
+  const { data: existentes, error: errBusca } = await sb.from('parcelas')
+    .select('id, status')
     .eq('cliente_id', clienteId).eq('escritorio_id', escritorioId).is('processo_id', null);
-  if(errDelete) console.warn('Erro ao limpar parcelas gerais anteriores:', errDelete.message);
+  if(errBusca) { console.warn('Erro ao verificar parcelas existentes:', errBusca.message); return; }
 
-  // Reflete a remoção no estado local também, para a tela de Financeiro do
-  // ERP não precisar de reload pra mostrar a mudança.
-  store.parcelas = store.parcelas.filter(p => !(p.clienteId === clienteId && !p.processoId));
+  const fechadas = (existentes || []).filter(p => p.status === 'pago' || p.status === 'cancelado');
+  const abertasIds = (existentes || []).filter(p => p.status !== 'pago' && p.status !== 'cancelado').map(p => p.id);
 
-  if(!valorTotal || valorTotal <= 0 || !nParcelas || nParcelas < 1) return; // nada a gerar
+  if(abertasIds.length) {
+    const { error: errDelete } = await sb.from('parcelas').delete().in('id', abertasIds);
+    if(errDelete) { showToast('Erro ao renegociar parcelas: ' + errDelete.message, 'error'); return; }
+    store.parcelas = store.parcelas.filter(p => !abertasIds.includes(p.id));
+  }
+
+  if(!valorTotal || valorTotal <= 0 || !nParcelas || nParcelas < 1) return; // nada novo a gerar
 
   const datas = lerDatasCliente();
   if(!datas.length || !datas[0]) return; // sem data da 1ª parcela, não gera nada
 
+  // As novas parcelas continuam a numeração a partir de onde as já
+  // fechadas (pagas/canceladas) pararam — ex: se 2 já foram pagas e agora
+  // se renegociam mais 3, elas viram "parcela 3, 4 e 5 de 5", preservando
+  // o histórico das 2 primeiras sem alterar seu texto original.
+  const numeroInicial = fechadas.length;
+  const totalGeral = fechadas.length + nParcelas;
   const valorParcela = parseFloat((valorTotal / nParcelas).toFixed(2));
   const parcelas = datas.map((dt, i) => ({
     processoId: null, clienteId,
-    num: i + 1, total: nParcelas,
+    num: numeroInicial + i + 1, total: totalGeral,
     vencimento: dt, valor: valorParcela,
     status: 'pendente', dtPagamento: null, obs: ''
   }));
