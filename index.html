@@ -12857,36 +12857,8 @@ async function salvarProcesso() {
     const andamentoAbertura = await criarAndamentoNoBanco(pId, 'Processo aberto.', procData.status);
     if(andamentoAbertura) store.andamentos[pId].push(andamentoAbertura);
 
-    const cli = store.clientes.find(c => c.id === cId);
-    const cliValor = parseFloat(cli?.valor) || 0;
-    const cliNParcelas = parseInt(cli?.nParcelas) || 1;
-    if(cli && cliValor > 0) {
-      const nParcelas = cliNParcelas;
-      const valorParcela = parseFloat((cliValor / nParcelas).toFixed(2));
-      const dt1 = (cli.datasParcelas && cli.datasParcelas[0]) || today();
-      const parcelasParaGerar = [];
-      for(let i = 0; i < nParcelas; i++) {
-        const dtVenc = (cli.datasParcelas && cli.datasParcelas[i]) || addMonths(dt1, i);
-        parcelasParaGerar.push({
-          processoId: pId,
-          clienteId: cId,
-          num: i + 1,
-          total: nParcelas,
-          vencimento: dtVenc,
-          valor: valorParcela,
-          status: 'pendente',
-          dtPagamento: null,
-          obs: ''
-        });
-      }
-      const parcelasSalvas = await criarParcelasNoBanco(parcelasParaGerar);
-      store.parcelas.push(...parcelasSalvas);
-      registrarAuditoria('criou','processo','Criou processo: '+num+' com '+nParcelas+' parcela(s)','');
-      showToast('Processo criado com '+nParcelas+' parcela(s)!', 'success');
-    } else {
-      registrarAuditoria('criou','processo','Criou processo: '+num,'Sem condições financeiras no cliente');
-      showToast('Processo criado! Configure as condições financeiras no cadastro do cliente para gerar parcelas.', 'success');
-    }
+    registrarAuditoria('criou','processo','Criou processo: '+num,'');
+    showToast('Processo criado!', 'success');
   }
   saveData(); closeModal('modal-processo'); renderProcessos(); updateDashboard();
 }
