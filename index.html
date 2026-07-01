@@ -1349,6 +1349,10 @@ body.topbar-escura .notif-btn:hover { background: rgba(255,255,255,0.2); border-
 
     <!-- ========== CLIENTES ========== -->
     <div class="page" id="page-clientes">
+      <div id="filtro-adv-banner" style="display:none;align-items:center;gap:10px;background:var(--blue-50);border:1px solid var(--blue-200);color:var(--blue-700);padding:10px 14px;border-radius:8px;margin-bottom:14px;font-size:13.5px">
+        <span>👨‍⚖️ Mostrando clientes com processos do advogado: <strong id="filtro-adv-nome"></strong></span>
+        <button class="btn btn-outline btn-sm" onclick="limparFiltroClientesAdvogado()" style="margin-left:auto">✕ Limpar filtro</button>
+      </div>
       <div class="search-row">
         <div class="search-wrap">
           <span class="search-icon">🔍</span>
@@ -8887,6 +8891,9 @@ function showToast(msg, type = '') {
 // ==================== NAVIGATION ====================
 let currentPage = 'dashboard';
 let procTabFilter = 'todos';
+// Filtro ativo de "clientes de um certo advogado" (acionado a partir da
+// Carga de Trabalho, clicando no nome do advogado). null = sem filtro.
+let filtroClientesAdvogado = null;
 
 const pageTitles = {
   dashboard: 'Dashboard', tipos: 'Tipos de Processo', clientes: 'Clientes', 'historico-contatos': 'Histórico de Contatos',
@@ -9496,7 +9503,7 @@ function renderCargaTrabalho() {
     const pct = Math.round(d.ativos/maxAtivos*100);
     const corBarra = pct >= 80 ? 'var(--danger)' : pct >= 50 ? '#92400E' : 'var(--success)';
     return `<tr>
-      <td><strong>${adv}</strong></td>
+      <td><a href="javascript:void(0)" onclick="filtrarClientesPorAdvogado('${adv.replace(/'/g,"\\'")}')" style="color:var(--blue-600);font-weight:700;text-decoration:none" title="Ver clientes deste advogado">${adv}</a></td>
       <td style="text-align:center;font-weight:700;color:var(--blue-600)">${d.ativos}</td>
       <td style="text-align:center;color:var(--text-muted)">${d.encerrados}</td>
       <td style="text-align:center">${total}</td>
@@ -12683,13 +12690,50 @@ function formatarCpfCnpj(v) {
   }
   return d.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{1,2})/, '$1.$2.$3/$4-$5');
 }
+// Aciona o filtro de clientes por advogado a partir da Carga de Trabalho
+// (Financeiro → Relatórios). Navega até Clientes já filtrado.
+function filtrarClientesPorAdvogado(nome) {
+  filtroClientesAdvogado = nome;
+  navigate('clientes', document.querySelector('.nav-item[onclick*="clientes"]'));
+  atualizarBannerFiltroAdvogado();
+  const campoBusca = document.querySelector('#page-clientes .search-row input');
+  renderClientes(campoBusca ? campoBusca.value : '');
+}
+
+function limparFiltroClientesAdvogado() {
+  filtroClientesAdvogado = null;
+  atualizarBannerFiltroAdvogado();
+  const campoBusca = document.querySelector('#page-clientes .search-row input');
+  renderClientes(campoBusca ? campoBusca.value : '');
+}
+
+function atualizarBannerFiltroAdvogado() {
+  const banner = document.getElementById('filtro-adv-banner');
+  if(!banner) return;
+  if(filtroClientesAdvogado) {
+    banner.style.display = 'flex';
+    document.getElementById('filtro-adv-nome').textContent = filtroClientesAdvogado;
+  } else {
+    banner.style.display = 'none';
+  }
+}
+
 function renderClientes(q = '') {
-  const list = store.clientes.filter(c =>
+  atualizarBannerFiltroAdvogado();
+  let list = store.clientes.filter(c =>
     !q || c.nome.toLowerCase().includes(q.toLowerCase()) || c.cpf.includes(q)
       || (c.responsavel||'').toLowerCase().includes(q.toLowerCase())
   );
+  if(filtroClientesAdvogado) {
+    const advLower = filtroClientesAdvogado.toLowerCase();
+    list = list.filter(c => store.processos.some(p => p.clienteId === c.id && (p.adv||'').toLowerCase() === advLower));
+  }
   const tb = document.getElementById('tbody-clientes');
-  if(!list.length) { tb.innerHTML = '<tr><td colspan="10" style="text-align:center;color:var(--text-muted);padding:28px">Nenhum cliente cadastrado.</td></tr>'; return; }
+  if(!list.length) {
+    const msg = filtroClientesAdvogado ? 'Nenhum cliente encontrado para este advogado.' : 'Nenhum cliente cadastrado.';
+    tb.innerHTML = `<tr><td colspan="10" style="text-align:center;color:var(--text-muted);padding:28px">${msg}</td></tr>`;
+    return;
+  }
   tb.innerHTML = list.map((c,i) => {
     const tipo = store.tipos.find(t => t.id === c.tipoProcessoId);
     return `<tr>
