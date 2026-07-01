@@ -740,40 +740,41 @@ function getSRK() { return localStorage.getItem('adv_service_role_key') || null;
 function filtrarClientesPortal(termo) {
   const caixa = document.getElementById('portal-sugestoes-cliente');
   const termoLimpo = termo.trim().toLowerCase();
-  const termoSoDigitos = termo.replace(/\D/g,'');
-  if(!termoLimpo) { caixa.style.display = 'none'; return; }
-
-  const encontrados = (todosEscritorios || []).flatMap(e => {
-    // Não temos lista de clientes aqui — vamos usar o Supabase direto
-    return [];
-  });
-
-  // Busca via Supabase (assíncrono)
-  buscarClientesParaPortal(termoLimpo, termoSoDigitos);
+  if(termoLimpo.length < 2) { caixa.style.display = 'none'; return; }
+  buscarClientesParaPortal(termoLimpo);
 }
 
-async function buscarClientesParaPortal(termoLimpo, termoSoDigitos) {
+async function buscarClientesParaPortal(termoLimpo) {
   const caixa = document.getElementById('portal-sugestoes-cliente');
   const sbAdmin = getSBAdmin();
-  if(!sbAdmin) { caixa.innerHTML = '<div style="padding:10px 14px;font-size:12.5px;color:#9DB5D0">Configure a Service Role Key primeiro.</div>'; caixa.style.display = 'block'; return; }
-
-  const { data } = await sbAdmin.from('clientes').select('id, nome, cpf, escritorios(nome)').ilike('nome', `%${termoLimpo}%`).limit(20);
-  const resultados = data || [];
-
-  if(!resultados.length) {
-    caixa.innerHTML = '<div style="padding:10px 14px;font-size:12.5px;color:#9DB5D0">Nenhum cliente encontrado.</div>';
+  if(!sbAdmin) {
+    caixa.innerHTML = '<div style="padding:10px 14px;font-size:12.5px;color:#C8A736">⚠️ Configure a Service Role Key primeiro.</div>';
     caixa.style.display = 'block';
     return;
   }
 
-  caixa.innerHTML = resultados.map(c => `
-    <div onclick="selecionarClientePortal('${c.id}','${(c.nome||'').replace(/'/g,"\\'")}','${c.escritorios?.nome||''}')"
+  caixa.innerHTML = '<div style="padding:10px 14px;font-size:12.5px;color:#9DB5D0">Buscando...</div>';
+  caixa.style.display = 'block';
+
+  const { data, error } = await sbAdmin
+    .from('clientes')
+    .select('id, nome, cpf, escritorio_id, escritorios(nome)')
+    .ilike('nome', `%${termoLimpo}%`)
+    .is('usuario_id', null)  // só clientes sem acesso ao portal ainda
+    .limit(20);
+
+  if(error || !data?.length) {
+    caixa.innerHTML = '<div style="padding:10px 14px;font-size:12.5px;color:#9DB5D0">Nenhum cliente encontrado.</div>';
+    return;
+  }
+
+  caixa.innerHTML = data.map(c => `
+    <div onclick="selecionarClientePortal('${c.id}','${(c.nome||'').replace(/'/g,"\\'")}','${(c.escritorios?.nome||'').replace(/'/g,"\\'")}')"
       style="padding:9px 14px;cursor:pointer;font-size:13px;border-bottom:1px solid rgba(255,255,255,0.06);color:#E0EAF6"
       onmouseover="this.style.background='rgba(255,255,255,0.06)'" onmouseout="this.style.background='none'">
-      <strong>${c.nome}</strong>${c.cpf?` <span style="color:#9DB5D0;font-size:11.5px">${c.cpf}</span>`:''}
-      ${c.escritorios?.nome?`<div style="font-size:11px;color:#9DB5D0">${c.escritorios.nome}</div>`:''}
+      <strong>${c.nome}</strong>${c.cpf ? ` <span style="color:#9DB5D0;font-size:11.5px">${c.cpf}</span>` : ''}
+      ${c.escritorios?.nome ? `<div style="font-size:11px;color:#9DB5D0">${c.escritorios.nome}</div>` : ''}
     </div>`).join('');
-  caixa.style.display = 'block';
 }
 
 function selecionarClientePortal(id, nome, escritorioNome) {
