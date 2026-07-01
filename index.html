@@ -5064,7 +5064,19 @@ async function atualizarParcelaNoBanco(id, campos) {
     .eq('escritorio_id', escritorioId)
     .select()
     .single();
-  if(error) { showToast('Erro ao atualizar parcela: ' + error.message, 'error'); return null; }
+  if(error) {
+    console.error('Erro ao atualizar parcela:', error);
+    const { data: existente } = await sb.from('parcelas').select('id, escritorio_id, processo_id, cliente_id, status').eq('id', id).maybeSingle();
+    const { data: rpcEscritorioIds } = await sb.rpc('escritorio_ids');
+    const { data: userData } = await sb.auth.getUser();
+    console.log('Diagnóstico — id da parcela:', id, '| campos enviados:', campos);
+    console.log('Diagnóstico — escritorioId da sessão:', escritorioId);
+    console.log('Diagnóstico — registro encontrado por id:', existente);
+    console.log('Diagnóstico — auth.uid():', userData?.user?.id);
+    console.log('Diagnóstico — escritorio_ids() via RPC:', rpcEscritorioIds);
+    showToast('Erro: ' + error.message + ' | escritorio_ids()=' + JSON.stringify(rpcEscritorioIds) + ' | escritorioId sessão=' + escritorioId + (existente ? (' | parcela existe, escritorio_id=' + existente.escritorio_id + ' processo_id=' + existente.processo_id) : ' | parcela NÃO encontrada'), 'error');
+    return null;
+  }
   return parcelaDoBanco(data);
 }
 
