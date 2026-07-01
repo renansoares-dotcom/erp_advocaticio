@@ -2187,7 +2187,7 @@ body.topbar-escura .notif-btn:hover { background: rgba(255,255,255,0.2); border-
           <div id="mp-chat-messages" style="flex:1;overflow-y:auto;padding:16px;display:none;flex-direction:column;gap:10px"></div>
           <div id="mp-chat-input-area" style="display:none;padding:12px;border-top:1px solid var(--border);display:none">
             <div style="display:flex;gap:8px">
-              <textarea id="mp-chat-input" class="form-control" rows="2" placeholder="Responder ao cliente..." style="flex:1;resize:none"></textarea>
+              <textarea id="mp-chat-input" class="form-control" rows="2" placeholder="Responder ao cliente..." style="flex:1;resize:none" onkeydown="if(event.key==='Enter' && !event.shiftKey){event.preventDefault();responderMensagemPortal();}"></textarea>
               <button class="btn btn-primary" onclick="responderMensagemPortal()" style="align-self:flex-end">Enviar</button>
             </div>
           </div>
@@ -6550,7 +6550,10 @@ async function renderMensagensPortal() {
   const msgs = await carregarMensagensPortal();
   atualizarBadgeMsgsPortal(msgs);
   atualizarBadgeNotif();
+  renderListaConversasPortal(msgs);
+}
 
+function renderListaConversasPortal(msgs) {
   // Agrupar por cliente
   const porCliente = {};
   msgs.forEach(m => {
@@ -6580,6 +6583,55 @@ async function renderMensagensPortal() {
       <div style="font-size:11.5px;color:var(--text-muted);margin-top:2px">${hora}</div>
     </div>`;
   }).join('');
+}
+
+// Chat quase em tempo real: enquanto a página Mensagens Portal estiver
+// aberta e visível, busca mensagens novas periodicamente — sem precisar
+// de infraestrutura de Realtime/websocket. Mesmo padrão já usado no
+// auto-refresh do Dashboard.
+const MP_REFRESH_MS = 4000;
+let _mpRefreshTimer = null;
+
+function iniciarAutoRefreshMensagensPortal() {
+  pararAutoRefreshMensagensPortal();
+  _mpRefreshTimer = setInterval(() => {
+    if(document.visibilityState === 'visible' && currentPage === 'mensagens-portal') {
+      _mpAtualizarSilenciosamente();
+    }
+  }, MP_REFRESH_MS);
+}
+
+function pararAutoRefreshMensagensPortal() {
+  if(_mpRefreshTimer) { clearInterval(_mpRefreshTimer); _mpRefreshTimer = null; }
+}
+
+async function _mpAtualizarSilenciosamente() {
+  const msgs = await carregarMensagensPortal();
+  atualizarBadgeMsgsPortal(msgs);
+  atualizarBadgeNotif();
+  renderListaConversasPortal(msgs);
+
+  if(!_mpClienteAtual) return;
+
+  const doCliente = msgs.filter(m => m.cliente_id === _mpClienteAtual.clienteId)
+    .sort((a,b) => new Date(a.criado_em) - new Date(b.criado_em));
+  const ultimaAtualId = doCliente.length ? doCliente[doCliente.length-1].id : null;
+  const ultimaCacheId = _mpMensagensCache.length ? _mpMensagensCache[_mpMensagensCache.length-1].id : null;
+  if(doCliente.length === _mpMensagensCache.length && ultimaAtualId === ultimaCacheId) return; // nada novo
+
+  _mpMensagensCache = doCliente;
+  renderMensagensConversaPortal();
+
+  // Marcar como lidas as mensagens novas do cliente, já que a conversa está aberta na tela
+  const sb = await getSB();
+  const naoLidasIds = doCliente.filter(m => m.remetente === 'cliente' && !m.lida).map(m => m.id);
+  if(naoLidasIds.length) {
+    for(const id of naoLidasIds) await sb.rpc('marcar_mensagem_lida', { p_mensagem_id: id });
+    const msgsAtualizados = await carregarMensagensPortal();
+    atualizarBadgeMsgsPortal(msgsAtualizados);
+    atualizarBadgeNotif();
+    renderListaConversasPortal(msgsAtualizados);
+  }
 }
 
 async function abrirConversaPortal(clienteId, clienteNome) {
@@ -8881,6 +8933,8 @@ function navigate(page, btn) {
   // enquanto o usuário não está olhando os números.
   if(page === 'dashboard') iniciarAutoRefreshDashboard();
   else pararAutoRefreshDashboard();
+  if(page === 'mensagens-portal') iniciarAutoRefreshMensagensPortal();
+  else pararAutoRefreshMensagensPortal();
 }
 
 const DASHBOARD_REFRESH_MS = 30000; // 30 segundos
