@@ -15510,6 +15510,21 @@ function mostrarLoadingDB(show) {
 }
 
 initWithSupabase();
+
+// Corrige a causa raiz de erros confusos de RLS (ex: "Cannot coerce the
+// result to a single JSON object", ou "row-level security policy" em
+// updates/inserts): o token de sessão do Supabase Auth expira depois de um
+// tempo e, se a aba fica muito tempo em segundo plano, o navegador não
+// executa a renovação automática a tempo. Sempre que a aba volta a ficar
+// visível, força uma checagem de sessão — isso já dispara a renovação do
+// token internamente no supabase-js, se necessário, antes que o usuário
+// tente salvar algo.
+document.addEventListener('visibilitychange', async () => {
+  if(document.visibilityState === 'visible') {
+    const sb = await getSB();
+    if(sb) await sb.auth.getSession();
+  }
+});
 </script>
 </body>
 </html>
