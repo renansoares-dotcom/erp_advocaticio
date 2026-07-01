@@ -184,6 +184,54 @@
       </div>
     </div>
 
+    <!-- ===== PORTAL DO CLIENTE ===== -->
+    <div class="card">
+      <h2>🔑 Portal do Cliente</h2>
+      <p style="font-size:12.5px;color:#9DB5D0;margin-bottom:14px">
+        Crie credenciais de acesso para clientes acessarem o portal. A Service Role Key fica salva só neste navegador e nunca é enviada a ninguém além do Supabase.
+      </p>
+      <div id="portal-srk-bloco">
+        <div class="form-group">
+          <label>Supabase Service Role Key</label>
+          <input type="password" id="srk-input" placeholder="eyJhbGciOiJIUzI1...">
+        </div>
+        <button class="btn-primary" onclick="salvarSRK()">Salvar Chave</button>
+        <span id="srk-status" style="font-size:12px;margin-left:10px;color:#9DB5D0"></span>
+        <div style="margin-top:10px;padding:10px 14px;background:rgba(255,180,0,0.08);border:1px solid rgba(255,180,0,0.2);border-radius:8px;font-size:12px;color:#C8A736">
+          ⚠️ Onde encontrar: Supabase → Settings → API → "service_role" → Reveal. Nunca compartilhe essa chave.
+        </div>
+      </div>
+
+      <!-- Busca de cliente para criar acesso -->
+      <div style="margin-top:20px;padding-top:16px;border-top:1px solid rgba(255,255,255,0.08)">
+        <h4 style="font-size:13px;color:#9DB5D0;margin-bottom:10px;text-transform:uppercase;letter-spacing:0.5px">Criar acesso para cliente</h4>
+        <div class="form-row">
+          <div class="form-group" style="flex:1;position:relative">
+            <label>Buscar cliente</label>
+            <input type="text" id="portal-busca-cliente" placeholder="Nome ou CPF/CNPJ..." autocomplete="off"
+              oninput="filtrarClientesPortal(this.value)" onfocus="filtrarClientesPortal(this.value)">
+            <input type="hidden" id="portal-cliente-id">
+            <input type="hidden" id="portal-cliente-nome-sel">
+            <div id="portal-sugestoes-cliente" style="display:none;position:absolute;top:100%;left:0;right:0;background:#1A3050;border:1px solid rgba(255,255,255,0.1);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,0.4);max-height:220px;overflow-y:auto;z-index:20;margin-top:4px"></div>
+          </div>
+          <div class="form-group">
+            <label>E-mail de acesso</label>
+            <input type="email" id="portal-email" placeholder="email@cliente.com">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Senha inicial</label>
+            <input type="text" id="portal-senha" placeholder="Mínimo 6 caracteres">
+          </div>
+          <div class="form-group" style="align-self:flex-end">
+            <button class="btn-primary" onclick="criarAcessoPortal()">+ Criar Acesso</button>
+          </div>
+        </div>
+        <div id="portal-resultado" style="display:none;margin-top:10px;padding:10px 14px;border-radius:8px;font-size:13px"></div>
+      </div>
+    </div>
+
     <div class="card">
       <h2>🗂️ Versões do Sistema (erp_advocaticio)</h2>
       <div id="github-token-bloco">
@@ -675,6 +723,158 @@ const GH_ARQUIVO = 'index.html'; // arquivo do sistema principal no repositório
 
 function getGithubToken() { return localStorage.getItem(GH_TOKEN_KEY) || ''; }
 function getGithubRepo() { return localStorage.getItem(GH_REPO_KEY) || ''; }
+
+// ==================== PORTAL DO CLIENTE ====================
+
+function salvarSRK() {
+  const key = document.getElementById('srk-input').value.trim();
+  if(!key) { document.getElementById('srk-status').textContent = '⚠️ Cole a chave antes de salvar.'; return; }
+  localStorage.setItem('adv_service_role_key', key);
+  document.getElementById('srk-input').value = '';
+  document.getElementById('srk-status').textContent = '✅ Chave salva neste navegador.';
+  setTimeout(() => { document.getElementById('srk-status').textContent = ''; }, 4000);
+}
+
+function getSRK() { return localStorage.getItem('adv_service_role_key') || null; }
+
+function filtrarClientesPortal(termo) {
+  const caixa = document.getElementById('portal-sugestoes-cliente');
+  const termoLimpo = termo.trim().toLowerCase();
+  const termoSoDigitos = termo.replace(/\D/g,'');
+  if(!termoLimpo) { caixa.style.display = 'none'; return; }
+
+  const encontrados = (todosEscritorios || []).flatMap(e => {
+    // Não temos lista de clientes aqui — vamos usar o Supabase direto
+    return [];
+  });
+
+  // Busca via Supabase (assíncrono)
+  buscarClientesParaPortal(termoLimpo, termoSoDigitos);
+}
+
+async function buscarClientesParaPortal(termoLimpo, termoSoDigitos) {
+  const caixa = document.getElementById('portal-sugestoes-cliente');
+  const sbAdmin = getSBAdmin();
+  if(!sbAdmin) { caixa.innerHTML = '<div style="padding:10px 14px;font-size:12.5px;color:#9DB5D0">Configure a Service Role Key primeiro.</div>'; caixa.style.display = 'block'; return; }
+
+  const { data } = await sbAdmin.from('clientes').select('id, nome, cpf, escritorios(nome)').ilike('nome', `%${termoLimpo}%`).limit(20);
+  const resultados = data || [];
+
+  if(!resultados.length) {
+    caixa.innerHTML = '<div style="padding:10px 14px;font-size:12.5px;color:#9DB5D0">Nenhum cliente encontrado.</div>';
+    caixa.style.display = 'block';
+    return;
+  }
+
+  caixa.innerHTML = resultados.map(c => `
+    <div onclick="selecionarClientePortal('${c.id}','${(c.nome||'').replace(/'/g,"\\'")}','${c.escritorios?.nome||''}')"
+      style="padding:9px 14px;cursor:pointer;font-size:13px;border-bottom:1px solid rgba(255,255,255,0.06);color:#E0EAF6"
+      onmouseover="this.style.background='rgba(255,255,255,0.06)'" onmouseout="this.style.background='none'">
+      <strong>${c.nome}</strong>${c.cpf?` <span style="color:#9DB5D0;font-size:11.5px">${c.cpf}</span>`:''}
+      ${c.escritorios?.nome?`<div style="font-size:11px;color:#9DB5D0">${c.escritorios.nome}</div>`:''}
+    </div>`).join('');
+  caixa.style.display = 'block';
+}
+
+function selecionarClientePortal(id, nome, escritorioNome) {
+  document.getElementById('portal-busca-cliente').value = nome + (escritorioNome ? ' · ' + escritorioNome : '');
+  document.getElementById('portal-cliente-id').value = id;
+  document.getElementById('portal-cliente-nome-sel').value = nome;
+  document.getElementById('portal-sugestoes-cliente').style.display = 'none';
+}
+
+document.addEventListener('click', function(e) {
+  const caixa = document.getElementById('portal-sugestoes-cliente');
+  const input = document.getElementById('portal-busca-cliente');
+  if(caixa && !caixa.contains(e.target) && e.target !== input) caixa.style.display = 'none';
+});
+
+function getSBAdmin() {
+  const srk = getSRK();
+  if(!srk) return null;
+  return supabase.createClient(SUPABASE_URL, srk, {
+    auth: { autoRefreshToken: false, persistSession: false }
+  });
+}
+
+async function criarAcessoPortal() {
+  const clienteId = document.getElementById('portal-cliente-id').value;
+  const clienteNome = document.getElementById('portal-cliente-nome-sel').value;
+  const email = document.getElementById('portal-email').value.trim();
+  const senha = document.getElementById('portal-senha').value.trim();
+  const resultado = document.getElementById('portal-resultado');
+
+  if(!clienteId) { mostrarResultadoPortal('⚠️ Selecione um cliente.', false); return; }
+  if(!email) { mostrarResultadoPortal('⚠️ Informe o e-mail de acesso.', false); return; }
+  if(!senha || senha.length < 6) { mostrarResultadoPortal('⚠️ Senha deve ter no mínimo 6 caracteres.', false); return; }
+
+  const sbAdmin = getSBAdmin();
+  if(!sbAdmin) { mostrarResultadoPortal('⚠️ Configure a Service Role Key antes de criar acessos.', false); return; }
+
+  resultado.style.display = 'block';
+  resultado.style.background = 'rgba(255,255,255,0.05)';
+  resultado.style.color = '#9DB5D0';
+  resultado.textContent = 'Criando acesso...';
+
+  // 1. Criar usuário no Supabase Auth
+  const { data: novoUser, error: errUser } = await sbAdmin.auth.admin.createUser({
+    email, password: senha, email_confirm: true
+  });
+
+  if(errUser) {
+    mostrarResultadoPortal('❌ Erro ao criar usuário: ' + errUser.message, false);
+    return;
+  }
+
+  const userId = novoUser.user.id;
+
+  // 2. Vincular usuário ao cliente
+  const { error: errCliente } = await sbAdmin.from('clientes')
+    .update({ usuario_id: userId })
+    .eq('id', clienteId);
+
+  if(errCliente) {
+    mostrarResultadoPortal('❌ Erro ao vincular ao cliente: ' + errCliente.message, false);
+    return;
+  }
+
+  // 3. Criar registro em usuarios_escritorios com papel 'cliente'
+  const { data: clienteData } = await sbAdmin.from('clientes').select('escritorio_id').eq('id', clienteId).single();
+  if(clienteData) {
+    await sbAdmin.from('usuarios_escritorios').insert({
+      usuario_id: userId, escritorio_id: clienteData.escritorio_id, papel: 'cliente', ativo: true
+    });
+  }
+
+  mostrarResultadoPortal(`✅ Acesso criado para ${clienteNome}!\nE-mail: ${email}\nSenha: ${senha}\n\nCompartilhe essas credenciais com o cliente pelo canal seguro de sua preferência.`, true);
+
+  // Limpar formulário
+  document.getElementById('portal-busca-cliente').value = '';
+  document.getElementById('portal-cliente-id').value = '';
+  document.getElementById('portal-email').value = '';
+  document.getElementById('portal-senha').value = '';
+}
+
+function mostrarResultadoPortal(msg, sucesso) {
+  const el = document.getElementById('portal-resultado');
+  el.style.display = 'block';
+  el.style.background = sucesso ? 'rgba(11,123,69,0.15)' : 'rgba(192,57,43,0.15)';
+  el.style.color = sucesso ? '#6FCF97' : '#E07070';
+  el.style.border = `1px solid ${sucesso ? 'rgba(11,123,69,0.3)' : 'rgba(192,57,43,0.3)'}`;
+  el.style.borderRadius = '8px';
+  el.style.padding = '12px 14px';
+  el.style.whiteSpace = 'pre-line';
+  el.textContent = msg;
+}
+
+// Inicializar campo com status da SRK
+(function() {
+  const srk = getSRK();
+  if(srk) {
+    const status = document.getElementById('srk-status');
+    if(status) status.textContent = '✅ Chave configurada neste navegador.';
+  }
+})();
 
 function salvarTokenGithub() {
   const token = document.getElementById('github-token-input').value.trim();
