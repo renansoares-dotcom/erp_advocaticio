@@ -6650,14 +6650,17 @@ async function responderMensagemPortal() {
 
   const sb = await getSB(); const eid = getEscritorioId();
 
-  // --- DIAGNÓSTICO TEMPORÁRIO ---
+  // Verifica se a sessão do Supabase Auth ainda está viva antes de tentar
+  // gravar. Se o token expirou (ex: aba ficou muito tempo em segundo plano),
+  // o cache local (getSessao()) continua "logado" mas o insert falharia
+  // com um erro de RLS confuso — aqui detectamos isso antes e pedimos
+  // login de novo, com uma mensagem clara.
   const { data: userData } = await sb.auth.getUser();
-  const { data: rpcEscritorioIds, error: rpcErr } = await sb.rpc('escritorio_ids');
-  console.log('=== DIAGNÓSTICO RESPOSTA MENSAGEM PORTAL (ERP) ===');
-  console.log('auth.uid():', userData?.user?.id);
-  console.log('eid local (getEscritorioId()):', eid);
-  console.log('escritorio_ids() via RPC:', rpcEscritorioIds, rpcErr);
-  // --- FIM DIAGNÓSTICO ---
+  if(!userData?.user) {
+    showToast('Sua sessão expirou. Faça login novamente.', 'error');
+    setTimeout(() => { localStorage.removeItem(LOGIN_KEY); location.reload(); }, 1800);
+    return;
+  }
 
   const { data, error } = await sb.from('portal_mensagens').insert({
     escritorio_id: eid, cliente_id: _mpClienteAtual.clienteId,
@@ -6666,7 +6669,7 @@ async function responderMensagemPortal() {
 
   if(error) {
     console.error('Erro ao enviar mensagem (ERP):', error);
-    showToast('Erro ao enviar: ' + error.message + ' | eid=' + eid + ' | escritorio_ids()=' + JSON.stringify(rpcEscritorioIds), 'error');
+    showToast('Erro ao enviar: ' + error.message, 'error');
     return;
   }
   input.value = '';
