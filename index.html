@@ -2049,17 +2049,34 @@ body.topbar-escura .notif-btn:hover { background: rgba(255,255,255,0.2); border-
 
     <!-- ========== LEADS ========== -->
     <div class="page" id="page-leads">
-      <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap">
-        <select class="form-control" id="leads-select-funil" onchange="selecionarFunil(this.value)" style="max-width:280px"></select>
-        <button class="btn btn-outline btn-sm" onclick="abrirModalEditarFunil()" id="btn-editar-funil" style="display:none">✏️ Editar Funil</button>
-        <button class="btn btn-outline btn-sm" onclick="abrirModalNovaColunаLead()" id="btn-nova-coluna-lead" style="display:none">+ Nova Coluna</button>
+      <!-- Abas: Funil e Campanhas -->
+      <div class="tabs-bar" style="margin-bottom:16px">
+        <button class="tab-btn active" onclick="switchTab('leads','funil',this)" id="leads-tab-funil">🎯 Funil</button>
+        <button class="tab-btn" onclick="switchTab('leads','campanhas',this)" id="leads-tab-campanhas">📣 Campanhas</button>
       </div>
-      <div id="leads-sem-funis" style="display:none;text-align:center;padding:60px 20px;color:var(--text-muted)">
-        <div style="font-size:40px;margin-bottom:12px">🎯</div>
-        <div style="font-size:14px">Nenhum funil criado ainda.</div>
-        <button class="btn btn-primary" style="margin-top:14px" onclick="abrirModalNovoFunil()">+ Criar Primeiro Funil</button>
+
+      <!-- ABA: FUNIL -->
+      <div class="tab-content active" id="leads-funil">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap">
+          <select class="form-control" id="leads-select-funil" onchange="selecionarFunil(this.value)" style="max-width:280px"></select>
+          <button class="btn btn-outline btn-sm" onclick="abrirModalEditarFunil()" id="btn-editar-funil" style="display:none">✏️ Editar Funil</button>
+          <button class="btn btn-outline btn-sm" onclick="abrirModalNovaColunаLead()" id="btn-nova-coluna-lead" style="display:none">+ Nova Coluna</button>
+        </div>
+        <div id="leads-sem-funis" style="display:none;text-align:center;padding:60px 20px;color:var(--text-muted)">
+          <div style="font-size:40px;margin-bottom:12px">🎯</div>
+          <div style="font-size:14px">Nenhum funil criado ainda.</div>
+          <button class="btn btn-primary" style="margin-top:14px" onclick="abrirModalNovoFunil()">+ Criar Primeiro Funil</button>
+        </div>
+        <div id="leads-board" style="display:flex;gap:14px;overflow-x:auto;padding-bottom:12px;align-items:flex-start"></div>
       </div>
-      <div id="leads-board" style="display:flex;gap:14px;overflow-x:auto;padding-bottom:12px;align-items:flex-start"></div>
+
+      <!-- ABA: CAMPANHAS -->
+      <div class="tab-content" id="leads-campanhas">
+        <div style="display:flex;justify-content:flex-end;margin-bottom:14px">
+          <button class="btn btn-primary btn-sm" onclick="abrirModalNovaCampanha()">+ Nova Campanha</button>
+        </div>
+        <div id="campanhas-lista"></div>
+      </div>
     </div>
 
     <!-- ========== MODELOS DE DOCUMENTOS ========== -->
@@ -2205,7 +2222,6 @@ body.topbar-escura .notif-btn:hover { background: rgba(255,255,255,0.2); border-
 
       <div class="tabs-bar">
         <button class="tab-btn active" onclick="switchTab('opt','senha',this)">🔐 Senha</button>
-        <button class="tab-btn" onclick="switchTab('opt','contratos',this)">📄 Modelos de Contrato</button>
         <button class="tab-btn" id="tab-btn-usuarios" onclick="switchTab('opt','usuarios',this)">👥 Usuários</button>
         <button class="tab-btn" onclick="switchTab('opt','auditoria',this)">🔍 Auditoria</button>
         <button class="tab-btn" onclick="switchTab('opt','whatsapp',this)">📱 WhatsApp</button>
@@ -2257,61 +2273,6 @@ body.topbar-escura .notif-btn:hover { background: rgba(255,255,255,0.2); border-
       </div>
 
       <!-- MODELOS DE CONTRATO -->
-      <div class="tab-content" id="opt-contratos">
-        <div class="grid-2" style="align-items:start">
-
-          <!-- Lista de modelos -->
-          <div class="card">
-            <div class="card-header">
-              <span class="card-title">Modelos Cadastrados</span>
-              <button class="btn btn-primary btn-sm" onclick="novoModelo()">+ Novo Modelo</button>
-            </div>
-            <div class="card-body" style="padding:0">
-              <div id="lista-modelos">
-                <div style="text-align:center;color:var(--text-muted);font-size:13px;padding:32px">Nenhum modelo cadastrado ainda.</div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Editor de modelo -->
-          <div class="card" id="card-editor-modelo" style="display:none">
-            <div class="card-header">
-              <span class="card-title" id="editor-modelo-title">Novo Modelo</span>
-              <button class="btn btn-ghost btn-sm" onclick="fecharEditorModelo()">✕</button>
-            </div>
-            <div class="card-body">
-              <input type="hidden" id="modelo-edit-id">
-              <div class="form-group">
-                <label class="form-label">Nome do Modelo *</label>
-                <input type="text" class="form-control" id="modelo-nome" placeholder="Ex: Contrato Previdenciário Padrão">
-              </div>
-              <div class="form-group">
-                <label class="form-label">Tipo de Processo Relacionado</label>
-                <select class="form-control" id="modelo-tipo">
-                  <option value="">— Todos os tipos —</option>
-                </select>
-              </div>
-
-              <!-- Variáveis disponíveis -->
-              <div style="background:var(--blue-50);border:1px solid var(--blue-100);border-radius:var(--radius);padding:10px 12px;margin-bottom:14px">
-                <div style="font-size:11px;font-weight:700;color:var(--blue-700);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px">Variáveis de Auto Preenchimento — clique para inserir</div>
-                <div id="vars-container" style="display:flex;flex-wrap:wrap;gap:5px"></div>
-              </div>
-
-              <div class="form-group">
-                <label class="form-label">Texto do Contrato *</label>
-                <textarea class="form-control" id="modelo-texto" style="min-height:280px;font-size:13px;line-height:1.7" placeholder="Digite o texto do contrato aqui. Use as variáveis acima para inserir dados do cliente automaticamente..."></textarea>
-              </div>
-              <div style="display:flex;gap:8px">
-                <button class="btn btn-primary" style="flex:1" onclick="salvarModelo()">💾 Salvar Modelo</button>
-                <button class="btn btn-outline" onclick="previewModelo()">👁 Pré-visualizar</button>
-              </div>
-            </div>
-          </div>
-
-        </div>
-      </div>
-
       <!-- SISTEMA -->
       <div class="tab-content" id="opt-sistema">
         <div style="max-width:500px">
@@ -3020,6 +2981,75 @@ body.topbar-escura .notif-btn:hover { background: rgba(255,255,255,0.2); border-
   </div>
 </div>
 
+<!-- MODAL CAMPANHA -->
+<div class="modal-overlay" id="modal-campanha">
+  <div class="modal" style="width:480px">
+    <div class="modal-header">
+      <span class="modal-title" id="modal-campanha-titulo">+ Nova Campanha</span>
+      <button class="btn btn-ghost btn-icon" onclick="closeModal('modal-campanha')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="campanha-edit-id">
+      <div class="form-group">
+        <label class="form-label">Nome da Campanha *</label>
+        <input type="text" class="form-control" id="campanha-nome" placeholder="Ex: Posts de Junho, Workshop Previdenciário...">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Tipo *</label>
+          <select class="form-control" id="campanha-tipo">
+            <option value="post">📱 Post (feed/reels)</option>
+            <option value="story">⏱ Story</option>
+            <option value="panfleto">📄 Panfleto / Impresso</option>
+            <option value="evento">🎪 Evento</option>
+            <option value="indicacao_massa">🤝 Indicação em massa</option>
+            <option value="outro">📌 Outro</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Canal</label>
+          <input type="text" class="form-control" id="campanha-canal" placeholder="Instagram, WhatsApp, Presencial...">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Investimento (R$)</label>
+          <input type="number" class="form-control" id="campanha-investimento" step="0.01" placeholder="0,00">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Status</label>
+          <select class="form-control" id="campanha-status">
+            <option value="ativa">🟢 Ativa</option>
+            <option value="pausada">⏸ Pausada</option>
+            <option value="encerrada">⛔ Encerrada</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Data de início</label>
+          <input type="date" class="form-control" id="campanha-inicio">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Data de fim</label>
+          <input type="date" class="form-control" id="campanha-fim">
+        </div>
+      </div>
+      <div class="form-group" style="margin-bottom:0">
+        <label class="form-label">Descrição</label>
+        <textarea class="form-control" id="campanha-descricao" rows="2" placeholder="Objetivo, conteúdo, público-alvo..."></textarea>
+      </div>
+    </div>
+    <div class="modal-footer" style="justify-content:space-between">
+      <button class="btn btn-danger" id="campanha-btn-excluir" onclick="excluirCampanhaAtual()" style="display:none">🗑 Excluir</button>
+      <div style="display:flex;gap:8px;margin-left:auto">
+        <button class="btn btn-outline" onclick="closeModal('modal-campanha')">Cancelar</button>
+        <button class="btn btn-primary" onclick="salvarCampanha()">💾 Salvar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL FUNIL LEADS -->
 <div class="modal-overlay" id="modal-funil-lead">
   <div class="modal" style="width:400px">
@@ -3117,6 +3147,10 @@ body.topbar-escura .notif-btn:hover { background: rgba(255,255,255,0.2); border-
       <div class="form-group" style="margin-top:12px;margin-bottom:0">
         <label class="form-label">Observações</label>
         <textarea class="form-control" id="lead-obs" rows="3" placeholder="Resumo do caso, contexto..."></textarea>
+      </div>
+      <div class="form-group" style="margin-top:12px;margin-bottom:0">
+        <label class="form-label">Campanha de origem (opcional)</label>
+        <select class="form-control" id="lead-campanha"></select>
       </div>
 
       <!-- Atividades: só aparece ao editar lead existente -->
@@ -4597,37 +4631,6 @@ body.topbar-escura .notif-btn:hover { background: rgba(255,255,255,0.2); border-
 </div>
 
 <!-- MODAL GERAR CONTRATO -->
-<div class="modal-overlay" id="modal-gerar-contrato">
-  <div class="modal" style="width:480px">
-    <div class="modal-header">
-      <span class="modal-title">📝 Gerar Contrato</span>
-      <button class="btn btn-ghost btn-icon" onclick="closeModal('modal-gerar-contrato')">✕</button>
-    </div>
-    <div class="modal-body">
-      <input type="hidden" id="contrato-cliente-id">
-      <div style="background:var(--surface);border-radius:var(--radius);padding:12px 14px;margin-bottom:16px;border:1px solid var(--border)">
-        <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:2px">Cliente</div>
-        <div style="font-size:15px;font-weight:600" id="contrato-cliente-nome">—</div>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Selecionar Modelo *</label>
-        <select class="form-control" id="contrato-modelo-select">
-          <option value="">— Selecione um modelo —</option>
-        </select>
-      </div>
-      <div id="contrato-preview-wrap" style="display:none">
-        <label class="form-label">Pré-visualização</label>
-        <div id="contrato-preview-texto" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;font-size:12.5px;line-height:1.75;max-height:260px;overflow-y:auto;white-space:pre-wrap;color:var(--text-primary)"></div>
-      </div>
-    </div>
-    <div class="modal-footer">
-      <button class="btn btn-outline" onclick="closeModal('modal-gerar-contrato')">Cancelar</button>
-      <button class="btn btn-outline" onclick="previewContratoCliente()" id="btn-preview-contrato">👁 Pré-ver</button>
-      <button class="btn btn-primary" onclick="imprimirContratoCliente()">🖨️ Gerar PDF</button>
-    </div>
-  </div>
-</div>
-
 <!-- MODAL CARTÃO DE CONTATO -->
 <div class="modal-overlay" id="modal-cartao-suporte">
   <div class="modal" style="width:420px">
@@ -6045,7 +6048,7 @@ function leadDoBanco(row) {
   return { id: row.id, colunaId: row.coluna_id, nome: row.nome, email: row.email || '', telefone: row.telefone || '',
     origem: row.origem || '', areaDireito: row.area_direito || '', valorEstimado: row.valor_estimado || null,
     responsavel: row.responsavel || '', observacoes: row.observacoes || '', ordem: row.ordem || 0,
-    convertido: row.convertido || false, clienteId: row.cliente_id || null };
+    convertido: row.convertido || false, clienteId: row.cliente_id || null, campanhaId: row.campanha_id || null };
 }
 function atividadeLeadDoBanco(row) { return { id: row.id, tipo: row.tipo, descricao: row.descricao, autorNome: row.autor_nome || '', criadoEm: row.criado_em }; }
 
@@ -6123,7 +6126,8 @@ async function salvarLeadNoBanco(dados, editId) {
   if(!sb || !eid) { showToast('Sem conexão.', 'error'); return null; }
   const payload = { coluna_id: dados.colunaId, nome: dados.nome, email: dados.email || null, telefone: dados.telefone || null,
     origem: dados.origem || null, area_direito: dados.areaDireito || null, valor_estimado: dados.valorEstimado || null,
-    responsavel: dados.responsavel || null, observacoes: dados.observacoes || null, ordem: dados.ordem || 0 };
+    responsavel: dados.responsavel || null, observacoes: dados.observacoes || null, ordem: dados.ordem || 0,
+    campanha_id: dados.campanhaId || null };
   if(editId) {
     const { data, error } = await sb.from('leads').update(payload).eq('id', editId).eq('escritorio_id', eid).select().single();
     if(error) { showToast('Erro: ' + error.message, 'error'); return null; }
@@ -6168,6 +6172,7 @@ async function renderLeads() {
   atualizarBadgeLeads();
   renderLeadsSelectFunil();
   if(store.leadsFunis.length) renderLeadsBoard();
+  renderCampanhas();
 }
 
 function atualizarBadgeLeads() {
@@ -6368,6 +6373,7 @@ function abrirModalNovoLead(colunaId) {
   document.getElementById('modal-lead-titulo').textContent = '+ Novo Lead';
   document.getElementById('lead-btn-excluir').style.display = 'none';
   document.getElementById('lead-bloco-atividades').style.display = 'none';
+  popularSelectCampanhasLead(null);
   openModal('modal-lead', false);
 }
 async function abrirModalEditarLead(leadId) {
@@ -6386,6 +6392,7 @@ async function abrirModalEditarLead(leadId) {
   document.getElementById('modal-lead-titulo').textContent = '✏️ ' + l.nome;
   document.getElementById('lead-btn-excluir').style.display = '';
   document.getElementById('lead-bloco-atividades').style.display = '';
+  popularSelectCampanhasLead(l.campanhaId);
 
   // Esconde botão de converter se já foi convertido
   const btnConverter = document.getElementById('btn-converter-lead');
@@ -6407,6 +6414,7 @@ async function salvarLead() {
     valorEstimado: parseFloat(document.getElementById('lead-valor').value) || null,
     responsavel: document.getElementById('lead-responsavel').value.trim(),
     observacoes: document.getElementById('lead-obs').value.trim(),
+    campanhaId: document.getElementById('lead-campanha') ? document.getElementById('lead-campanha').value || null : null,
     ordem: editId ? null : (store.leadsCards||[]).filter(l => l.colunaId === document.getElementById('lead-coluna-id').value).length
   };
   const salvo = await salvarLeadNoBanco(dados, editId || null);
@@ -6486,6 +6494,168 @@ async function converterLeadEmCliente() {
   showToast('Cliente criado com sucesso! Você pode completar o cadastro na aba Clientes.', 'success');
   atualizarBadgeLeads();
   renderLeadsBoard();
+}
+
+// ==================== CAMPANHAS DE MARKETING ====================
+
+const TIPOS_CAMPANHA = { post:'📱 Post', story:'⏱ Story', panfleto:'📄 Panfleto', evento:'🎪 Evento', indicacao_massa:'🤝 Indicação em massa', outro:'📌 Outro' };
+const STATUS_CAMPANHA = { ativa:'🟢 Ativa', pausada:'⏸ Pausada', encerrada:'⛔ Encerrada' };
+
+function campanhaDoBanco(row) {
+  return { id: row.id, nome: row.nome, tipo: row.tipo, canal: row.canal || '',
+    investimento: row.investimento || 0, dataInicio: row.data_inicio || null,
+    dataFim: row.data_fim || null, status: row.status, descricao: row.descricao || '' };
+}
+async function carregarCampanhas() {
+  const sb = await getSB(); const eid = getEscritorioId();
+  if(!sb || !eid) return [];
+  const { data, error } = await sb.from('campanhas').select('*').eq('escritorio_id', eid).order('criado_em', { ascending: false });
+  if(error) { console.warn(error.message); return []; }
+  return (data || []).map(campanhaDoBanco);
+}
+async function salvarCampanhaNoBanco(dados, editId) {
+  const sb = await getSB(); const eid = getEscritorioId();
+  if(!sb || !eid) { showToast('Sem conexão.', 'error'); return null; }
+  const payload = { nome: dados.nome, tipo: dados.tipo, canal: dados.canal || null,
+    investimento: dados.investimento || null, data_inicio: dados.dataInicio || null,
+    data_fim: dados.dataFim || null, status: dados.status, descricao: dados.descricao || null };
+  if(editId) {
+    const { data, error } = await sb.from('campanhas').update(payload).eq('id', editId).eq('escritorio_id', eid).select().single();
+    if(error) { showToast('Erro: ' + error.message, 'error'); return null; }
+    return campanhaDoBanco(data);
+  } else {
+    const { data, error } = await sb.from('campanhas').insert({ ...payload, escritorio_id: eid }).select().single();
+    if(error) { showToast('Erro: ' + error.message, 'error'); return null; }
+    return campanhaDoBanco(data);
+  }
+}
+async function excluirCampanhaNoBanco(id) {
+  const sb = await getSB(); const eid = getEscritorioId();
+  if(!sb || !eid) return false;
+  const { error } = await sb.from('campanhas').delete().eq('id', id).eq('escritorio_id', eid);
+  if(error) { showToast('Erro: ' + error.message, 'error'); return false; }
+  return true;
+}
+
+// ---- UI de Campanhas ----
+function renderCampanhas() {
+  const lista = document.getElementById('campanhas-lista');
+  if(!lista) return;
+  const campanhas = store.campanhas || [];
+
+  if(!campanhas.length) {
+    lista.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:60px 20px"><div style="font-size:40px;margin-bottom:12px">📣</div><div>Nenhuma campanha criada ainda.</div></div>';
+    return;
+  }
+
+  lista.innerHTML = campanhas.map(c => {
+    // Calcular métricas de ROI com os leads do store
+    const leadsC = (store.leadsCards||[]).filter(l => l.campanhaId === c.id);
+    const convertidos = leadsC.filter(l => l.convertido);
+    const valorCaptado = convertidos.reduce((s,l) => s + (l.valorEstimado||0), 0);
+    const roi = c.investimento > 0 ? ((valorCaptado - c.investimento) / c.investimento * 100).toFixed(0) : null;
+    const roiCor = roi === null ? 'var(--text-muted)' : (parseFloat(roi) >= 0 ? '#0B7B45' : '#EF4444');
+    const dataInicio = c.dataInicio ? new Date(c.dataInicio+'T12:00:00').toLocaleDateString('pt-BR') : '—';
+    const dataFim = c.dataFim ? new Date(c.dataFim+'T12:00:00').toLocaleDateString('pt-BR') : '—';
+
+    return `<div style="border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap">
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+            <strong style="font-size:14px">${c.nome}</strong>
+            <span style="font-size:11px;color:var(--text-muted)">${STATUS_CAMPANHA[c.status]||c.status}</span>
+          </div>
+          <div style="font-size:12px;color:var(--text-muted)">${TIPOS_CAMPANHA[c.tipo]||c.tipo}${c.canal?' · '+c.canal:''} · ${dataInicio}${c.dataFim?' → '+dataFim:''}</div>
+          ${c.descricao?`<div style="font-size:12px;color:var(--text-secondary);margin-top:4px">${c.descricao}</div>`:''}
+        </div>
+        <button onclick="abrirModalEditarCampanha('${c.id}')" class="btn btn-outline btn-sm">✏️ Editar</button>
+      </div>
+      <!-- Métricas de ROI -->
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:10px;margin-top:14px;padding-top:12px;border-top:1px solid var(--border)">
+        <div style="text-align:center">
+          <div style="font-size:20px;font-weight:700">${leadsC.length}</div>
+          <div style="font-size:11px;color:var(--text-muted)">Leads</div>
+        </div>
+        <div style="text-align:center">
+          <div style="font-size:20px;font-weight:700">${convertidos.length}</div>
+          <div style="font-size:11px;color:var(--text-muted)">Convertidos</div>
+        </div>
+        <div style="text-align:center">
+          <div style="font-size:20px;font-weight:700">R$ ${c.investimento > 0 ? Number(c.investimento).toLocaleString('pt-BR',{minimumFractionDigits:0}) : '—'}</div>
+          <div style="font-size:11px;color:var(--text-muted)">Investido</div>
+        </div>
+        <div style="text-align:center">
+          <div style="font-size:20px;font-weight:700">R$ ${valorCaptado > 0 ? Number(valorCaptado).toLocaleString('pt-BR',{minimumFractionDigits:0}) : '—'}</div>
+          <div style="font-size:11px;color:var(--text-muted)">Val. Captado</div>
+        </div>
+        <div style="text-align:center">
+          <div style="font-size:20px;font-weight:700;color:${roiCor}">${roi !== null ? roi+'%' : '—'}</div>
+          <div style="font-size:11px;color:var(--text-muted)">ROI</div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function abrirModalNovaCampanha() {
+  document.getElementById('campanha-edit-id').value = '';
+  ['campanha-nome','campanha-canal','campanha-descricao'].forEach(id => { document.getElementById(id).value = ''; });
+  document.getElementById('campanha-tipo').value = 'post';
+  document.getElementById('campanha-investimento').value = '';
+  document.getElementById('campanha-status').value = 'ativa';
+  document.getElementById('campanha-inicio').value = today();
+  document.getElementById('campanha-fim').value = '';
+  document.getElementById('modal-campanha-titulo').textContent = '+ Nova Campanha';
+  document.getElementById('campanha-btn-excluir').style.display = 'none';
+  openModal('modal-campanha', false);
+}
+function abrirModalEditarCampanha(id) {
+  const c = (store.campanhas||[]).find(c => c.id === id);
+  if(!c) return;
+  document.getElementById('campanha-edit-id').value = c.id;
+  document.getElementById('campanha-nome').value = c.nome;
+  document.getElementById('campanha-tipo').value = c.tipo;
+  document.getElementById('campanha-canal').value = c.canal;
+  document.getElementById('campanha-investimento').value = c.investimento || '';
+  document.getElementById('campanha-status').value = c.status;
+  document.getElementById('campanha-inicio').value = c.dataInicio || '';
+  document.getElementById('campanha-fim').value = c.dataFim || '';
+  document.getElementById('campanha-descricao').value = c.descricao;
+  document.getElementById('modal-campanha-titulo').textContent = '✏️ Editar Campanha';
+  document.getElementById('campanha-btn-excluir').style.display = '';
+  openModal('modal-campanha', false);
+}
+async function salvarCampanha() {
+  const nome = document.getElementById('campanha-nome').value.trim();
+  if(!nome) { showToast('Dê um nome à campanha.', 'error'); return; }
+  const editId = document.getElementById('campanha-edit-id').value;
+  const dados = {
+    nome, tipo: document.getElementById('campanha-tipo').value,
+    canal: document.getElementById('campanha-canal').value.trim(),
+    investimento: parseFloat(document.getElementById('campanha-investimento').value) || 0,
+    status: document.getElementById('campanha-status').value,
+    dataInicio: document.getElementById('campanha-inicio').value || null,
+    dataFim: document.getElementById('campanha-fim').value || null,
+    descricao: document.getElementById('campanha-descricao').value.trim()
+  };
+  const salvo = await salvarCampanhaNoBanco(dados, editId || null);
+  if(!salvo) return;
+  store.campanhas = store.campanhas || [];
+  if(editId) { const idx = store.campanhas.findIndex(c => c.id === editId); if(idx >= 0) store.campanhas[idx] = salvo; }
+  else store.campanhas.unshift(salvo);
+  showToast(editId ? 'Campanha atualizada!' : 'Campanha criada!', 'success');
+  closeModal('modal-campanha');
+  renderCampanhas();
+}
+async function excluirCampanhaAtual() {
+  const editId = document.getElementById('campanha-edit-id').value;
+  if(!editId || !confirm('Excluir esta campanha? Os leads vinculados a ela não serão excluídos, apenas perderão o vínculo.')) return;
+  const ok = await excluirCampanhaNoBanco(editId);
+  if(!ok) return;
+  store.campanhas = (store.campanhas||[]).filter(c => c.id !== editId);
+  closeModal('modal-campanha');
+  showToast('Campanha excluída.');
+  renderCampanhas();
 }
 
 // ==================== UI: DIÁRIO OFICIAL ====================
@@ -6912,6 +7082,13 @@ function selecionarClienteGD(clienteId, nome) {
   document.getElementById('gd-cliente-id').value = clienteId;
   document.getElementById('gd-sugestoes-cliente').style.display = 'none';
   popularSelectProcessosGD(clienteId);
+}
+function popularSelectCampanhasLead(campanhaIdAtual) {
+  const sel = document.getElementById('lead-campanha');
+  if(!sel) return;
+  const campanhas = store.campanhas || [];
+  sel.innerHTML = '<option value="">— Nenhuma —</option>' +
+    campanhas.map(c => `<option value="${c.id}"${c.id===campanhaIdAtual?' selected':''}>${c.nome}</option>`).join('');
 }
 function popularSelectProcessosGD(clienteId) {
   const sel = document.getElementById('gd-processo');
@@ -8003,7 +8180,7 @@ async function sbLoad() {
   }
 
   console.log('🔄 Carregando dados reais do escritório...');
-  const [clientes, processos, tipos, parcelas, despesas, eventos, intimacoes, orcamentos, documentosLista, dadosEscritorio, exitos, tags, clientesTags, processosTags, andamentos, partes, contatosProcesso, tarefas, kanbanQuadros, kanbanColunas, kanbanCartoes, publicacoesDiario, modelosDocumento, leadsFunis, leadsColunas, leadsCards] = await Promise.all([
+  const [clientes, processos, tipos, parcelas, despesas, eventos, intimacoes, orcamentos, documentosLista, dadosEscritorio, exitos, tags, clientesTags, processosTags, andamentos, partes, contatosProcesso, tarefas, kanbanQuadros, kanbanColunas, kanbanCartoes, publicacoesDiario, modelosDocumento, leadsFunis, leadsColunas, leadsCards, campanhas] = await Promise.all([
     carregarClientes(),
     carregarProcessos(),
     carregarTipos(),
@@ -8029,7 +8206,8 @@ async function sbLoad() {
     carregarModelosDocumento(),
     carregarLeadsFunis(),
     carregarLeadsColunas(),
-    carregarLeads()
+    carregarLeads(),
+    carregarCampanhas()
   ]);
 
   store.clientes = clientes;
@@ -8057,6 +8235,7 @@ async function sbLoad() {
   store.leadsFunis = leadsFunis;
   store.leadsColunas = leadsColunas;
   store.leadsCards = leadsCards;
+  store.campanhas = campanhas;
 
   // store.documentos (por processo) e store.docsCliente (por cliente) são
   // objetos indexados por ID, derivados da mesma lista plana carregada do
@@ -8108,6 +8287,7 @@ function normalizarStore() {
   if(!store.leadsFunis)       store.leadsFunis       = [];
   if(!store.leadsColunas)     store.leadsColunas     = [];
   if(!store.leadsCards)       store.leadsCards       = [];
+  if(!store.campanhas)        store.campanhas        = [];
   if(!store.clientesTags)    store.clientesTags    = {};
   if(!store.processosTags)   store.processosTags   = {};
   // Identidade Visual (cores + logo customizável)
@@ -11492,8 +11672,6 @@ function renderOpcoes() {
   if(sucEl) sucEl.style.display = 'none';
   const fw = document.getElementById('forca-wrap');
   if(fw) fw.style.display = 'none';
-  renderListaModelos();
-  populateTiposSelect('modelo-tipo');
   atualizarInfoBackup();
   setTimeout(() => renderUsuarios(), 50);
   // Ocultar aba usuários para não-admins
@@ -11501,249 +11679,6 @@ function renderOpcoes() {
   if(tabUsuarios) tabUsuarios.style.display = pode('gerenciarUsuarios') ? '' : 'none';
 }
 
-function renderVarsContainer() {
-  const el = document.getElementById('vars-container');
-  if(!el) return;
-  const vars = [
-    ['{{NOME}}','Nome do Cliente'],['{{CPF}}','CPF/CNPJ'],['{{TELEFONE}}','Telefone'],
-    ['{{EMAIL}}','E-mail'],['{{ENDERECO}}','Endereço'],['{{CIDADE}}','Cidade/UF'],
-    ['{{NATUREZA}}','Natureza'],['{{BENEFICIO}}','Benefício'],['{{RESPONSAVEL}}','Responsável'],
-    ['{{TIPO_PROCESSO}}','Tipo de Processo'],['{{VALOR_TOTAL}}','Valor Total'],
-    ['{{PARCELAS}}','Nº Parcelas'],['{{VALOR_PARCELA}}','Valor Parcela'],
-    ['{{DATA_HOJE}}','Data de Hoje'],['{{ESCRITORIO}}','Nome Escritório']
-  ];
-  el.innerHTML = vars.map(([v,l]) =>
-    `<button onclick="inserirVariavelModelo('${v}')" title="${l}"
-      style="padding:3px 8px;border-radius:6px;border:1px solid var(--blue-200);background:white;color:var(--blue-700);font-size:11px;font-weight:500;cursor:pointer;transition:all 0.15s"
-      onmouseover="this.style.background='var(--blue-600)';this.style.color='white'"
-      onmouseout="this.style.background='white';this.style.color='var(--blue-700)'">${v}</button>`
-  ).join('');
-}
-
-function novoModelo() {
-  document.getElementById('modelo-edit-id').value = '';
-  document.getElementById('editor-modelo-title').textContent = 'Novo Modelo';
-  document.getElementById('modelo-nome').value = '';
-  document.getElementById('modelo-texto').value = '';
-  populateTiposSelect('modelo-tipo');
-  renderVarsContainer();
-  document.getElementById('card-editor-modelo').style.display = 'block';
-}
-function fecharEditorModelo() {
-  document.getElementById('card-editor-modelo').style.display = 'none';
-}
-function inserirVariavelModelo(v) {
-  const ta = document.getElementById('modelo-texto');
-  const start = ta.selectionStart;
-  const end = ta.selectionEnd;
-  ta.value = ta.value.substring(0, start) + v + ta.value.substring(end);
-  ta.focus();
-  ta.selectionStart = ta.selectionEnd = start + v.length;
-}
-function salvarModelo() {
-  const nome = document.getElementById('modelo-nome').value.trim();
-  const texto = document.getElementById('modelo-texto').value.trim();
-  if(!nome || !texto) { showToast('Preencha nome e texto do modelo.', 'error'); return; }
-  const tipoId = parseInt(document.getElementById('modelo-tipo').value)||null;
-  const editId = document.getElementById('modelo-edit-id').value;
-  if(!store.modelos) store.modelos = [];
-  if(!store.nextId.modelo) store.nextId.modelo = 1;
-  if(editId) {
-    const m = store.modelos.find(m => m.id == editId);
-    if(m) { m.nome = nome; m.texto = texto; m.tipoId = tipoId; }
-    showToast('Modelo atualizado!', 'success');
-  } else {
-    store.modelos.push({ id: store.nextId.modelo++, nome, texto, tipoId });
-    showToast('Modelo salvo!', 'success');
-  }
-  saveData(); renderListaModelos(); fecharEditorModelo();
-}
-function editarModelo(id) {
-  if(!store.modelos) return;
-  const m = store.modelos.find(m => m.id === id);
-  if(!m) return;
-  document.getElementById('modelo-edit-id').value = m.id;
-  document.getElementById('editor-modelo-title').textContent = 'Editar Modelo';
-  document.getElementById('modelo-nome').value = m.nome;
-  document.getElementById('modelo-texto').value = m.texto;
-  populateTiposSelect('modelo-tipo');
-  document.getElementById('modelo-tipo').value = m.tipoId||'';
-  renderVarsContainer();
-  document.getElementById('card-editor-modelo').style.display = 'block';
-}
-function excluirModelo(id) {
-  if(!confirm('Excluir este modelo?')) return;
-  store.modelos = (store.modelos||[]).filter(m => m.id !== id);
-  saveData(); renderListaModelos();
-  showToast('Modelo excluído.');
-}
-function renderListaModelos() {
-  const lista = document.getElementById('lista-modelos');
-  if(!lista) return;
-  const modelos = store.modelos||[];
-  if(!modelos.length) {
-    lista.innerHTML = '<div style="text-align:center;color:var(--text-muted);font-size:13px;padding:32px">Nenhum modelo cadastrado ainda.</div>';
-    return;
-  }
-  lista.innerHTML = modelos.map(m => {
-    const tipo = store.tipos.find(t => t.id === m.tipoId);
-    return `<div style="display:flex;align-items:center;justify-content:space-between;padding:13px 18px;border-bottom:1px solid var(--border);gap:10px">
-      <div style="flex:1;min-width:0">
-        <div style="font-size:13.5px;font-weight:600;color:var(--text-primary)">${m.nome}</div>
-        <div style="font-size:11.5px;color:var(--text-muted);margin-top:2px">${tipo?`<span class="badge badge-blue" style="font-size:10px">${tipo.nome}</span>`:'<span style="color:var(--text-muted)">Todos os tipos</span>'}</div>
-      </div>
-      <div style="display:flex;gap:6px;flex-shrink:0">
-        <button class="btn btn-outline btn-sm" onclick="editarModelo(${m.id})" title="Editar">✏️</button>
-        <button class="btn btn-danger btn-sm" onclick="excluirModelo(${m.id})" title="Excluir">🗑</button>
-      </div>
-    </div>`;
-  }).join('');
-}
-function previewModelo() {
-  const texto = document.getElementById('modelo-texto').value;
-  if(!texto) { showToast('Nada para pré-visualizar.', 'error'); return; }
-  const preenchido = aplicarVariaveis(texto, {
-    NOME: 'João da Silva', CPF: '123.456.789-00', TELEFONE: '(81) 99999-0000',
-    EMAIL: 'joao@email.com', ENDERECO: 'Rua das Flores, 123', CIDADE: 'Recife - PE',
-    NATUREZA: 'Aposentadoria por Invalidez', BENEFICIO: 'BPC/LOAS',
-    RESPONSAVEL: 'Dr(a). Responsável', TIPO_PROCESSO: 'Processo Previdenciário',
-    VALOR_TOTAL: 'R$ 3.000,00', PARCELAS: '6', VALOR_PARCELA: 'R$ 500,00',
-    DATA_HOJE: new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'long',year:'numeric'}),
-    ESCRITORIO: getNomeEscritorio()
-  });
-  abrirContratoJanela('Pré-visualização — ' + (document.getElementById('modelo-nome').value||'Modelo'), preenchido);
-}
-
-function aplicarVariaveis(texto, dados) {
-  return texto
-    .replace(/\{\{NOME\}\}/g, dados.NOME||'')
-    .replace(/\{\{CPF\}\}/g, dados.CPF||'')
-    .replace(/\{\{TELEFONE\}\}/g, dados.TELEFONE||'')
-    .replace(/\{\{EMAIL\}\}/g, dados.EMAIL||'')
-    .replace(/\{\{ENDERECO\}\}/g, dados.ENDERECO||'')
-    .replace(/\{\{CIDADE\}\}/g, dados.CIDADE||'')
-    .replace(/\{\{NATUREZA\}\}/g, dados.NATUREZA||'')
-    .replace(/\{\{BENEFICIO\}\}/g, dados.BENEFICIO||'')
-    .replace(/\{\{RESPONSAVEL\}\}/g, dados.RESPONSAVEL||'')
-    .replace(/\{\{TIPO_PROCESSO\}\}/g, dados.TIPO_PROCESSO||'')
-    .replace(/\{\{VALOR_TOTAL\}\}/g, dados.VALOR_TOTAL||'')
-    .replace(/\{\{PARCELAS\}\}/g, dados.PARCELAS||'')
-    .replace(/\{\{VALOR_PARCELA\}\}/g, dados.VALOR_PARCELA||'')
-    .replace(/\{\{DATA_HOJE\}\}/g, dados.DATA_HOJE||'')
-    .replace(/\{\{ESCRITORIO\}\}/g, dados.ESCRITORIO||'');
-}
-
-function abrirContratoJanela(titulo, texto) {
-  const win = window.open('', '_blank');
-  win.document.write(`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">
-<title>${titulo}</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<style>
-  *{margin:0;padding:0;box-sizing:border-box}
-  body{font-family:'Inter',sans-serif;background:#fff;color:#0C1A2E;font-size:13.5px}
-  .page{width:210mm;min-height:297mm;margin:0 auto;padding:18mm 18mm 14mm}
-  .header{display:flex;align-items:center;justify-content:space-between;padding-bottom:12px;border-bottom:3px solid #185FA5;margin-bottom:24px}
-  .logo-box{width:44px;height:44px;border-radius:10px;background:linear-gradient(135deg,#378ADD,#185FA5);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:16px;color:white}
-  .escritorio-nome{font-size:17px;font-weight:700;color:#071D3B}
-  .escritorio-sub{font-size:10px;color:#7A92AA;text-transform:uppercase;letter-spacing:1.5px}
-  .doc-titulo{font-size:11px;font-weight:600;color:#185FA5;text-transform:uppercase;letter-spacing:1px;text-align:right}
-  .doc-data{font-size:11px;color:#7A92AA;text-align:right;margin-top:2px}
-  .corpo{font-size:13.5px;line-height:1.9;white-space:pre-wrap;color:#0C1A2E;text-align:justify}
-  .footer{margin-top:40px;padding-top:14px;border-top:1px solid #DAEAF7;display:flex;justify-content:space-between}
-  .assinatura{width:200px;text-align:center}
-  .assinatura-linha{border-top:1px solid #0C1A2E;padding-top:5px;font-size:11px;color:#4A6080}
-  .no-print{position:fixed;bottom:24px;right:24px;display:flex;gap:10px}
-  @media print{.no-print{display:none}body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
-</style></head><body>
-<div class="page">
-  <div class="header">
-    <div style="display:flex;align-items:center;gap:12px">
-      ${getLogoInlineHtml(44)}
-      <div>
-        <div class="escritorio-nome">${getNomeEscritorio()}</div>
-        <div class="escritorio-sub">Advocacia e Consultoria Jurídica · OAB/PE 51.493</div>
-      </div>
-    </div>
-    <div>
-      <div class="doc-titulo">Contrato de Prestação de Serviços</div>
-      <div class="doc-data">Emitido em ${new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'long',year:'numeric'})}</div>
-    </div>
-  </div>
-  <div class="corpo">${texto.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>
-  <div class="footer">
-    <div class="assinatura"><div class="assinatura-linha">Contratante</div></div>
-    <div class="assinatura"><div class="assinatura-linha">${getNomeEscritorio()} — Contratado</div></div>
-  </div>
-</div>
-<div class="no-print">
-  <button onclick="window.print()" style="padding:11px 20px;background:#185FA5;color:white;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;box-shadow:0 4px 16px rgba(24,95,165,0.35)" title="Imprimir / Salvar PDF">🖨️</button>
-  <button onclick="window.close()" style="padding:11px 16px;background:#F4F8FD;color:#4A6080;border:1px solid #DAEAF7;border-radius:10px;font-size:14px;cursor:pointer" title="Fechar">✕</button>
-</div>
-</body></html>`);
-  win.document.close();
-}
-
-function abrirGerarContrato(clienteId) {
-  const c = store.clientes.find(c => c.id === clienteId);
-  if(!c) return;
-  const modelos = store.modelos||[];
-  if(!modelos.length) { showToast('Nenhum modelo cadastrado. Crie um em Opções → Modelos de Contrato.', 'error'); return; }
-  document.getElementById('contrato-cliente-id').value = clienteId;
-  document.getElementById('contrato-cliente-nome').textContent = c.nome;
-  document.getElementById('contrato-preview-wrap').style.display = 'none';
-  // Preencher select de modelos
-  const sel = document.getElementById('contrato-modelo-select');
-  sel.innerHTML = '<option value="">— Selecione um modelo —</option>';
-  modelos.forEach(m => {
-    sel.innerHTML += `<option value="${m.id}">${m.nome}</option>`;
-  });
-  openModal('modal-gerar-contrato', false);
-}
-function previewContratoCliente() {
-  const clienteId = parseInt(document.getElementById('contrato-cliente-id').value);
-  const modeloId = parseInt(document.getElementById('contrato-modelo-select').value);
-  if(!modeloId) { showToast('Selecione um modelo.', 'error'); return; }
-  const c = store.clientes.find(c => c.id === clienteId);
-  const m = (store.modelos||[]).find(m => m.id === modeloId);
-  const tipo = store.tipos.find(t => t.id === c.tipoProcessoId);
-  const proc = store.processos.find(p => p.clienteId === clienteId);
-  const dados = montarDadosContrato(c, tipo, proc);
-  const preenchido = aplicarVariaveis(m.texto, dados);
-  document.getElementById('contrato-preview-texto').textContent = preenchido;
-  document.getElementById('contrato-preview-wrap').style.display = 'block';
-}
-function imprimirContratoCliente() {
-  const clienteId = parseInt(document.getElementById('contrato-cliente-id').value);
-  const modeloId = parseInt(document.getElementById('contrato-modelo-select').value);
-  if(!modeloId) { showToast('Selecione um modelo.', 'error'); return; }
-  const c = store.clientes.find(c => c.id === clienteId);
-  const m = (store.modelos||[]).find(m => m.id === modeloId);
-  const tipo = store.tipos.find(t => t.id === c.tipoProcessoId);
-  const proc = store.processos.find(p => p.clienteId === clienteId);
-  const dados = montarDadosContrato(c, tipo, proc);
-  const preenchido = aplicarVariaveis(m.texto, dados);
-  closeModal('modal-gerar-contrato');
-  abrirContratoJanela(m.nome + ' — ' + c.nome, preenchido);
-}
-function montarDadosContrato(c, tipo, proc) {
-  return {
-    NOME: c.nome||'',
-    CPF: formatarCpfCnpj(c.cpf)||'',
-    TELEFONE: c.tel||'',
-    EMAIL: c.email||'',
-    ENDERECO: c.endereco||'',
-    CIDADE: c.cidade||'',
-    NATUREZA: c.natureza||'',
-    BENEFICIO: c.beneficio||'',
-    RESPONSAVEL: c.responsavel||'',
-    TIPO_PROCESSO: tipo ? tipo.nome : '',
-    VALOR_TOTAL: proc ? fmtMoney(proc.valor) : (tipo ? fmtMoney(tipo.valor) : ''),
-    PARCELAS: proc ? String(proc.nParcelas) : (tipo ? String(tipo.parcelas) : ''),
-    VALOR_PARCELA: proc ? fmtMoney(proc.valor/proc.nParcelas) : (tipo ? fmtMoney(tipo.valor/tipo.parcelas) : ''),
-    DATA_HOJE: new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'long',year:'numeric'}),
-    ESCRITORIO: getNomeEscritorio()
-  };
-}
 function avaliarForcaSenha(v) {
   const wrap = document.getElementById('forca-wrap');
   const lbl = document.getElementById('forca-label');
@@ -11827,7 +11762,6 @@ function switchTab(group, tab, btn) {
   if(group === 'rel' && tab === 'entradas') renderRelEntradas();
   if(group === 'rel' && tab === 'saidas') renderRelSaidas();
   if(group === 'opt' && tab === 'usuarios') renderUsuarios();
-  if(group === 'opt' && tab === 'contratos') { renderListaModelos(); populateTiposSelect('modelo-tipo'); }
   if(group === 'opt' && tab === 'auditoria') renderAuditoria();
   if(group === 'opt' && tab === 'sistema') atualizarInfoBackup();
   if(group === 'opt' && tab === 'whatsapp') carregarConfigWpp();
@@ -12433,7 +12367,6 @@ function renderClientes(q = '') {
       <td>
         <button class="btn btn-outline btn-sm" onclick="editarCliente('${c.id}')" title="Editar">✏️</button>
         <button class="btn btn-primary btn-sm" onclick="gerarFichaPDF('${c.id}')" title="Gerar Ficha PDF">📄</button>
-        <button class="btn btn-outline btn-sm" onclick="abrirGerarContrato('${c.id}')" title="Gerar Contrato" style="background:var(--blue-50);color:var(--blue-700);border-color:var(--blue-200)">📝</button>
         <button class="btn btn-outline btn-sm" onclick="abrirDocumentosCliente('${c.id}')" title="Documentos do cliente" style="background:var(--blue-50);color:var(--blue-700);border-color:var(--blue-200)">📁</button>
         <button class="btn btn-outline btn-sm" onclick="abrirModalWpp('${c.id}',null)" title="Enviar WhatsApp" style="background:#E7FFDB;border-color:#25D366;color:#128C7E">📱</button>
         <button class="btn btn-danger btn-sm" onclick="excluirCliente('${c.id}')" title="Excluir">🗑</button>
