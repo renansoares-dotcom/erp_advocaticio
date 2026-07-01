@@ -793,7 +793,7 @@ document.addEventListener('click', function(e) {
 function getSBAdmin() {
   const srk = getSRK();
   if(!srk) return null;
-  return supabase.createClient(SUPABASE_URL, srk, {
+  return window.supabase.createClient(SB_URL, srk, {
     auth: { autoRefreshToken: false, persistSession: false }
   });
 }
