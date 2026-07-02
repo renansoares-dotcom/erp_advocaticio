@@ -569,6 +569,24 @@ table.data-table tr { transition: background 0.12s; }
 .badge-amber { background: var(--warning-bg); color: var(--warning); }
 .badge-blue { background: var(--blue-50); color: var(--blue-600); }
 .badge-gray { background: #F1F5F9; color: #475569; }
+
+/* Menu de ações "⋮" (dropdown reutilizável em listas) */
+.menu-acoes-dropdown {
+  display: none;
+  position: absolute; right: 0; top: calc(100% + 4px);
+  background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px;
+  box-shadow: var(--shadow-md); z-index: 50; min-width: 200px; overflow: hidden;
+  text-align: left;
+}
+.menu-acoes-dropdown.aberto { display: block; }
+.menu-acoes-dropdown button {
+  display: block; width: 100%; text-align: left; padding: 9px 14px;
+  background: none; border: none; font-size: 13px; color: var(--text-primary);
+  cursor: pointer; font-family: inherit;
+}
+.menu-acoes-dropdown button:hover { background: var(--surface); }
+.menu-acoes-dropdown button.item-perigo { color: var(--danger); }
+.menu-acoes-dropdown button.item-perigo:hover { background: var(--red-soft, #FEE2E2); }
 .badge-navy { background: #E8EDF5; color: var(--navy); }
 
 /* MODAL */
@@ -4509,8 +4527,18 @@ body.topbar-escura .notif-btn:hover { background: rgba(255,255,255,0.2); border-
           <input type="text" class="form-control" id="cliente-tel" placeholder="(00) 00000-0000">
         </div>
         <div class="form-group">
+          <label class="form-label">Telefone 2</label>
+          <input type="text" class="form-control" id="cliente-tel2" placeholder="(00) 00000-0000">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
           <label class="form-label">E-mail</label>
           <input type="email" class="form-control" id="cliente-email" placeholder="email@exemplo.com">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Data de Nascimento</label>
+          <input type="date" class="form-control" id="cliente-nascimento">
         </div>
       </div>
       <div class="form-row">
@@ -4522,6 +4550,21 @@ body.topbar-escura .notif-btn:hover { background: rgba(255,255,255,0.2); border-
           <label class="form-label">Cidade / UF</label>
           <input type="text" class="form-control" id="cliente-cidade" placeholder="Cidade - UF">
         </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Estado Civil</label>
+          <select class="form-control" id="cliente-estado-civil">
+            <option value="">— Não informado —</option>
+            <option value="solteiro">Solteiro(a)</option>
+            <option value="casado">Casado(a)</option>
+            <option value="divorciado">Divorciado(a)</option>
+            <option value="viuvo">Viúvo(a)</option>
+            <option value="uniao_estavel">União Estável</option>
+            <option value="separado">Separado(a) judicialmente</option>
+          </select>
+        </div>
+        <div class="form-group"></div>
       </div>
 
       <!-- Informações do Processo -->
@@ -4538,16 +4581,24 @@ body.topbar-escura .notif-btn:hover { background: rgba(255,255,255,0.2); border-
       </div>
       <div class="form-row">
         <div class="form-group">
-          <label class="form-label">Senha do INSS</label>
-          <div style="display:flex;gap:6px">
-            <input type="text" class="form-control" id="cliente-senha-inss" placeholder="Digite para definir/alterar a senha">
-            <button type="button" class="btn btn-outline btn-sm" id="btn-ver-senha-inss" onclick="revelarSenhaInss()" style="white-space:nowrap;display:none">👁 Ver atual</button>
-          </div>
-          <div id="senha-inss-status" style="font-size:11px;color:var(--text-muted);margin-top:3px"></div>
+          <label class="form-label">Origem do Cliente</label>
+          <select class="form-control" id="cliente-origem-tipo" onchange="atualizarCamposOrigemCliente()">
+            <option value="">— Não informado —</option>
+            <option value="indicacao_interna">Indicação — pessoa interna (equipe do escritório)</option>
+            <option value="indicacao_externa">Indicação — pessoa externa</option>
+            <option value="campanha">Campanha de Marketing</option>
+            <option value="outro">Outro</option>
+          </select>
         </div>
-        <div class="form-group">
-          <label class="form-label">Indicação</label>
-          <input type="text" class="form-control" id="cliente-indicacao" placeholder="Quem indicou o cliente">
+        <div class="form-group" id="cliente-origem-pessoa-wrap" style="display:none">
+          <label class="form-label">Nome de quem indicou</label>
+          <input type="text" class="form-control" id="cliente-origem-pessoa-nome" placeholder="Nome da pessoa">
+        </div>
+        <div class="form-group" id="cliente-origem-campanha-wrap" style="display:none">
+          <label class="form-label">Campanha</label>
+          <select class="form-control" id="cliente-origem-campanha-id">
+            <option value="">— Selecionar Campanha —</option>
+          </select>
         </div>
       </div>
       <div class="form-row">
@@ -4563,10 +4614,26 @@ body.topbar-escura .notif-btn:hover { background: rgba(255,255,255,0.2); border-
         </div>
       </div>
 
+      <!-- Credenciais -->
+      <div style="font-size:11px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--text-muted);margin:18px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--border)">Credenciais / Senhas de Sistemas</div>
+      <p style="font-size:12px;color:var(--text-muted);margin:-4px 0 10px">Use pra qualquer senha que a equipe precise consultar (gov.br, INSS, portal do tribunal, etc). Ficam visíveis pra equipe do escritório, sem precisar clicar em "revelar" — protegidas pela mesma segurança do resto do cadastro.</p>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Descrição 1</label><input type="text" class="form-control" id="cliente-cred1-desc" placeholder="Ex: Senha gov.br"></div>
+        <div class="form-group"><label class="form-label">Senha 1</label><input type="text" class="form-control" id="cliente-cred1-valor" placeholder="Valor"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Descrição 2</label><input type="text" class="form-control" id="cliente-cred2-desc" placeholder="Ex: Senha portal do tribunal"></div>
+        <div class="form-group"><label class="form-label">Senha 2</label><input type="text" class="form-control" id="cliente-cred2-valor" placeholder="Valor"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Descrição 3</label><input type="text" class="form-control" id="cliente-cred3-desc" placeholder="Ex: Senha e-mail"></div>
+        <div class="form-group"><label class="form-label">Senha 3</label><input type="text" class="form-control" id="cliente-cred3-valor" placeholder="Valor"></div>
+      </div>
+
       <!-- Condições Financeiras -->
       <div style="font-size:11px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--text-muted);margin:18px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--border)">Condições Financeiras</div>
       <div style="background:var(--blue-50);border:1px solid var(--blue-100);border-radius:var(--radius);padding:10px 14px;margin-bottom:14px;font-size:12.5px;color:var(--blue-800)">
-        💡 <strong>Fluxo correto:</strong> preencha as condições financeiras aqui e salve o cliente <strong>antes</strong> de criar o processo. As parcelas serão geradas automaticamente na criação do processo.
+        💡 <strong>Como funciona:</strong> as parcelas abaixo são geradas automaticamente ao salvar este cadastro — não é preciso criar um processo pra isso. Se editar valor/parcelas depois, as parcelas ainda em aberto são substituídas pelas novas; as que já estiverem pagas ficam intactas.
       </div>
       <div class="form-row">
         <div class="form-group">
@@ -4612,6 +4679,13 @@ body.topbar-escura .notif-btn:hover { background: rgba(255,255,255,0.2); border-
           <label class="form-label">Observações</label>
           <textarea class="form-control" id="cliente-obs" placeholder="Anotações gerais sobre o cliente..." style="min-height:38px"></textarea>
         </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group" style="display:flex;align-items:center;gap:8px;padding-top:6px">
+          <input type="checkbox" id="cliente-super-atencao" style="width:16px;height:16px;accent-color:var(--danger)">
+          <label class="form-label" style="margin:0;cursor:pointer" onclick="document.getElementById('cliente-super-atencao').click()">🔴 Super Atenção — manter este cliente sempre monitorado</label>
+        </div>
+        <div class="form-group"></div>
       </div>
 
       <!-- TAGS -->
@@ -4702,6 +4776,13 @@ body.topbar-escura .notif-btn:hover { background: rgba(255,255,255,0.2); border-
           <label class="form-label">Vara / Tribunal</label>
           <input type="text" class="form-control" id="proc-vara" placeholder="Ex: 2ª Vara do Trabalho">
         </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group" style="display:flex;align-items:center;gap:8px;padding-top:6px">
+          <input type="checkbox" id="proc-super-atencao" style="width:16px;height:16px;accent-color:var(--danger)">
+          <label class="form-label" style="margin:0;cursor:pointer" onclick="document.getElementById('proc-super-atencao').click()">🔴 Super Atenção — manter este processo sempre monitorado</label>
+        </div>
+        <div class="form-group"></div>
       </div>
 
       <!-- Resultado (visível só quando encerrado) -->
@@ -4917,14 +4998,20 @@ function clienteDoBanco(row) {
     nome: row.nome,
     cpf: row.cpf,
     tel: row.telefone || '',
+    tel2: row.telefone2 || '',
     email: row.email || '',
     endereco: row.endereco || '',
     cidade: row.cidade || '',
+    nascimento: row.data_nascimento || '',
+    estadoCivil: row.estado_civil || '',
     natureza: row.natureza || '',
     beneficio: row.beneficio || '',
-    senhaInss: '', // nunca vem em claro do banco; ver clientes_get_senha_inss()
-    temSenhaInss: row.senha_inss != null, // só indica se existe, nunca o valor
-    indicacao: row.indicacao || '',
+    indicacao: row.indicacao || '', // legado, não editável mais na interface
+    origemTipo: row.origem_tipo || '',
+    origemPessoaNome: row.origem_pessoa_nome || '',
+    origemCampanhaId: row.origem_campanha_id || null,
+    credenciais: Array.isArray(row.credenciais) ? row.credenciais : [],
+    superAtencao: row.super_atencao === true,
     responsavel: row.responsavel || '',
     tipoProcessoId: row.tipo_processo_id || null,
     status: row.status || 'ativo',
@@ -4936,17 +5023,34 @@ function clienteDoBanco(row) {
   };
 }
 
+const LABEL_ESTADO_CIVIL = {solteiro:'Solteiro(a)',casado:'Casado(a)',divorciado:'Divorciado(a)',viuvo:'Viúvo(a)',uniao_estavel:'União Estável',separado:'Separado(a) judicialmente'};
+
+function origemClienteLabel(c) {
+  if(c.origemTipo === 'indicacao_interna') return 'Indicação interna' + (c.origemPessoaNome ? ' — ' + c.origemPessoaNome : '');
+  if(c.origemTipo === 'indicacao_externa') return 'Indicação externa' + (c.origemPessoaNome ? ' — ' + c.origemPessoaNome : '');
+  if(c.origemTipo === 'campanha') { const camp = (store.campanhas||[]).find(cm => cm.id === c.origemCampanhaId); return 'Campanha: ' + (camp ? camp.nome : '—'); }
+  if(c.origemTipo === 'outro') return 'Outro';
+  return c.indicacao || ''; // legado
+}
+
 function clienteParaBanco(c) {
   return {
     nome: c.nome,
     cpf: c.cpf,
     telefone: c.tel || null,
+    telefone2: c.tel2 || null,
     email: c.email || null,
     endereco: c.endereco || null,
     cidade: c.cidade || null,
+    data_nascimento: c.nascimento || null,
+    estado_civil: c.estadoCivil || null,
     natureza: c.natureza || null,
     beneficio: c.beneficio || null,
-    indicacao: c.indicacao || null,
+    origem_tipo: c.origemTipo || null,
+    origem_pessoa_nome: c.origemPessoaNome || null,
+    origem_campanha_id: c.origemCampanhaId || null,
+    credenciais: c.credenciais || [],
+    super_atencao: c.superAtencao === true,
     responsavel: c.responsavel || null,
     tipo_processo_id: c.tipoProcessoId || null,
     status: c.status || 'ativo',
@@ -4967,7 +5071,8 @@ function processoDoBanco(row) {
     vara: '', // campo livre de texto no front, não modelado em coluna própria ainda
     descricao: row.observacoes || '',
     abertura: (row.criado_em || '').slice(0, 10),
-    etapa: row.etapa || 0
+    etapa: row.etapa || 0,
+    superAtencao: row.super_atencao === true
   };
 }
 
@@ -4978,7 +5083,8 @@ function processoParaBanco(p, escritorioId) {
     cliente_id: p.clienteId || null,
     tipo_id: p.tipoId || null,
     status: mapStatusProcessoParaBanco(p.status),
-    observacoes: p.descricao || null
+    observacoes: p.descricao || null,
+    super_atencao: p.superAtencao === true
   };
 }
 
@@ -5002,7 +5108,7 @@ async function carregarClientes() {
   // client em listagens; a leitura real só acontece via clientes_get_senha_inss().
   const { data, error } = await sb
     .from('clientes')
-    .select('id, escritorio_id, nome, cpf, telefone, email, endereco, cidade, natureza, beneficio, indicacao, responsavel, tipo_processo_id, status, observacoes, valor, n_parcelas, criado_em, atualizado_em, senha_inss')
+    .select('id, escritorio_id, nome, cpf, telefone, telefone2, email, endereco, cidade, data_nascimento, estado_civil, natureza, beneficio, indicacao, origem_tipo, origem_pessoa_nome, origem_campanha_id, credenciais, super_atencao, responsavel, tipo_processo_id, status, observacoes, valor, n_parcelas, criado_em, atualizado_em, senha_inss')
     .eq('escritorio_id', escritorioId)
     .order('criado_em', { ascending: false });
   if(error) { console.warn('Erro ao carregar clientes:', error.message); return []; }
@@ -12568,22 +12674,45 @@ function lerDatasCliente() {
 function resetFormCliente() {
   document.getElementById('cliente-edit-id').value = '';
   document.getElementById('modal-cliente-title').textContent = 'Novo Cliente';
-  ['cliente-nome','cliente-cpf','cliente-tel','cliente-email','cliente-endereco','cliente-cidade',
-   'cliente-natureza','cliente-beneficio','cliente-senha-inss','cliente-indicacao',
+  ['cliente-nome','cliente-cpf','cliente-tel','cliente-tel2','cliente-email','cliente-endereco','cliente-cidade',
+   'cliente-nascimento','cliente-natureza','cliente-beneficio',
+   'cliente-origem-pessoa-nome','cliente-cred1-desc','cliente-cred1-valor','cliente-cred2-desc','cliente-cred2-valor',
+   'cliente-cred3-desc','cliente-cred3-valor',
    'cliente-responsavel','cliente-obs','cliente-valor','cliente-valor-parcela','cliente-data1','cliente-dip-novo'].forEach(id => {
     const el = document.getElementById(id); if(el) el.value = '';
   });
   document.getElementById('cliente-parcelas').value = '1';
   document.getElementById('cliente-status').value = 'ativo';
-  document.getElementById('btn-ver-senha-inss').style.display = 'none';
-  document.getElementById('senha-inss-status').textContent = '';
-  delete document.getElementById('cliente-senha-inss').dataset.clienteId;
+  document.getElementById('cliente-estado-civil').value = '';
+  document.getElementById('cliente-origem-tipo').value = '';
+  document.getElementById('cliente-origem-campanha-id').value = '';
+  document.getElementById('cliente-super-atencao').checked = false;
+  atualizarCamposOrigemCliente();
   const cont = document.getElementById('cliente-datas-container');
   if(cont) cont.style.display = 'none';
   _dipEntradas = [];
   renderDIPLista();
   populateTiposSelect('cliente-tipo-processo');
+  populateCampanhasSelect('cliente-origem-campanha-id');
   renderTagsClienteModal();
+}
+
+// Mostra só o campo relevante pra origem escolhida: nome de quem indicou
+// (indicação interna/externa) ou seletor de campanha.
+function atualizarCamposOrigemCliente() {
+  const tipo = document.getElementById('cliente-origem-tipo').value;
+  document.getElementById('cliente-origem-pessoa-wrap').style.display =
+    (tipo === 'indicacao_interna' || tipo === 'indicacao_externa') ? '' : 'none';
+  document.getElementById('cliente-origem-campanha-wrap').style.display = (tipo === 'campanha') ? '' : 'none';
+}
+
+function populateCampanhasSelect(selectId) {
+  const sel = document.getElementById(selectId);
+  if(!sel) return;
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">— Selecionar Campanha —</option>';
+  (store.campanhas || []).forEach(camp => sel.innerHTML += `<option value="${camp.id}">${camp.nome}</option>`);
+  sel.value = cur;
 }
 
 function populateTiposSelect(selectId) {
@@ -12601,12 +12730,22 @@ async function salvarCliente() {
   const data = {
     nome, cpf,
     tel: document.getElementById('cliente-tel').value.trim(),
+    tel2: document.getElementById('cliente-tel2').value.trim(),
     email: document.getElementById('cliente-email').value.trim(),
     endereco: document.getElementById('cliente-endereco').value.trim(),
     cidade: document.getElementById('cliente-cidade').value.trim(),
+    nascimento: document.getElementById('cliente-nascimento').value || null,
+    estadoCivil: document.getElementById('cliente-estado-civil').value || null,
     natureza: document.getElementById('cliente-natureza').value.trim(),
     beneficio: document.getElementById('cliente-beneficio').value.trim(),
-    indicacao: document.getElementById('cliente-indicacao').value.trim(),
+    origemTipo: document.getElementById('cliente-origem-tipo').value || null,
+    origemPessoaNome: document.getElementById('cliente-origem-pessoa-nome').value.trim() || null,
+    origemCampanhaId: document.getElementById('cliente-origem-campanha-id').value || null,
+    credenciais: [1,2,3].map(n => ({
+      descricao: document.getElementById('cliente-cred'+n+'-desc').value.trim(),
+      valor: document.getElementById('cliente-cred'+n+'-valor').value.trim()
+    })).filter(cr => cr.descricao || cr.valor),
+    superAtencao: document.getElementById('cliente-super-atencao').checked,
     responsavel: document.getElementById('cliente-responsavel').value.trim(),
     tipoProcessoId: document.getElementById('cliente-tipo-processo').value || null,
     status: document.getElementById('cliente-status').value,
@@ -12625,14 +12764,6 @@ async function salvarCliente() {
   if(btn) { btn.disabled = false; btn.textContent = editId ? 'Salvar Alterações' : 'Cadastrar Cliente'; }
 
   if(!salvo) return; // erro já mostrado em salvarClienteNoBanco
-
-  // Senha do INSS é gravada cifrada, via função própria (ver clientes_set_senha_inss)
-  const senhaInss = document.getElementById('cliente-senha-inss').value.trim();
-  if(senhaInss) {
-    const sb = await getSB();
-    const { error: errSenha } = await sb.rpc('clientes_set_senha_inss', { p_cliente_id: salvo.id, p_senha: senhaInss });
-    if(errSenha) console.warn('Erro ao salvar senha do INSS:', errSenha.message);
-  }
 
   // Gera de fato as parcelas no banco (o campo "Financeiro" do modal, até
   // aqui, só salvava valor/nParcelas como números soltos no cliente — nunca
@@ -12707,23 +12838,30 @@ function editarCliente(id) {
   const c = store.clientes.find(c => c.id === id);
   if(!c) return;
   populateTiposSelect('cliente-tipo-processo');
+  populateCampanhasSelect('cliente-origem-campanha-id');
   document.getElementById('cliente-edit-id').value = c.id;
   document.getElementById('modal-cliente-title').textContent = 'Editar Cliente';
   document.getElementById('cliente-nome').value = c.nome;
   document.getElementById('cliente-cpf').value = c.cpf;
   document.getElementById('cliente-tel').value = c.tel||'';
+  document.getElementById('cliente-tel2').value = c.tel2||'';
   document.getElementById('cliente-email').value = c.email||'';
   document.getElementById('cliente-endereco').value = c.endereco||'';
   document.getElementById('cliente-cidade').value = c.cidade||'';
+  document.getElementById('cliente-nascimento').value = c.nascimento||'';
+  document.getElementById('cliente-estado-civil').value = c.estadoCivil||'';
   document.getElementById('cliente-natureza').value = c.natureza||'';
   document.getElementById('cliente-beneficio').value = c.beneficio||'';
-  document.getElementById('cliente-senha-inss').value = '';
-  document.getElementById('cliente-senha-inss').dataset.clienteId = c.id;
-  document.getElementById('btn-ver-senha-inss').style.display = c.temSenhaInss ? '' : 'none';
-  document.getElementById('senha-inss-status').textContent = c.temSenhaInss
-    ? '🔒 Já existe uma senha salva. Deixe vazio para mantê-la, ou digite uma nova para substituir.'
-    : '';
-  document.getElementById('cliente-indicacao').value = c.indicacao||'';
+  document.getElementById('cliente-origem-tipo').value = c.origemTipo||'';
+  document.getElementById('cliente-origem-pessoa-nome').value = c.origemPessoaNome||'';
+  document.getElementById('cliente-origem-campanha-id').value = c.origemCampanhaId||'';
+  atualizarCamposOrigemCliente();
+  const creds = Array.isArray(c.credenciais) ? c.credenciais : [];
+  [1,2,3].forEach(n => {
+    document.getElementById('cliente-cred'+n+'-desc').value = creds[n-1]?.descricao || '';
+    document.getElementById('cliente-cred'+n+'-valor').value = creds[n-1]?.valor || '';
+  });
+  document.getElementById('cliente-super-atencao').checked = c.superAtencao === true;
   document.getElementById('cliente-responsavel').value = c.responsavel||'';
   document.getElementById('cliente-tipo-processo').value = c.tipoProcessoId||'';
   document.getElementById('cliente-status').value = c.status||'ativo';
@@ -12743,22 +12881,6 @@ function editarCliente(id) {
   openModal('modal-cliente', false);
 }
 
-// Busca a senha real do INSS (decifrada) e a exibe no campo, só quando o
-// usuário pede explicitamente — nunca automaticamente ao abrir o cliente,
-// para reduzir o risco de exposição acidental em tela compartilhada.
-async function revelarSenhaInss() {
-  const clienteId = document.getElementById('cliente-senha-inss').dataset.clienteId;
-  if(!clienteId) return;
-  const sb = await getSB();
-  if(!sb) { showToast('Sem conexão com o banco.', 'error'); return; }
-  const { data, error } = await sb.rpc('clientes_get_senha_inss', { p_cliente_id: clienteId });
-  if(error) { showToast('Erro ao buscar senha: ' + error.message, 'error'); return; }
-  const campo = document.getElementById('cliente-senha-inss');
-  campo.value = data || '';
-  campo.type = 'text';
-  showToast(data ? 'Senha atual exibida abaixo.' : 'Nenhuma senha cadastrada.', data ? 'success' : '');
-}
-
 async function excluirCliente(id) {
   if(!confirm('Excluir este cliente?')) return;
   const _c = store.clientes.find(c=>c.id===id);
@@ -12775,17 +12897,6 @@ async function gerarFichaPDF(id) {
   // bloqueie como pop-up por causa do await abaixo.
   const win = window.open('', '_blank');
   win.document.write('<p style="font-family:sans-serif;padding:24px;color:#666">Gerando ficha...</p>');
-
-  // Busca a senha real do INSS (decifrada) para constar na ficha impressa —
-  // só aqui, no momento da geração, nunca mantida em store.clientes.
-  let senhaInssReal = '';
-  if(c.temSenhaInss) {
-    const sb = await getSB();
-    if(sb) {
-      const { data, error } = await sb.rpc('clientes_get_senha_inss', { p_cliente_id: id });
-      if(!error) senhaInssReal = data || '';
-    }
-  }
 
   const tipo = store.tipos.find(t => t.id === c.tipoProcessoId);
   const processos = store.processos.filter(p => p.clienteId === id);
@@ -12873,7 +12984,7 @@ async function gerarFichaPDF(id) {
   <!-- STATUS -->
   <div class="status-bar">
     <div>
-      <div class="status-nome">${c.nome}</div>
+      <div class="status-nome">${c.nome}${c.superAtencao ? ' <span style="color:#DC2626">🔴</span>' : ''}</div>
       <div class="status-cpf">CPF/CNPJ: ${formatarCpfCnpj(c.cpf)}</div>
     </div>
     <span class="badge ${c.status==='ativo'?'badge-green':'badge-gray'}">${c.status==='ativo'?'✔ Ativo':'Inativo'}</span>
@@ -12884,7 +12995,12 @@ async function gerarFichaPDF(id) {
     <div class="section-title">Dados Pessoais</div>
     <div class="grid-3">
       <div class="field"><div class="field-label">Telefone</div><div class="field-value ${!c.tel?'empty':''}">${c.tel||'Não informado'}</div></div>
+      <div class="field"><div class="field-label">Telefone 2</div><div class="field-value ${!c.tel2?'empty':''}">${c.tel2||'Não informado'}</div></div>
       <div class="field"><div class="field-label">E-mail</div><div class="field-value ${!c.email?'empty':''}">${c.email||'Não informado'}</div></div>
+    </div>
+    <div class="grid-3" style="margin-top:8px">
+      <div class="field"><div class="field-label">Data de Nascimento</div><div class="field-value ${!c.nascimento?'empty':''}">${c.nascimento?new Date(c.nascimento+'T12:00:00').toLocaleDateString('pt-BR'):'Não informado'}</div></div>
+      <div class="field"><div class="field-label">Estado Civil</div><div class="field-value ${!c.estadoCivil?'empty':''}">${LABEL_ESTADO_CIVIL[c.estadoCivil]||'Não informado'}</div></div>
       <div class="field"><div class="field-label">Cidade / UF</div><div class="field-value ${!c.cidade?'empty':''}">${c.cidade||'Não informado'}</div></div>
     </div>
     <div style="margin-top:8px">
@@ -12898,12 +13014,20 @@ async function gerarFichaPDF(id) {
     <div class="grid-2">
       <div class="field"><div class="field-label">Natureza</div><div class="field-value ${!c.natureza?'empty':''}">${c.natureza||'Não informado'}</div></div>
       <div class="field"><div class="field-label">Benefício</div><div class="field-value ${!c.beneficio?'empty':''}">${c.beneficio||'Não informado'}</div></div>
-      <div class="field"><div class="field-label">Senha do INSS</div><div class="field-value ${!senhaInssReal?'empty':''}">${senhaInssReal||'Não informado'}</div></div>
       <div class="field"><div class="field-label">Tipo de Processo</div><div class="field-value ${!tipo?'empty':''}">${tipo?tipo.nome:'Não vinculado'}</div></div>
-      <div class="field"><div class="field-label">Indicação</div><div class="field-value ${!c.indicacao?'empty':''}">${c.indicacao||'Não informado'}</div></div>
       <div class="field"><div class="field-label">Responsável</div><div class="field-value ${!c.responsavel?'empty':''}">${c.responsavel||'Não informado'}</div></div>
+      <div class="field" style="grid-column:1/-1"><div class="field-label">Origem</div><div class="field-value ${!c.origemTipo?'empty':''}">${origemClienteLabel(c)||'Não informado'}</div></div>
     </div>
   </div>
+
+  ${(c.credenciais||[]).filter(cr=>cr.descricao||cr.valor).length ? `
+  <!-- CREDENCIAIS -->
+  <div class="section">
+    <div class="section-title">Credenciais / Senhas de Sistemas</div>
+    <div class="grid-2">
+      ${c.credenciais.filter(cr=>cr.descricao||cr.valor).map(cr => `<div class="field"><div class="field-label">${cr.descricao||'Sem descrição'}</div><div class="field-value">${cr.valor||'—'}</div></div>`).join('')}
+    </div>
+  </div>` : ''}
 
   ${processos.length ? `
   <!-- PROCESSOS VINCULADOS -->
@@ -13010,9 +13134,14 @@ function renderClientes(q = '') {
   }
   tb.innerHTML = list.map((c,i) => {
     const tipo = store.tipos.find(t => t.id === c.tipoProcessoId);
+    const origem = origemClienteLabel(c);
     return `<tr>
       <td>${i+1}</td>
-      <td><strong>${c.nome}</strong>${c.indicacao?`<br><span style="font-size:10.5px;color:var(--text-muted)">Indicado por: ${c.indicacao}</span>`:''}${renderTagsBadgesHTML(store.clientesTags[c.id])}</td>
+      <td>
+        <strong>${c.nome}</strong>${c.superAtencao ? ' <span title="Super Atenção — cliente monitorado" style="font-size:11px">🔴</span>' : ''}
+        ${origem?`<br><span style="font-size:10.5px;color:var(--text-muted)">${origem}</span>`:''}
+        ${renderTagsBadgesHTML(store.clientesTags[c.id])}
+      </td>
       <td>${formatarCpfCnpj(c.cpf)}</td>
       <td>${c.tel||'—'}</td>
       <td>${c.natureza ? `<span style="font-size:12.5px">${c.natureza}</span>` : '<span style="color:var(--text-muted)">—</span>'}</td>
@@ -13020,16 +13149,34 @@ function renderClientes(q = '') {
       <td>${c.responsavel||'<span style="color:var(--text-muted)">—</span>'}</td>
       <td>${tipo ? `<span class="badge badge-blue">${tipo.nome}</span>` : '<span class="badge badge-gray">—</span>'}</td>
       <td><span class="badge ${c.status==='ativo'?'badge-green':'badge-gray'}">${c.status==='ativo'?'Ativo':'Inativo'}</span></td>
-      <td>
-        <button class="btn btn-outline btn-sm" onclick="editarCliente('${c.id}')" title="Editar">✏️</button>
-        <button class="btn btn-primary btn-sm" onclick="gerarFichaPDF('${c.id}')" title="Gerar Ficha PDF">📄</button>
-        <button class="btn btn-outline btn-sm" onclick="abrirDocumentosCliente('${c.id}')" title="Documentos do cliente" style="background:var(--blue-50);color:var(--blue-700);border-color:var(--blue-200)">📁</button>
-        <button class="btn btn-outline btn-sm" onclick="abrirModalWpp('${c.id}',null)" title="Enviar WhatsApp" style="background:#E7FFDB;border-color:#25D366;color:#128C7E">📱</button>
-        <button class="btn btn-danger btn-sm" onclick="excluirCliente('${c.id}')" title="Excluir">🗑</button>
+      <td style="position:relative;text-align:center">
+        <button class="btn btn-outline btn-sm" onclick="toggleMenuAcoes('cliente-${c.id}', event)" title="Ações">⋮</button>
+        <div class="menu-acoes-dropdown" id="menu-acoes-cliente-${c.id}">
+          <button onclick="fecharMenusAcoes();editarCliente('${c.id}')">✏️ Editar</button>
+          <button onclick="fecharMenusAcoes();gerarFichaPDF('${c.id}')">📄 Gerar Ficha PDF</button>
+          <button onclick="fecharMenusAcoes();abrirDocumentosCliente('${c.id}')">📁 Documentos do Cliente</button>
+          <button onclick="fecharMenusAcoes();abrirModalWpp('${c.id}',null)">📱 Enviar WhatsApp</button>
+          <button class="item-perigo" onclick="fecharMenusAcoes();excluirCliente('${c.id}')">🗑 Excluir</button>
+        </div>
       </td>
     </tr>`;
   }).join('');
 }
+
+// Menu de ações "⋮" reutilizável (usado em Clientes, e futuramente em
+// outras tabelas). id é único por linha (ex: "cliente-<uuid>").
+function toggleMenuAcoes(id, event) {
+  event.stopPropagation();
+  const alvo = document.getElementById('menu-acoes-' + id);
+  const jaAberto = alvo.classList.contains('aberto');
+  fecharMenusAcoes();
+  if(!jaAberto) alvo.classList.add('aberto');
+}
+function fecharMenusAcoes() {
+  document.querySelectorAll('.menu-acoes-dropdown.aberto').forEach(el => el.classList.remove('aberto'));
+}
+document.addEventListener('click', fecharMenusAcoes);
+
 
 // ==================== PROCESSOS ====================
 function resetFormProcesso() {
@@ -13041,6 +13188,7 @@ function resetFormProcesso() {
   });
   document.getElementById('proc-abertura').value = today();
   document.getElementById('proc-status').value = 'andamento';
+  document.getElementById('proc-super-atencao').checked = false;
   toggleResultadoProc();
   setLembreteAtivo(false);
   populateClientesSelect();
@@ -13151,7 +13299,8 @@ async function salvarProcesso() {
     vara: document.getElementById('proc-vara').value.trim(),
     descricao: document.getElementById('proc-descricao').value.trim(),
     resultado: statusProc==='encerrado' ? (document.getElementById('proc-resultado').value||'') : '',
-    dataEncerramento: statusProc==='encerrado' ? (document.getElementById('proc-data-enc').value||today()) : ''
+    dataEncerramento: statusProc==='encerrado' ? (document.getElementById('proc-data-enc').value||today()) : '',
+    superAtencao: document.getElementById('proc-super-atencao').checked
   };
 
   const btn = document.querySelector('#modal-processo .btn-primary');
@@ -13201,7 +13350,7 @@ function renderProcessos() {
     const pct = totalParc > 0 ? Math.min(100, Math.round(pago/totalParc*100)) : 0;
     const numDocs = ((store.documentos||{})[p.id]||[]).length;
     return `<tr>
-      <td><strong style="color:var(--blue-600)">${p.numero}</strong>${p.lembrete&&p.lembrete.ativo?` <span title="${(p.lembrete.msg||'Lembrete ativo').replace(/"/g,"'")}" style="cursor:default">🔔</span>`:''}${renderTagsBadgesHTML(store.processosTags[p.id])}</td>
+      <td><strong style="color:var(--blue-600)">${p.numero}</strong>${p.superAtencao?' <span title="Super Atenção — processo monitorado" style="font-size:11px">🔴</span>':''}${p.lembrete&&p.lembrete.ativo?` <span title="${(p.lembrete.msg||'Lembrete ativo').replace(/"/g,"'")}" style="cursor:default">🔔</span>`:''}${renderTagsBadgesHTML(store.processosTags[p.id])}</td>
       <td>${c.nome}</td>
       <td><span class="badge badge-navy">${t.nome}</span></td>
       <td>${p.adv||'—'}</td>
@@ -13413,6 +13562,21 @@ function gerarReciboPagamento(parcelaId) {
   setTimeout(() => win.print(), 500);
   registrarAuditoria('exportou','financeiro','Recibo gerado: '+proc.numero+' parc.'+pa.num,'Valor: '+fmtMoney(pa.valor));
 }
+async function toggleSuperAtencaoProcesso(id) {
+  const p = store.processos.find(p => p.id === id);
+  if(!p) return;
+  const sb = await getSB();
+  const escritorioId = getEscritorioId();
+  if(!sb || !escritorioId) { showToast('Sem conexão com o banco.', 'error'); return; }
+  const novoValor = !p.superAtencao;
+  const { error } = await sb.from('processos').update({ super_atencao: novoValor }).eq('id', id).eq('escritorio_id', escritorioId);
+  if(error) { showToast('Erro ao atualizar: ' + error.message, 'error'); return; }
+  p.superAtencao = novoValor;
+  showToast(novoValor ? 'Processo marcado como Super Atenção.' : 'Super Atenção removida.', 'success');
+  verDetalhe(id);
+  renderProcessos();
+}
+
 function verDetalhe(id) {
   const p = store.processos.find(p => p.id === id);
   if(!p) return;
@@ -13432,6 +13596,13 @@ function verDetalhe(id) {
 
   document.getElementById('detalhe-title').textContent = `Processo ${p.numero}`;
   document.getElementById('detalhe-body').innerHTML = `
+
+    <!-- Super Atenção -->
+    <div style="margin-bottom:14px">
+      <button onclick="toggleSuperAtencaoProcesso('${id}')" class="btn ${p.superAtencao?'btn-danger':'btn-outline'} btn-sm">
+        🔴 ${p.superAtencao ? 'Super Atenção ativada — clique para desativar' : 'Marcar como Super Atenção'}
+      </button>
+    </div>
 
     <!-- Cabeçalho resumido -->
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid var(--border)">
