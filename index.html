@@ -1028,7 +1028,7 @@ body.topbar-escura .notif-btn:hover { background: rgba(255,255,255,0.2); border-
     </div>
     <div class="nav-section" data-cat="cadastros">
       <button class="nav-cat-header" onclick="toggleNavCategoria('cadastros')">
-        Cadastros <span class="nav-cat-chevron">▶</span>
+        Cadastro <span class="nav-cat-chevron">▶</span>
       </button>
       <div class="nav-cat-items">
         <button class="nav-item" onclick="navigate('tipos',this)">
@@ -1098,19 +1098,9 @@ body.topbar-escura .notif-btn:hover { background: rgba(255,255,255,0.2); border-
         </div>
       </div>
     </div>
-    <div class="nav-section" data-cat="relatorios">
-      <button class="nav-cat-header" onclick="toggleNavCategoria('relatorios')">
-        Relatórios <span class="nav-cat-chevron">▶</span>
-      </button>
-      <div class="nav-cat-items">
-        <button class="nav-item" onclick="navigate('relatorios',this)">
-          <span class="icon">📈</span> Relatórios
-        </button>
-      </div>
-    </div>
     <div class="nav-section" data-cat="comunicacoes">
       <button class="nav-cat-header" onclick="toggleNavCategoria('comunicacoes')">
-        Comunicações <span class="nav-cat-chevron">▶</span>
+        Comunicação <span class="nav-cat-chevron">▶</span>
       </button>
       <div class="nav-cat-items">
         <button class="nav-item" onclick="navigate('informativos',this)">
@@ -1120,6 +1110,26 @@ body.topbar-escura .notif-btn:hover { background: rgba(255,255,255,0.2); border-
         <button class="nav-item" onclick="navigate('mensagens-portal',this)">
           <span class="icon">💬</span> Mensagens Portal
           <span class="nav-badge" id="badge-msgs-portal" style="display:none">0</span>
+        </button>
+      </div>
+    </div>
+    <div class="nav-section" data-cat="relatorios">
+      <button class="nav-cat-header" onclick="toggleNavCategoria('relatorios')">
+        Relatório <span class="nav-cat-chevron">▶</span>
+      </button>
+      <div class="nav-cat-items">
+        <button class="nav-item" onclick="navigate('relatorios',this)">
+          <span class="icon">📈</span> Relatórios
+        </button>
+      </div>
+    </div>
+    <div class="nav-section" data-cat="configuracoes">
+      <button class="nav-cat-header" onclick="toggleNavCategoria('configuracoes')">
+        Configuração <span class="nav-cat-chevron">▶</span>
+      </button>
+      <div class="nav-cat-items">
+        <button class="nav-item" onclick="navigate('opcoes',this);switchTab('opt','sistema',document.getElementById('tab-btn-sistema'));forcarAbrirCategoria('configuracoes')">
+          <span class="icon">ℹ️</span> Parâmetros
         </button>
       </div>
     </div>
@@ -1139,16 +1149,6 @@ body.topbar-escura .notif-btn:hover { background: rgba(255,255,255,0.2); border-
         </button>
         <button class="nav-item" onclick="navigate('opcoes',this);switchTab('opt','whatsapp',document.getElementById('tab-btn-whatsapp'));forcarAbrirCategoria('sistema')">
           <span class="icon">📱</span> WhatsApp
-        </button>
-      </div>
-    </div>
-    <div class="nav-section" data-cat="configuracoes">
-      <button class="nav-cat-header" onclick="toggleNavCategoria('configuracoes')">
-        Configurações <span class="nav-cat-chevron">▶</span>
-      </button>
-      <div class="nav-cat-items">
-        <button class="nav-item" onclick="navigate('opcoes',this);switchTab('opt','sistema',document.getElementById('tab-btn-sistema'));forcarAbrirCategoria('configuracoes')">
-          <span class="icon">ℹ️</span> Sistema
         </button>
       </div>
     </div>
