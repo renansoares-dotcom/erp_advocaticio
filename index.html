@@ -20,6 +20,8 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/docx@9.6.1/dist/index.iife.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css">
+<script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
 <style>
 :root {
   --blue-50: #EEF2F7;
@@ -569,6 +571,21 @@ table.data-table tr { transition: background 0.12s; }
 .badge-amber { background: var(--warning-bg); color: var(--warning); }
 .badge-blue { background: var(--blue-50); color: var(--blue-600); }
 .badge-gray { background: #F1F5F9; color: #475569; }
+
+/* Carousel de destaques do Dashboard (Informativos com foto/vídeo) */
+.dash-carousel { border-radius: var(--radius-lg); overflow: hidden; margin-bottom: 20px; height: 340px; }
+.dash-slide { position: relative; width: 100%; height: 100%; cursor: pointer; background: #0C1A2E; overflow: hidden; }
+.dash-slide img, .dash-slide video { width: 100%; height: 100%; object-fit: cover; display: block; }
+.dash-slide-overlay { position: absolute; inset: 0; background: linear-gradient(to top, rgba(0,0,0,0.88) 0%, rgba(0,0,0,0.45) 45%, rgba(0,0,0,0) 75%); }
+.dash-slide-content { position: absolute; left: 0; right: 0; bottom: 0; padding: 24px 30px; color: #fff; }
+.dash-slide-tipo { display: inline-block; padding: 3px 12px; border-radius: 20px; font-size: 11px; font-weight: 700; margin-bottom: 10px; margin-right: 8px; }
+.dash-slide-evento-badge { display: inline-flex; align-items: center; gap: 6px; background: rgba(124,58,237,0.92); color: #fff; padding: 5px 12px; border-radius: 8px; font-size: 12.5px; font-weight: 700; margin-bottom: 10px; }
+.dash-slide-content h3 { font-size: 22px; font-weight: 700; margin-bottom: 6px; text-shadow: 0 2px 10px rgba(0,0,0,0.5); }
+.dash-slide-content p { font-size: 13.5px; opacity: 0.92; max-width: 680px; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.dash-carousel .swiper-button-prev, .dash-carousel .swiper-button-next { color: #fff; background: rgba(0,0,0,0.35); width: 38px; height: 38px; border-radius: 50%; backdrop-filter: blur(2px); }
+.dash-carousel .swiper-button-prev::after, .dash-carousel .swiper-button-next::after { font-size: 15px; font-weight: 700; }
+.dash-carousel .swiper-pagination-bullet { background: #fff; opacity: 0.55; }
+.dash-carousel .swiper-pagination-bullet-active { opacity: 1; background: #fff; }
 
 /* Menu de ações "⋮" (dropdown reutilizável em listas) */
 .menu-acoes-dropdown {
@@ -1279,6 +1296,14 @@ body.topbar-escura .notif-btn:hover { background: rgba(255,255,255,0.2); border-
           </div>
         </div>
         <div id="dash-fatal-lista" style="display:flex;flex-direction:column;gap:6px"></div>
+      </div>
+
+      <!-- CAROUSEL DE DESTAQUES (Informativos com foto/vídeo) -->
+      <div class="swiper dash-carousel" id="dash-carousel" style="display:none">
+        <div class="swiper-wrapper" id="dash-carousel-wrapper"></div>
+        <div class="swiper-pagination"></div>
+        <div class="swiper-button-prev"></div>
+        <div class="swiper-button-next"></div>
       </div>
 
       <div class="stats-grid">
@@ -4898,6 +4923,19 @@ body.topbar-escura .notif-btn:hover { background: rgba(255,255,255,0.2); border-
   </div>
 </div>
 
+<div class="modal-overlay" id="modal-informativo-detalhe">
+  <div class="modal" style="width:600px">
+    <div class="modal-header">
+      <span class="modal-title" id="info-detalhe-title">Informativo</span>
+      <button class="btn btn-ghost btn-icon" onclick="closeModal('modal-informativo-detalhe')">✕</button>
+    </div>
+    <div class="modal-body" id="info-detalhe-body"></div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal-informativo-detalhe')">Fechar</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL GERAR CONTRATO -->
 <!-- MODAL CARTÃO DE CONTATO -->
 <div class="modal-overlay" id="modal-cartao-suporte">
@@ -5855,6 +5893,8 @@ function informativoDoBanco(row, lidoPorMim) {
     anexoPath: row.anexo_path || null,
     anexoNome: row.anexo_nome || '',
     validoAte: row.valido_até || null,
+    dataEvento: row.data_evento || null,
+    linkUrl: row.link_url || null,
     criadoEm: row.criado_em,
     lido: lidoPorMim
   };
@@ -5866,11 +5906,11 @@ function informativoDoBanco(row, lidoPorMim) {
 async function carregarInformativos() {
   const sb = await getSB();
   if(!sb) return [];
-  const hoje = today();
+  const agora = new Date().toISOString();
   const { data, error } = await sb
     .from('informativos')
     .select('*')
-    .or('valido_até.is.null,valido_até.gte.' + hoje)
+    .or('valido_até.is.null,valido_até.gte.' + agora)
     .order('criado_em', { ascending: false });
   if(error) { console.warn('Erro ao carregar informativos:', error.message); return []; }
 
@@ -5891,12 +5931,14 @@ async function marcarInformativoLido(id) {
   return true;
 }
 
+// Bucket "informativos" é público (ver migração 033) — URL pública nunca
+// expira, diferente da antiga URL assinada (5 min), que quebraria o
+// carousel do Dashboard se ficasse aberto por mais tempo que isso.
 async function obterUrlAnexoInformativo(path) {
   const sb = await getSB();
   if(!sb) return null;
-  const { data, error } = await sb.storage.from('informativos').createSignedUrl(path, 300);
-  if(error) { showToast('Erro ao abrir anexo: ' + error.message, 'error'); return null; }
-  return data.signedUrl;
+  const { data } = sb.storage.from('informativos').getPublicUrl(path);
+  return data?.publicUrl || null;
 }
 
 async function carregarExitos() {
@@ -11706,7 +11748,8 @@ function renderProximosEventos() {
 const INFORMATIVO_TIPOS = {
   normal:      { icon: '📢', cor: '#185FA5', bg: '#E6F1FB', label: 'Aviso' },
   urgente:     { icon: '⚠️', cor: '#B91C1C', bg: '#FEE2E2', label: 'Urgente' },
-  atualizacao: { icon: '🆕', cor: '#0B7B45', bg: '#E2F5EC', label: 'Atualização' }
+  atualizacao: { icon: '🆕', cor: '#0B7B45', bg: '#E2F5EC', label: 'Atualização' },
+  evento:      { icon: '📅', cor: '#7C3AED', bg: '#F0E9FE', label: 'Evento' }
 };
 
 async function renderInformativos() {
@@ -14939,8 +14982,88 @@ async function confirmarDA() {
   registrarAuditoria('editou','financeiro',descricao+' aplicado na parcela '+p.num+'/'+p.total,'De '+fmtMoney(valorOriginal)+' para '+fmtMoney(p.valor));
   showToast('💱 '+descricao+' aplicado! Novo valor: '+fmtMoney(p.valor),'success');
 }
+// ==================== CAROUSEL DE DESTAQUES (Dashboard) ====================
+// Monta o carousel a partir dos Informativos que têm foto/vídeo anexado.
+// Usa URL pública (bucket "informativos" é público — ver migração 033),
+// então não precisa se preocupar com expiração de link.
+let _dashSwiper = null;
+
+async function renderDashCarousel() {
+  const destaques = (store.informativos || []).filter(i => i.anexoPath);
+  const container = document.getElementById('dash-carousel');
+  const wrapper = document.getElementById('dash-carousel-wrapper');
+  if(!container || !wrapper) return;
+  if(!destaques.length) { container.style.display = 'none'; return; }
+
+  const sb = await getSB();
+  if(!sb) { container.style.display = 'none'; return; }
+
+  wrapper.innerHTML = destaques.map(info => {
+    const { data } = sb.storage.from('informativos').getPublicUrl(info.anexoPath);
+    const url = data?.publicUrl || '';
+    const ehVideo = /\.(mp4|webm|mov|ogg)$/i.test(info.anexoPath || '');
+    const tipoInfo = INFORMATIVO_TIPOS[info.tipo] || INFORMATIVO_TIPOS.normal;
+    const eventoBadge = (info.tipo === 'evento' && info.dataEvento)
+      ? `<div class="dash-slide-evento-badge">📅 ${new Date(info.dataEvento).toLocaleString('pt-BR',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}</div>`
+      : '';
+    return `<div class="swiper-slide">
+      <div class="dash-slide" onclick="abrirDetalheInformativo('${info.id}')">
+        ${ehVideo
+          ? `<video src="${url}" autoplay muted loop playsinline></video>`
+          : `<img src="${url}" alt="${(info.titulo||'').replace(/"/g,'&quot;')}">`}
+        <div class="dash-slide-overlay"></div>
+        <div class="dash-slide-content">
+          ${eventoBadge}<br>
+          <span class="dash-slide-tipo" style="background:${tipoInfo.bg};color:${tipoInfo.cor}">${tipoInfo.icon} ${tipoInfo.label}</span>
+          <h3>${info.titulo}</h3>
+          ${info.corpo ? `<p>${info.corpo}</p>` : ''}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  container.style.display = '';
+
+  if(_dashSwiper) { _dashSwiper.destroy(true, true); _dashSwiper = null; }
+  _dashSwiper = new Swiper('#dash-carousel', {
+    loop: destaques.length > 1,
+    autoplay: destaques.length > 1 ? { delay: 5000, disableOnInteraction: false } : false,
+    navigation: { nextEl: '#dash-carousel .swiper-button-next', prevEl: '#dash-carousel .swiper-button-prev' },
+    pagination: { el: '#dash-carousel .swiper-pagination', clickable: true }
+  });
+}
+
+// Abre o detalhe de um informativo clicado no carousel: mídia maior,
+// texto completo, e botão de link externo (se cadastrado).
+function abrirDetalheInformativo(id) {
+  const info = (store.informativos || []).find(i => i.id === id);
+  if(!info) return;
+  const tipoInfo = INFORMATIVO_TIPOS[info.tipo] || INFORMATIVO_TIPOS.normal;
+  document.getElementById('info-detalhe-title').textContent = info.titulo;
+  document.getElementById('info-detalhe-body').innerHTML = '<p style="color:var(--text-muted);font-size:13px">Carregando...</p>';
+  openModal('modal-informativo-detalhe', false);
+  marcarInformativoLido(id);
+
+  obterUrlAnexoInformativo(info.anexoPath).then(url => {
+    const ehVideo = /\.(mp4|webm|mov|ogg)$/i.test(info.anexoPath || '');
+    const eventoHtml = (info.tipo === 'evento' && info.dataEvento)
+      ? `<div style="background:${tipoInfo.bg};color:${tipoInfo.cor};padding:8px 14px;border-radius:8px;font-weight:700;margin-bottom:14px;display:inline-block">📅 ${new Date(info.dataEvento).toLocaleString('pt-BR',{day:'2-digit',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit'})}</div><br>`
+      : '';
+    document.getElementById('info-detalhe-body').innerHTML = `
+      ${url ? (ehVideo
+        ? `<video src="${url}" controls style="width:100%;border-radius:10px;margin-bottom:16px;max-height:320px;background:#000"></video>`
+        : `<img src="${url}" style="width:100%;border-radius:10px;margin-bottom:16px;max-height:320px;object-fit:cover">`) : ''}
+      <span class="badge" style="background:${tipoInfo.bg};color:${tipoInfo.cor};margin-bottom:10px;display:inline-block">${tipoInfo.icon} ${tipoInfo.label}</span>
+      ${eventoHtml}
+      <p style="font-size:14px;line-height:1.6;color:var(--text-primary);white-space:pre-wrap">${info.corpo || ''}</p>
+      ${info.linkUrl ? `<a href="${info.linkUrl}" target="_blank" rel="noopener" class="btn btn-primary" style="margin-top:16px;display:inline-flex">🔗 Acessar link</a>` : ''}
+    `;
+  });
+}
+
 function updateDashboard() {
   renderAlertaFatais();
+  renderDashCarousel();
   const ativos = store.processos.filter(p => p.status === 'andamento').length;
   document.getElementById('dash-ativos').textContent = ativos;
   document.getElementById('dash-clientes').textContent = store.clientes.length;
