@@ -1086,14 +1086,31 @@ body.topbar-escura .notif-btn:hover { background: rgba(255,255,255,0.2); border-
         <button class="nav-item" onclick="navigate('despesas',this)">
           <span class="icon">📤</span> Despesas
         </button>
+      </div>
+    </div>
+    <div class="nav-section" data-cat="faturamento">
+      <button class="nav-cat-header" onclick="toggleNavCategoria('faturamento')">
+        Faturamento <span class="nav-cat-chevron">▶</span>
+      </button>
+      <div class="nav-cat-items">
+        <div class="nav-item" style="opacity:0.5;cursor:default;pointer-events:none" title="Em breve: emissão de notas fiscais de serviço (NFS-e)">
+          <span class="icon">🧾</span> Emissão de NF-e <span style="font-size:10px;margin-left:4px">(em breve)</span>
+        </div>
+      </div>
+    </div>
+    <div class="nav-section" data-cat="relatorios">
+      <button class="nav-cat-header" onclick="toggleNavCategoria('relatorios')">
+        Relatórios <span class="nav-cat-chevron">▶</span>
+      </button>
+      <div class="nav-cat-items">
         <button class="nav-item" onclick="navigate('relatorios',this)">
           <span class="icon">📈</span> Relatórios
         </button>
       </div>
     </div>
-    <div class="nav-section" data-cat="sistema">
-      <button class="nav-cat-header" onclick="toggleNavCategoria('sistema')">
-        Sistema <span class="nav-cat-chevron">▶</span>
+    <div class="nav-section" data-cat="comunicacoes">
+      <button class="nav-cat-header" onclick="toggleNavCategoria('comunicacoes')">
+        Comunicações <span class="nav-cat-chevron">▶</span>
       </button>
       <div class="nav-cat-items">
         <button class="nav-item" onclick="navigate('informativos',this)">
@@ -1104,8 +1121,34 @@ body.topbar-escura .notif-btn:hover { background: rgba(255,255,255,0.2); border-
           <span class="icon">💬</span> Mensagens Portal
           <span class="nav-badge" id="badge-msgs-portal" style="display:none">0</span>
         </button>
-        <button class="nav-item" onclick="navigate('opcoes',this)">
-          <span class="icon">⚙️</span> Opções
+      </div>
+    </div>
+    <div class="nav-section" data-cat="sistema">
+      <button class="nav-cat-header" onclick="toggleNavCategoria('sistema')">
+        Sistema <span class="nav-cat-chevron">▶</span>
+      </button>
+      <div class="nav-cat-items">
+        <button class="nav-item" onclick="navigate('opcoes',this);switchTab('opt','senha',document.getElementById('tab-btn-senha'));forcarAbrirCategoria('sistema')">
+          <span class="icon">🔐</span> Senha
+        </button>
+        <button class="nav-item" onclick="navigate('opcoes',this);switchTab('opt','usuarios',document.getElementById('tab-btn-usuarios'));forcarAbrirCategoria('sistema')">
+          <span class="icon">👥</span> Usuários
+        </button>
+        <button class="nav-item" onclick="navigate('opcoes',this);switchTab('opt','auditoria',document.getElementById('tab-btn-auditoria'));forcarAbrirCategoria('sistema')">
+          <span class="icon">🔍</span> Auditoria
+        </button>
+        <button class="nav-item" onclick="navigate('opcoes',this);switchTab('opt','whatsapp',document.getElementById('tab-btn-whatsapp'));forcarAbrirCategoria('sistema')">
+          <span class="icon">📱</span> WhatsApp
+        </button>
+      </div>
+    </div>
+    <div class="nav-section" data-cat="configuracoes">
+      <button class="nav-cat-header" onclick="toggleNavCategoria('configuracoes')">
+        Configurações <span class="nav-cat-chevron">▶</span>
+      </button>
+      <div class="nav-cat-items">
+        <button class="nav-item" onclick="navigate('opcoes',this);switchTab('opt','sistema',document.getElementById('tab-btn-sistema'));forcarAbrirCategoria('configuracoes')">
+          <span class="icon">ℹ️</span> Sistema
         </button>
       </div>
     </div>
@@ -2252,11 +2295,11 @@ body.topbar-escura .notif-btn:hover { background: rgba(255,255,255,0.2); border-
     <div class="page" id="page-opcoes">
 
       <div class="tabs-bar">
-        <button class="tab-btn active" onclick="switchTab('opt','senha',this)">🔐 Senha</button>
+        <button class="tab-btn active" id="tab-btn-senha" onclick="switchTab('opt','senha',this)">🔐 Senha</button>
         <button class="tab-btn" id="tab-btn-usuarios" onclick="switchTab('opt','usuarios',this)">👥 Usuários</button>
-        <button class="tab-btn" onclick="switchTab('opt','auditoria',this)">🔍 Auditoria</button>
-        <button class="tab-btn" onclick="switchTab('opt','whatsapp',this)">📱 WhatsApp</button>
-        <button class="tab-btn" onclick="switchTab('opt','sistema',this)">ℹ️ Sistema</button>
+        <button class="tab-btn" id="tab-btn-auditoria" onclick="switchTab('opt','auditoria',this)">🔍 Auditoria</button>
+        <button class="tab-btn" id="tab-btn-whatsapp" onclick="switchTab('opt','whatsapp',this)">📱 WhatsApp</button>
+        <button class="tab-btn" id="tab-btn-sistema" onclick="switchTab('opt','sistema',this)">ℹ️ Sistema</button>
       </div>
 
       <!-- SENHA -->
@@ -8911,8 +8954,12 @@ const PAGINA_CATEGORIA = {
   dashboard: 'principal',
   tipos: 'cadastros', clientes: 'cadastros', 'historico-contatos': 'cadastros',
   processos: 'operacional', orcamentos: 'operacional', agenda: 'operacional', kanban: 'operacional', 'diario-oficial': 'operacional', 'modelos-documentos': 'operacional', 'leads': 'operacional',
-  financeiro: 'financeiro', despesas: 'financeiro', relatorios: 'financeiro',
-  informativos: 'sistema', 'mensagens-portal': 'sistema', opcoes: 'sistema'
+  financeiro: 'financeiro', despesas: 'financeiro',
+  relatorios: 'relatorios',
+  informativos: 'comunicacoes', 'mensagens-portal': 'comunicacoes'
+  // "opcoes" não entra aqui de propósito: é acessada tanto por Sistema
+  // quanto por Configurações, então cada item do menu que leva até ela
+  // chama forcarAbrirCategoria() explicitamente com a categoria certa.
 };
 
 // Abre a categoria correspondente à página, fechando as demais (estilo
@@ -8929,6 +8976,19 @@ function abrirCategoriaDaPagina(page) {
 
 // Clique manual no cabeçalho de uma categoria: abre ela e fecha as outras;
 // se já estiver aberta, fecha (permite recolher tudo manualmente).
+// Força a categoria certa a abrir mesmo quando duas entradas do menu levam
+// à mesma página (ex: "Opções" é acessada tanto por itens de Sistema quanto
+// de Configurações) — abrirCategoriaDaPagina() só sabe abrir uma categoria
+// fixa por página, então aqui sobrescrevemos manualmente com a categoria de
+// onde o clique realmente veio.
+function forcarAbrirCategoria(cat) {
+  document.querySelectorAll('.nav-section').forEach(sec => {
+    if(!sec.classList.contains('sempre-aberta')) sec.classList.remove('open');
+  });
+  const el = document.querySelector('.nav-section[data-cat="' + cat + '"]');
+  if(el) el.classList.add('open');
+}
+
 function toggleNavCategoria(cat) {
   const secAlvo = document.querySelector('.nav-section[data-cat="' + cat + '"]');
   if(!secAlvo) return;
