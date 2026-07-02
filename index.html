@@ -1118,8 +1118,29 @@ body.topbar-escura .notif-btn:hover { background: rgba(255,255,255,0.2); border-
         Relatório <span class="nav-cat-chevron">▶</span>
       </button>
       <div class="nav-cat-items">
-        <button class="nav-item" onclick="navigate('relatorios',this)">
-          <span class="icon">📈</span> Relatórios
+        <button class="nav-item" onclick="navigate('relatorios',this);switchTab('rel','fluxo',document.getElementById('tab-btn-rel-fluxo'));forcarAbrirCategoria('relatorios')">
+          <span class="icon">📊</span> Fluxo de Caixa
+        </button>
+        <button class="nav-item" onclick="navigate('relatorios',this);switchTab('rel','conversao',document.getElementById('tab-btn-rel-conversao'));forcarAbrirCategoria('relatorios')">
+          <span class="icon">🎯</span> Conversão
+        </button>
+        <button class="nav-item" onclick="navigate('relatorios',this);switchTab('rel','inadimplencia',document.getElementById('tab-btn-rel-inadimplencia'));forcarAbrirCategoria('relatorios')">
+          <span class="icon">⚠️</span> Inadimplência
+        </button>
+        <button class="nav-item" onclick="navigate('relatorios',this);switchTab('rel','exito',document.getElementById('tab-btn-rel-exito'));forcarAbrirCategoria('relatorios')">
+          <span class="icon">🏆</span> Êxito
+        </button>
+        <button class="nav-item" onclick="navigate('relatorios',this);switchTab('rel','taxa-exito',document.getElementById('tab-btn-rel-taxa-exito'));forcarAbrirCategoria('relatorios')">
+          <span class="icon">📈</span> Taxa de Êxito
+        </button>
+        <button class="nav-item" onclick="navigate('relatorios',this);switchTab('rel','duracao',document.getElementById('tab-btn-rel-duracao'));forcarAbrirCategoria('relatorios')">
+          <span class="icon">⏱️</span> Duração
+        </button>
+        <button class="nav-item" onclick="navigate('relatorios',this);switchTab('rel','carga',document.getElementById('tab-btn-rel-carga'));forcarAbrirCategoria('relatorios')">
+          <span class="icon">👨‍⚖️</span> Carga de Trabalho
+        </button>
+        <button class="nav-item" onclick="navigate('relatorios',this);switchTab('rel','clientes-rel',document.getElementById('tab-btn-rel-clientes-rel'));forcarAbrirCategoria('relatorios')">
+          <span class="icon">👤</span> Clientes
         </button>
       </div>
     </div>
@@ -1726,15 +1747,15 @@ body.topbar-escura .notif-btn:hover { background: rgba(255,255,255,0.2); border-
 
     <!-- ========== RELATÓRIOS ========== -->
     <div class="page" id="page-relatorios">
-      <div class="tabs-bar">
-        <button class="tab-btn active" onclick="switchTab('rel','fluxo',this)">📊 Fluxo de Caixa</button>
-        <button class="tab-btn" onclick="switchTab('rel','conversao',this)">🎯 Conversão</button>
-        <button class="tab-btn" onclick="switchTab('rel','inadimplencia',this)">⚠️ Inadimplência</button>
-        <button class="tab-btn" onclick="switchTab('rel','exito',this)">🏆 Êxito</button>
-        <button class="tab-btn" onclick="switchTab('rel','taxa-exito',this)">📈 Taxa de Êxito</button>
-        <button class="tab-btn" onclick="switchTab('rel','duracao',this)">⏱️ Duração</button>
-        <button class="tab-btn" onclick="switchTab('rel','carga',this)">👨‍⚖️ Carga de Trabalho</button>
-        <button class="tab-btn" onclick="switchTab('rel','clientes-rel',this)">👤 Clientes</button>
+      <div class="tabs-bar" style="display:none">
+        <button class="tab-btn active" id="tab-btn-rel-fluxo" onclick="switchTab('rel','fluxo',this)">📊 Fluxo de Caixa</button>
+        <button class="tab-btn" id="tab-btn-rel-conversao" onclick="switchTab('rel','conversao',this)">🎯 Conversão</button>
+        <button class="tab-btn" id="tab-btn-rel-inadimplencia" onclick="switchTab('rel','inadimplencia',this)">⚠️ Inadimplência</button>
+        <button class="tab-btn" id="tab-btn-rel-exito" onclick="switchTab('rel','exito',this)">🏆 Êxito</button>
+        <button class="tab-btn" id="tab-btn-rel-taxa-exito" onclick="switchTab('rel','taxa-exito',this)">📈 Taxa de Êxito</button>
+        <button class="tab-btn" id="tab-btn-rel-duracao" onclick="switchTab('rel','duracao',this)">⏱️ Duração</button>
+        <button class="tab-btn" id="tab-btn-rel-carga" onclick="switchTab('rel','carga',this)">👨‍⚖️ Carga de Trabalho</button>
+        <button class="tab-btn" id="tab-btn-rel-clientes-rel" onclick="switchTab('rel','clientes-rel',this)">👤 Clientes</button>
       </div>
 
       <!-- FLUXO DE CAIXA COMPLETO -->
