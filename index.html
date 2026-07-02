@@ -1093,9 +1093,9 @@ body.topbar-escura .notif-btn:hover { background: rgba(255,255,255,0.2); border-
         Faturamento <span class="nav-cat-chevron">▶</span>
       </button>
       <div class="nav-cat-items">
-        <div class="nav-item" style="opacity:0.5;cursor:default;pointer-events:none" title="Em breve: emissão de notas fiscais de serviço (NFS-e)">
-          <span class="icon">🧾</span> Emissão de NF-e <span style="font-size:10px;margin-left:4px">(em breve)</span>
-        </div>
+        <button class="nav-item" onclick="navigate('faturamento',this)">
+          <span class="icon">🧾</span> Emissão de NF-e
+        </button>
       </div>
     </div>
     <div class="nav-section" data-cat="comunicacoes">
@@ -1631,6 +1631,105 @@ body.topbar-escura .notif-btn:hover { background: rgba(255,255,255,0.2); border-
       </div>
 
     </div><!-- /page-despesas -->
+
+    <!-- ========== FATURAMENTO (Focus NFe) ========== -->
+    <div class="page" id="page-faturamento">
+      <div class="page-header">
+        <h2>Faturamento</h2>
+      </div>
+      <div class="alert-info" style="background:var(--blue-50);border:1px solid var(--blue-200);color:var(--blue-700);padding:12px 16px;border-radius:8px;margin-bottom:16px;font-size:13px">
+        🚧 Integração com a Focus NFe em construção. Esta tela já está funcional para configurar e montar a nota — a emissão de verdade só liga quando o token de acesso estiver disponível (por segurança, ele não fica no navegador; será configurado direto no servidor).
+      </div>
+
+      <div class="tabs-bar">
+        <button class="tab-btn active" id="tab-btn-fat-config" onclick="switchTab('fat','config',this)">⚙️ Configuração</button>
+        <button class="tab-btn" id="tab-btn-fat-emitir" onclick="switchTab('fat','emitir',this)">🧾 Emitir Nota</button>
+      </div>
+
+      <div class="tab-content active" id="fat-config">
+        <div class="card">
+          <div class="card-header"><span class="card-title">Dados Fiscais do Escritório</span></div>
+          <p style="font-size:12.5px;color:var(--text-muted);margin-bottom:16px">Esses dados formam o bloco "prestador" exigido pela Focus NFe em toda nota emitida — configure uma vez só.</p>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+            <div class="form-group">
+              <label class="form-label">CNPJ do Escritório</label>
+              <input type="text" id="fat-cnpj" class="form-control" placeholder="00.000.000/0000-00">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Inscrição Municipal</label>
+              <input type="text" id="fat-inscricao-municipal" class="form-control" placeholder="Ex: 123456">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Optante pelo Simples Nacional?</label>
+              <select id="fat-optante-simples" class="form-control">
+                <option value="true">Sim</option>
+                <option value="false">Não</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Regime Especial de Tributação</label>
+              <select id="fat-regime-especial" class="form-control">
+                <option value="">Nenhum</option>
+                <option value="1">Microempresa municipal</option>
+                <option value="2">Estimativa</option>
+                <option value="3">Sociedade de profissionais</option>
+                <option value="4">Cooperativa</option>
+                <option value="5">MEI - Simples Nacional</option>
+                <option value="6">ME EPP - Simples Nacional</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Ambiente da Focus NFe</label>
+              <select id="fat-ambiente" class="form-control">
+                <option value="homologacao">Homologação (testes)</option>
+                <option value="producao">Produção (notas reais)</option>
+              </select>
+            </div>
+          </div>
+          <div style="margin-top:16px">
+            <button class="btn btn-primary" onclick="salvarConfigFiscal()">💾 Salvar Configuração</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="tab-content" id="fat-emitir">
+        <div class="card">
+          <div class="card-header"><span class="card-title">Emitir Nota Fiscal de Serviço</span></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+            <div class="form-group" style="grid-column:1/-1">
+              <label class="form-label">Cliente (tomador do serviço)</label>
+              <select id="fat-cliente" class="form-control" onchange="atualizarPreviewTomador()"></select>
+            </div>
+            <div class="form-group" style="grid-column:1/-1">
+              <label class="form-label">Descrição do Serviço</label>
+              <textarea id="fat-descricao-servico" class="form-control" rows="3" placeholder="Ex: Honorários advocatícios referentes a..."></textarea>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Valor do Serviço (R$)</label>
+              <input type="number" id="fat-valor-servico" class="form-control" step="0.01" placeholder="0,00">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Data de Competência</label>
+              <input type="date" id="fat-data-competencia" class="form-control">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Código do Serviço (municipal)</label>
+              <input type="text" id="fat-codigo-servico" class="form-control" placeholder="Depende do município do cliente">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Alíquota ISS (%)</label>
+              <input type="number" id="fat-aliquota-iss" class="form-control" step="0.01" placeholder="Ex: 2,00">
+            </div>
+          </div>
+          <div id="fat-tomador-preview" style="font-size:12.5px;color:var(--text-muted);margin-top:4px"></div>
+          <div style="margin-top:16px;display:flex;gap:10px">
+            <button class="btn btn-outline" onclick="previsualizarNFSe()">👁️ Pré-visualizar JSON</button>
+            <button class="btn btn-primary" onclick="emitirNotaFiscal()">🧾 Emitir Nota</button>
+          </div>
+          <pre id="fat-json-preview" style="display:none;background:var(--surface-2,#0F172A);color:#A5F3FC;padding:14px;border-radius:8px;font-size:12px;margin-top:16px;overflow:auto;max-height:400px"></pre>
+        </div>
+      </div>
+    </div><!-- /page-faturamento -->
 
     <!-- ========== RELATÓRIOS ========== -->
     <div class="page" id="page-relatorios">
@@ -5479,6 +5578,105 @@ function documentoDoBanco(row) {
   };
 }
 
+// ==================== FATURAMENTO / FOCUS NFE ====================
+// Interface pronta para a integração com a Focus NFe. Como ainda não há
+// token de acesso, "emitirNotaFiscal" apenas monta e mostra o JSON que
+// seria enviado — a chamada real deve ser feita futuramente por uma
+// Supabase Edge Function (o token nunca deve viver no navegador).
+async function renderFaturamento() {
+  const dados = await carregarDadosEscritorio();
+  if(dados) {
+    document.getElementById('fat-cnpj').value = dados.cnpj || '';
+    document.getElementById('fat-inscricao-municipal').value = dados.inscricao_municipal || '';
+    document.getElementById('fat-optante-simples').value = dados.nfse_optante_simples === false ? 'false' : 'true';
+    document.getElementById('fat-regime-especial').value = dados.nfse_regime_especial || '';
+    document.getElementById('fat-ambiente').value = dados.nfse_ambiente || 'homologacao';
+  }
+  const sel = document.getElementById('fat-cliente');
+  sel.innerHTML = '<option value="">Selecione um cliente...</option>' +
+    store.clientes.map(c => `<option value="${c.id}">${c.nome}</option>`).join('');
+  document.getElementById('fat-data-competencia').value = today();
+  document.getElementById('fat-json-preview').style.display = 'none';
+  atualizarPreviewTomador();
+}
+
+async function salvarConfigFiscal() {
+  const sb = await getSB();
+  const escritorioId = getEscritorioId();
+  if(!sb || !escritorioId) { showToast('Sem conexão com o banco.', 'error'); return; }
+  const payload = {
+    cnpj: document.getElementById('fat-cnpj').value.trim(),
+    inscricao_municipal: document.getElementById('fat-inscricao-municipal').value.trim(),
+    nfse_optante_simples: document.getElementById('fat-optante-simples').value === 'true',
+    nfse_regime_especial: document.getElementById('fat-regime-especial').value || null,
+    nfse_ambiente: document.getElementById('fat-ambiente').value
+  };
+  const { error } = await sb.from('escritorios').update(payload).eq('id', escritorioId);
+  if(error) { showToast('Erro ao salvar configuração: ' + error.message, 'error'); return; }
+  showToast('Configuração fiscal salva!', 'success');
+}
+
+function atualizarPreviewTomador() {
+  const clienteId = document.getElementById('fat-cliente').value;
+  const el = document.getElementById('fat-tomador-preview');
+  if(!clienteId) { el.textContent = ''; return; }
+  const c = store.clientes.find(x => x.id === clienteId);
+  if(!c) { el.textContent = ''; return; }
+  el.textContent = `CPF/CNPJ: ${c.cpf || '—'} · E-mail: ${c.email || '—'} · Endereço: ${c.endereco || '—'}`;
+}
+
+// Monta o payload no formato esperado pelo POST /v2/nfse da Focus NFe
+// (campos "prestador"/"tomador"/"servico"), a partir da configuração
+// fiscal do escritório + do cliente e formulário selecionados.
+function montarPayloadNFSe() {
+  const clienteId = document.getElementById('fat-cliente').value;
+  const cliente = store.clientes.find(c => c.id === clienteId);
+  const cpfCnpjLimpo = cliente ? (cliente.cpf || '').replace(/\D/g, '') : '';
+  return {
+    data_emissao: new Date().toISOString(),
+    natureza_operacao: '1',
+    optante_simples_nacional: document.getElementById('fat-optante-simples').value === 'true',
+    incentivador_cultural: false,
+    regime_especial_tributacao: document.getElementById('fat-regime-especial').value || undefined,
+    prestador: {
+      cnpj: document.getElementById('fat-cnpj').value.trim(),
+      inscricao_municipal: document.getElementById('fat-inscricao-municipal').value.trim()
+    },
+    tomador: cliente ? {
+      cpf: cpfCnpjLimpo.length === 11 ? cpfCnpjLimpo : undefined,
+      cnpj: cpfCnpjLimpo.length === 14 ? cpfCnpjLimpo : undefined,
+      razao_social: cliente.nome,
+      email: cliente.email || undefined,
+      endereco: cliente.endereco ? { logradouro: cliente.endereco } : undefined
+    } : null,
+    servico: {
+      descricao: document.getElementById('fat-descricao-servico').value.trim(),
+      valor_servicos: parseFloat(document.getElementById('fat-valor-servico').value) || 0,
+      data_competencia: document.getElementById('fat-data-competencia').value,
+      codigo_tributacao_municipio: document.getElementById('fat-codigo-servico').value.trim(),
+      aliquota: parseFloat(document.getElementById('fat-aliquota-iss').value) || 0
+    }
+  };
+}
+
+function previsualizarNFSe() {
+  const payload = montarPayloadNFSe();
+  const pre = document.getElementById('fat-json-preview');
+  pre.textContent = JSON.stringify(payload, null, 2);
+  pre.style.display = 'block';
+}
+
+// Ainda não chama a Focus NFe de verdade — falta o token (guardado no
+// servidor, não aqui) e a Edge Function que fará a chamada por trás.
+// Por enquanto, valida o preenchimento e mostra o JSON que seria enviado.
+function emitirNotaFiscal() {
+  const payload = montarPayloadNFSe();
+  if(!payload.tomador) { showToast('Selecione um cliente.', 'error'); return; }
+  if(!payload.servico.descricao || !payload.servico.valor_servicos) { showToast('Preencha descrição e valor do serviço.', 'error'); return; }
+  previsualizarNFSe();
+  showToast('Integração ainda não conectada — veja abaixo o JSON que seria enviado à Focus NFe assim que a API estiver configurada.');
+}
+
 // ==================== DADOS DO PRÓPRIO ESCRITÓRIO ====================
 // Carrega nome/OAB/telefone/email/endereço da linha real em "escritorios"
 // (filtrada por escritorio_id da sessão) — substitui a antiga dependência
@@ -5490,7 +5688,7 @@ async function carregarDadosEscritorio() {
   if(!sb || !escritorioId) return null;
   const { data, error } = await sb
     .from('escritorios')
-    .select('id, nome, oab, cnpj, email, telefone, endereco, status_pagamento, proximo_vencimento')
+    .select('id, nome, oab, cnpj, email, telefone, endereco, status_pagamento, proximo_vencimento, inscricao_municipal, nfse_optante_simples, nfse_regime_especial, nfse_ambiente')
     .eq('id', escritorioId)
     .single();
   if(error) { console.warn('Erro ao carregar dados do escritório:', error.message); return null; }
@@ -8955,6 +9153,7 @@ const PAGINA_CATEGORIA = {
   tipos: 'cadastros', clientes: 'cadastros', 'historico-contatos': 'cadastros',
   processos: 'operacional', orcamentos: 'operacional', agenda: 'operacional', kanban: 'operacional', 'diario-oficial': 'operacional', 'modelos-documentos': 'operacional', 'leads': 'operacional',
   financeiro: 'financeiro', despesas: 'financeiro',
+  faturamento: 'faturamento',
   relatorios: 'relatorios',
   informativos: 'comunicacoes', 'mensagens-portal': 'comunicacoes'
   // "opcoes" não entra aqui de propósito: é acessada tanto por Sistema
@@ -9074,6 +9273,7 @@ function refreshPage(page) {
   else if(page === 'leads') renderLeads();
   else if(page === 'financeiro') { renderParcelas(); renderFinVisao(); updateParcelasSelect(); }
   else if(page === 'despesas') renderDespesas();
+  else if(page === 'faturamento') renderFaturamento();
   else if(page === 'relatorios') { gerarRelatorio(); renderConversao(); renderInadimplencia(); renderExito(); renderTaxaExito(); renderDuracao(); renderCargaTrabalho(); renderRelClientes(); }
   else if(page === 'informativos') renderInformativos();
   else if(page === 'mensagens-portal') renderMensagensPortal();
