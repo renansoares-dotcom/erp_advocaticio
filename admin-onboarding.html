@@ -1072,9 +1072,6 @@ body.topbar-escura .notif-btn:hover { background: rgba(255,255,255,0.2); border-
         <button class="nav-item" onclick="navigate('clientes',this)">
           <span class="icon">👤</span> Clientes
         </button>
-        <button class="nav-item" onclick="navigate('historico-contatos',this)">
-          <span class="icon">📞</span> Histórico de Contatos
-        </button>
       </div>
     </div>
     <div class="nav-section" data-cat="operacional">
@@ -1145,6 +1142,9 @@ body.topbar-escura .notif-btn:hover { background: rgba(255,255,255,0.2); border-
         <button class="nav-item" onclick="navigate('mensagens-portal',this)">
           <span class="icon">💬</span> Mensagens Portal
           <span class="nav-badge" id="badge-msgs-portal" style="display:none">0</span>
+        </button>
+        <button class="nav-item" onclick="navigate('historico-contatos',this)">
+          <span class="icon">📞</span> Histórico de Contatos
         </button>
       </div>
     </div>
@@ -1458,7 +1458,7 @@ body.topbar-escura .notif-btn:hover { background: rgba(255,255,255,0.2); border-
       <div class="search-row">
         <div class="search-wrap">
           <span class="search-icon">🔍</span>
-          <input type="text" class="form-control" id="search-clientes" placeholder="Buscar cliente..." oninput="renderClientes(this.value)">
+          <input type="text" class="form-control" placeholder="Buscar cliente..." oninput="renderClientes(this.value)">
         </div>
         <button class="btn btn-primary" onclick="openModal('modal-cliente')">+ Novo Cliente</button>
       </div>
@@ -9314,12 +9314,12 @@ const pageActions = {
 // automaticamente a categoria certa ao navegar (menu em cascata/acordeão).
 const PAGINA_CATEGORIA = {
   dashboard: 'principal',
-  tipos: 'cadastros', clientes: 'cadastros', 'historico-contatos': 'cadastros',
+  tipos: 'cadastros', clientes: 'cadastros',
   processos: 'operacional', orcamentos: 'operacional', agenda: 'operacional', kanban: 'operacional', 'diario-oficial': 'operacional', 'modelos-documentos': 'operacional', 'leads': 'operacional',
   financeiro: 'financeiro', despesas: 'financeiro',
   faturamento: 'faturamento',
   relatorios: 'relatorios',
-  informativos: 'comunicacoes', 'mensagens-portal': 'comunicacoes'
+  informativos: 'comunicacoes', 'mensagens-portal': 'comunicacoes', 'historico-contatos': 'comunicacoes'
   // "opcoes" não entra aqui de propósito: é acessada tanto por Sistema
   // quanto por Configurações, então cada item do menu que leva até ela
   // chama forcarAbrirCategoria() explicitamente com a categoria certa.
@@ -10644,21 +10644,6 @@ Atenciosamente,
 function getConfigWpp() {
   try { return JSON.parse(localStorage.getItem(WPP_KEY)||'{}'); } catch(e) { return {}; }
 }
-// Insere a variável clicada (ex: {{NOME}}) na posição do cursor do
-// textarea de modelo de mensagem, substituindo o texto selecionado se
-// houver, e já salva a configuração (mesmo padrão do oninput da textarea).
-function inserirVariavelModelo(textareaId, variavel) {
-  const el = document.getElementById(textareaId);
-  if(!el) return;
-  const inicio = el.selectionStart ?? el.value.length;
-  const fim = el.selectionEnd ?? el.value.length;
-  el.value = el.value.slice(0, inicio) + variavel + el.value.slice(fim);
-  el.focus();
-  const novaPos = inicio + variavel.length;
-  el.setSelectionRange(novaPos, novaPos);
-  salvarConfigWpp();
-}
-
 function salvarConfigWpp() {
   const cfg = {
     numero:     document.getElementById('wpp-numero')?.value||'',
@@ -13860,15 +13845,15 @@ function renderFinVisao() {
       <div style="text-align:right"><div style="color:var(--blue-600);font-weight:600">${fmtMoney(p.valor)}</div><div style="font-size:11px;color:var(--text-muted)">${fmtDate(p.vencimento)} (${dias}d)</div></div>
     </div>`;
   }).join('');
-
+}
   const de = document.getElementById('fin-periodo-de')?.value || '';
   const ate = document.getElementById('fin-periodo-ate')?.value || '';
 
   // Entradas (parcelas pagas no período)
-  let pagosPeriodo = store.parcelas.filter(p => p.status === 'pago');
-  if(de)  pagosPeriodo = pagosPeriodo.filter(p => (p.dtPagamento||p.vencimento) >= de);
-  if(ate) pagosPeriodo = pagosPeriodo.filter(p => (p.dtPagamento||p.vencimento) <= ate);
-  const totalEntradas = pagosPeriodo.reduce((s,p) => s+p.valor, 0);
+  let pagos = store.parcelas.filter(p => p.status === 'pago');
+  if(de)  pagos = pagos.filter(p => (p.dtPagamento||p.vencimento) >= de);
+  if(ate) pagos = pagos.filter(p => (p.dtPagamento||p.vencimento) <= ate);
+  const totalEntradas = pagos.reduce((s,p) => s+p.valor, 0);
 
   // Saídas (despesas pagas no período)
   let despPagas = getDespesas().filter(d => d.status === 'pago');
@@ -13877,14 +13862,16 @@ function renderFinVisao() {
   const totalSaidas = despPagas.reduce((s,d) => s+d.valor, 0);
   const saldo = totalEntradas - totalSaidas;
 
-  // A receber (vencidos/aReceber já calculados no topo da função, sem filtro de período)
+  // A receber
+  const vencidos = store.parcelas.filter(p => p.status !== 'pago' && isVencido(p.vencimento));
+  const aReceber = store.parcelas.filter(p => p.status !== 'pago' && !isVencido(p.vencimento));
   const totalVencido = vencidos.reduce((s,p) => s+p.valor, 0);
   const totalAReceber = aReceber.reduce((s,p) => s+p.valor, 0);
 
   // Cards
   const set = (id,v) => { const el=document.getElementById(id); if(el) el.textContent=v; };
   set('fin-total-entradas', fmtMoney(totalEntradas));
-  set('fin-qtd-entradas', pagosPeriodo.length+' recebimento(s)');
+  set('fin-qtd-entradas', pagos.length+' recebimento(s)');
   set('fin-total-saidas', fmtMoney(totalSaidas));
   set('fin-qtd-saidas', despPagas.length+' despesa(s)');
   const saldoEl = document.getElementById('fin-saldo-periodo');
@@ -13926,7 +13913,36 @@ function renderFinVisao() {
       </div>`;
     }).join('');
   }
-}
+
+  // Vencidas e próximos
+  const vl = document.getElementById('vencidas-list');
+  if(vl) {
+    if(!vencidos.length) { vl.innerHTML='<div style="color:var(--text-muted);font-size:13px;text-align:center;padding:20px 0">Sem parcelas vencidas.</div>'; }
+    else vl.innerHTML = vencidos.slice(0,6).map(p => {
+      const proc = store.processos.find(pr=>pr.id===p.processoId)||{numero:'—'};
+      const c = store.clientes.find(c=>c.id===p.clienteId)||{nome:'—'};
+      const dias = diffDays(today(),p.vencimento);
+      return `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px">
+        <div><strong>${c.nome}</strong><br><span style="color:var(--text-muted)">${proc.numero} — Parc. ${p.num}/${p.total}</span></div>
+        <div style="text-align:right"><div style="color:var(--danger);font-weight:600">${fmtMoney(p.valor)}</div><div style="font-size:11px;color:var(--danger)">${dias}d atrasado</div></div>
+      </div>`;
+    }).join('');
+  }
+  const d30 = new Date(); d30.setDate(d30.getDate()+30);
+  const prox = aReceber.filter(p=>new Date(p.vencimento)<=d30).sort((a,b)=>a.vencimento.localeCompare(b.vencimento));
+  const pl = document.getElementById('proximos-list');
+  if(pl) {
+    if(!prox.length) { pl.innerHTML='<div style="color:var(--text-muted);font-size:13px;text-align:center;padding:20px 0">Sem vencimentos próximos.</div>'; }
+    else pl.innerHTML = prox.slice(0,6).map(p => {
+      const proc = store.processos.find(pr=>pr.id===p.processoId)||{numero:'—'};
+      const c = store.clientes.find(c=>c.id===p.clienteId)||{nome:'—'};
+      const dias = diffDays(p.vencimento,today());
+      return `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px">
+        <div><strong>${c.nome}</strong><br><span style="color:var(--text-muted)">${proc.numero} — Parc. ${p.num}/${p.total}</span></div>
+        <div style="text-align:right"><div style="color:var(--blue-600);font-weight:600">${fmtMoney(p.valor)}</div><div style="font-size:11px;color:var(--text-muted)">${fmtDate(p.vencimento)} (${dias}d)</div></div>
+      </div>`;
+    }).join('');
+  }
 
 function renderParcelas(q = '') {
   const filterStatus = (document.getElementById('filter-status-parcela')||{}).value || '';
