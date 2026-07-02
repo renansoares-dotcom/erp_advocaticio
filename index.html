@@ -1131,23 +1131,16 @@ body.topbar-escura .notif-btn:hover { background: rgba(255,255,255,0.2); border-
         <button class="nav-item" onclick="navigate('opcoes',this);switchTab('opt','sistema',document.getElementById('tab-btn-sistema'));forcarAbrirCategoria('configuracoes')">
           <span class="icon">ℹ️</span> Parâmetros
         </button>
-      </div>
-    </div>
-    <div class="nav-section" data-cat="sistema">
-      <button class="nav-cat-header" onclick="toggleNavCategoria('sistema')">
-        Sistema <span class="nav-cat-chevron">▶</span>
-      </button>
-      <div class="nav-cat-items">
-        <button class="nav-item" onclick="navigate('opcoes',this);switchTab('opt','senha',document.getElementById('tab-btn-senha'));forcarAbrirCategoria('sistema')">
+        <button class="nav-item" onclick="navigate('opcoes',this);switchTab('opt','senha',document.getElementById('tab-btn-senha'));forcarAbrirCategoria('configuracoes')">
           <span class="icon">🔐</span> Senha
         </button>
-        <button class="nav-item" onclick="navigate('opcoes',this);switchTab('opt','usuarios',document.getElementById('tab-btn-usuarios'));forcarAbrirCategoria('sistema')">
+        <button class="nav-item" onclick="navigate('opcoes',this);switchTab('opt','usuarios',document.getElementById('tab-btn-usuarios'));forcarAbrirCategoria('configuracoes')">
           <span class="icon">👥</span> Usuários
         </button>
-        <button class="nav-item" onclick="navigate('opcoes',this);switchTab('opt','auditoria',document.getElementById('tab-btn-auditoria'));forcarAbrirCategoria('sistema')">
+        <button class="nav-item" onclick="navigate('opcoes',this);switchTab('opt','auditoria',document.getElementById('tab-btn-auditoria'));forcarAbrirCategoria('configuracoes')">
           <span class="icon">🔍</span> Auditoria
         </button>
-        <button class="nav-item" onclick="navigate('opcoes',this);switchTab('opt','whatsapp',document.getElementById('tab-btn-whatsapp'));forcarAbrirCategoria('sistema')">
+        <button class="nav-item" onclick="navigate('opcoes',this);switchTab('opt','whatsapp',document.getElementById('tab-btn-whatsapp'));forcarAbrirCategoria('configuracoes')">
           <span class="icon">📱</span> WhatsApp
         </button>
       </div>
@@ -2393,7 +2386,7 @@ body.topbar-escura .notif-btn:hover { background: rgba(255,255,255,0.2); border-
     <!-- ========== OPÇÕES ========== -->
     <div class="page" id="page-opcoes">
 
-      <div class="tabs-bar">
+      <div class="tabs-bar" style="display:none">
         <button class="tab-btn active" id="tab-btn-senha" onclick="switchTab('opt','senha',this)">🔐 Senha</button>
         <button class="tab-btn" id="tab-btn-usuarios" onclick="switchTab('opt','usuarios',this)">👥 Usuários</button>
         <button class="tab-btn" id="tab-btn-auditoria" onclick="switchTab('opt','auditoria',this)">🔍 Auditoria</button>
