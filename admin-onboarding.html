@@ -175,7 +175,7 @@
       <div class="table-wrap" style="overflow-x:auto">
         <table>
           <thead><tr>
-            <th>Nome</th><th>Status</th><th>Próx. vencimento</th><th>Criado em</th><th>Ações</th>
+            <th>Nome</th><th>Status</th><th>Próx. vencimento</th><th>Criado em</th><th>Recursos</th><th>Ações</th>
           </tr></thead>
           <tbody id="tbody-escritorios">
             <tr><td colspan="5" style="text-align:center;color:#9DB5D0;padding:20px">Carregando...</td></tr>
@@ -526,20 +526,34 @@ async function criarEscritorio() {
   }
 }
 
+// Liga/desliga uma feature específica de um escritório, sem sobrescrever
+// outras chaves que possam existir em `features` (busca o valor atual,
+// mescla, e só então grava de volta).
+async function toggleFeatureEscritorio(id, chave, ativo) {
+  const supabase = getSB();
+  const { data: atual, error: erroFetch } = await supabase.from('escritorios').select('features').eq('id', id).single();
+  if(erroFetch) { showToast('Erro ao buscar recursos: ' + erroFetch.message, 'error'); carregarEscritorios(); return; }
+  const features = Object.assign({}, atual.features || {});
+  features[chave] = ativo;
+  const { error } = await supabase.from('escritorios').update({ features: features }).eq('id', id);
+  if(error) { showToast('Erro ao atualizar: ' + error.message, 'error'); carregarEscritorios(); return; }
+  showToast('✅ Atualizado.', 'success');
+}
+
 async function carregarEscritorios() {
   const supabase = getSB();
   const { data, error } = await supabase
     .from('escritorios')
-    .select('id, nome, status_pagamento, proximo_vencimento, criado_em')
+    .select('id, nome, status_pagamento, proximo_vencimento, criado_em, features')
     .order('criado_em', { ascending: false });
 
   const tb = document.getElementById('tbody-escritorios');
   if(error) {
-    tb.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#FCA5A5;padding:20px">Erro ao carregar: ' + error.message + '</td></tr>';
+    tb.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#FCA5A5;padding:20px">Erro ao carregar: ' + error.message + '</td></tr>';
     return;
   }
   if(!data || !data.length) {
-    tb.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#9DB5D0;padding:20px">Nenhum escritório cadastrado ainda.</td></tr>';
+    tb.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#9DB5D0;padding:20px">Nenhum escritório cadastrado ainda.</td></tr>';
     return;
   }
 
@@ -547,6 +561,7 @@ async function carregarEscritorios() {
     const criado = e.criado_em ? new Date(e.criado_em).toLocaleDateString('pt-BR') : '—';
     const venc = e.proximo_vencimento ? new Date(e.proximo_vencimento + 'T12:00:00').toLocaleDateString('pt-BR') : '—';
     const nomeEscapado = e.nome.replace(/'/g, "\\'");
+    const carouselAtivo = !e.features || e.features.carousel_dashboard !== false; // default = ligado
     return '<tr>' +
       '<td><strong>' + e.nome + '</strong></td>' +
       '<td><select class="status-select" onchange="alterarStatus(\'' + e.id + '\', this.value)">' +
@@ -557,6 +572,9 @@ async function carregarEscritorios() {
       '</select></td>' +
       '<td>' + venc + '</td>' +
       '<td>' + criado + '</td>' +
+      '<td style="font-size:12px;white-space:nowrap"><label style="display:flex;align-items:center;gap:6px;cursor:pointer">' +
+        '<input type="checkbox" ' + (carouselAtivo?'checked':'') + ' onchange="toggleFeatureEscritorio(\'' + e.id + '\', \'carousel_dashboard\', this.checked)"> Carousel Dashboard' +
+      '</label></td>' +
       '<td><button class="btn-financeiro" onclick="abrirModalFinanceiro(\'' + e.id + '\', \'' + nomeEscapado + '\')">💰 Financeiro</button><button class="btn-excluir" onclick="abrirModalExcluir(\'' + e.id + '\', \'' + nomeEscapado + '\')">🗑 Excluir</button></td>' +
     '</tr>';
   }).join('');
