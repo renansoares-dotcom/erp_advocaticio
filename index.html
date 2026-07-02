@@ -5848,7 +5848,7 @@ async function carregarDadosEscritorio() {
   if(!sb || !escritorioId) return null;
   const { data, error } = await sb
     .from('escritorios')
-    .select('id, nome, oab, cnpj, email, telefone, endereco, status_pagamento, proximo_vencimento, inscricao_municipal, nfse_optante_simples, nfse_regime_especial, nfse_ambiente')
+    .select('id, nome, oab, cnpj, email, telefone, endereco, status_pagamento, proximo_vencimento, inscricao_municipal, nfse_optante_simples, nfse_regime_especial, nfse_ambiente, features')
     .eq('id', escritorioId)
     .single();
   if(error) { console.warn('Erro ao carregar dados do escritório:', error.message); return null; }
@@ -14991,10 +14991,18 @@ async function confirmarDA() {
 let _dashSwiper = null;
 
 async function renderDashCarousel() {
-  const destaques = (store.informativos || []).filter(i => i.anexoPath);
   const container = document.getElementById('dash-carousel');
+  if(!container) return;
+
+  // Feature flag por escritório (ver migração 035) — controlada pelo
+  // admin em admin-onboarding.html, sem precisar de nova versão do
+  // sistema pra desligar isso num escritório específico.
+  const featuresEscritorio = store.escritorio?.features || {};
+  if(featuresEscritorio.carousel_dashboard === false) { container.style.display = 'none'; return; }
+
+  const destaques = (store.informativos || []).filter(i => i.anexoPath);
   const wrapper = document.getElementById('dash-carousel-wrapper');
-  if(!container || !wrapper) return;
+  if(!wrapper) return;
   if(!destaques.length) { container.style.display = 'none'; return; }
 
   const sb = await getSB();
