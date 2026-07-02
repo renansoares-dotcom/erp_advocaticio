@@ -1072,9 +1072,6 @@ body.topbar-escura .notif-btn:hover { background: rgba(255,255,255,0.2); border-
         <button class="nav-item" onclick="navigate('clientes',this)">
           <span class="icon">👤</span> Clientes
         </button>
-        <button class="nav-item" onclick="navigate('historico-contatos',this)">
-          <span class="icon">📞</span> Histórico de Contatos
-        </button>
       </div>
     </div>
     <div class="nav-section" data-cat="operacional">
@@ -1145,6 +1142,9 @@ body.topbar-escura .notif-btn:hover { background: rgba(255,255,255,0.2); border-
         <button class="nav-item" onclick="navigate('mensagens-portal',this)">
           <span class="icon">💬</span> Mensagens Portal
           <span class="nav-badge" id="badge-msgs-portal" style="display:none">0</span>
+        </button>
+        <button class="nav-item" onclick="navigate('historico-contatos',this)">
+          <span class="icon">📞</span> Histórico de Contatos
         </button>
       </div>
     </div>
@@ -9314,12 +9314,12 @@ const pageActions = {
 // automaticamente a categoria certa ao navegar (menu em cascata/acordeão).
 const PAGINA_CATEGORIA = {
   dashboard: 'principal',
-  tipos: 'cadastros', clientes: 'cadastros', 'historico-contatos': 'cadastros',
+  tipos: 'cadastros', clientes: 'cadastros',
   processos: 'operacional', orcamentos: 'operacional', agenda: 'operacional', kanban: 'operacional', 'diario-oficial': 'operacional', 'modelos-documentos': 'operacional', 'leads': 'operacional',
   financeiro: 'financeiro', despesas: 'financeiro',
   faturamento: 'faturamento',
   relatorios: 'relatorios',
-  informativos: 'comunicacoes', 'mensagens-portal': 'comunicacoes'
+  informativos: 'comunicacoes', 'mensagens-portal': 'comunicacoes', 'historico-contatos': 'comunicacoes'
   // "opcoes" não entra aqui de propósito: é acessada tanto por Sistema
   // quanto por Configurações, então cada item do menu que leva até ela
   // chama forcarAbrirCategoria() explicitamente com a categoria certa.
