@@ -713,7 +713,7 @@ textarea.form-control { resize: vertical; min-height: 80px; }
 .fin-amber { border-top: 3px solid #F59E0B; }
 
 /* PARCEL TABLE */
-.parcel-row { display: grid; grid-template-columns: 40px 1fr 120px 110px 80px; gap: 8px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+.parcel-row { display: grid; grid-template-columns: 40px 1fr 100px 100px 80px 70px; gap: 8px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
 .parcel-row:last-child { border-bottom: none; }
 .parcel-header { font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.4px; }
 
@@ -1458,7 +1458,7 @@ body.topbar-escura .notif-btn:hover { background: rgba(255,255,255,0.2); border-
       <div class="search-row">
         <div class="search-wrap">
           <span class="search-icon">🔍</span>
-          <input type="text" class="form-control" placeholder="Buscar cliente..." oninput="renderClientes(this.value)">
+          <input type="text" class="form-control" id="search-clientes" placeholder="Buscar cliente..." oninput="renderClientes(this.value)">
         </div>
         <button class="btn btn-primary" onclick="openModal('modal-cliente')">+ Novo Cliente</button>
       </div>
@@ -3120,6 +3120,7 @@ body.topbar-escura .notif-btn:hover { background: rgba(255,255,255,0.2); border-
     </div>
     <div class="modal-body">
       <input type="hidden" id="contato-proc-id">
+      <input type="hidden" id="contato-cliente-id">
       <input type="hidden" id="contato-edit-id">
       <div class="form-row">
         <div class="form-group">
@@ -4799,9 +4800,15 @@ body.topbar-escura .notif-btn:hover { background: rgba(255,255,255,0.2); border-
             <option value="suspenso">Suspenso</option>
           </select>
         </div>
+      </div>
+      <div class="form-row">
         <div class="form-group">
           <label class="form-label">Vara / Tribunal</label>
           <input type="text" class="form-control" id="proc-vara" placeholder="Ex: 2ª Vara do Trabalho">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Nome do Juiz</label>
+          <input type="text" class="form-control" id="proc-juiz" placeholder="Preencha quando souber — não é obrigatório">
         </div>
       </div>
       <div class="form-row">
@@ -5108,7 +5115,10 @@ function processoDoBanco(row) {
     tipoId: row.tipo_id || null,
     adv: row.advogado_id || '',
     status: row.status || 'andamento',
-    vara: '', // campo livre de texto no front, não modelado em coluna própria ainda
+    vara: row.vara || '',
+    juiz: row.juiz || '',
+    resultado: row.resultado || '',
+    dataEncerramento: row.data_encerramento || '',
     descricao: row.observacoes || '',
     abertura: (row.criado_em || '').slice(0, 10),
     etapa: row.etapa || 0,
@@ -5124,6 +5134,11 @@ function processoParaBanco(p, escritorioId) {
     tipo_id: p.tipoId || null,
     status: mapStatusProcessoParaBanco(p.status),
     observacoes: p.descricao || null,
+    vara: p.vara || null,
+    juiz: p.juiz || null,
+    resultado: p.resultado || null,
+    data_encerramento: p.dataEncerramento || null,
+    advogado_id: p.adv || null,
     super_atencao: p.superAtencao === true
   };
 }
@@ -10644,6 +10659,21 @@ Atenciosamente,
 function getConfigWpp() {
   try { return JSON.parse(localStorage.getItem(WPP_KEY)||'{}'); } catch(e) { return {}; }
 }
+// Insere a variável clicada (ex: {{NOME}}) na posição do cursor do
+// textarea de modelo de mensagem, substituindo o texto selecionado se
+// houver, e já salva a configuração (mesmo padrão do oninput da textarea).
+function inserirVariavelModelo(textareaId, variavel) {
+  const el = document.getElementById(textareaId);
+  if(!el) return;
+  const inicio = el.selectionStart ?? el.value.length;
+  const fim = el.selectionEnd ?? el.value.length;
+  el.value = el.value.slice(0, inicio) + variavel + el.value.slice(fim);
+  el.focus();
+  const novaPos = inicio + variavel.length;
+  el.setSelectionRange(novaPos, novaPos);
+  salvarConfigWpp();
+}
+
 function salvarConfigWpp() {
   const cfg = {
     numero:     document.getElementById('wpp-numero')?.value||'',
@@ -13227,7 +13257,7 @@ document.addEventListener('click', fecharMenusAcoes);
 function resetFormProcesso() {
   document.getElementById('processo-edit-id').value = '';
   document.getElementById('modal-processo-title').textContent = 'Novo Processo';
-  ['proc-numero','proc-adv','proc-vara','proc-descricao',
+  ['proc-numero','proc-adv','proc-vara','proc-juiz','proc-descricao',
    'proc-lembrete-data','proc-lembrete-hora','proc-lembrete-msg'].forEach(id => {
     const el = document.getElementById(id); if(el) el.value = '';
   });
@@ -13306,8 +13336,8 @@ function mostrarPreviewFinanceiroCliente() {
     el.style.background = '#E2F5EC';
     el.style.border = '1px solid #6EE7B7';
     el.style.color = '#065F46';
-    el.innerHTML = `✅ <strong>Condições financeiras encontradas:</strong> ${fmtMoney(valor)} em ${nParc}x de ${fmtMoney(valor/nParc)} · 1ª parcela: ${dt1}<br>
-      <span style="font-size:11.5px;opacity:0.85">As parcelas serão geradas automaticamente ao salvar.</span>`;
+    el.innerHTML = `✅ <strong>Este cliente já tem condições financeiras cadastradas:</strong> ${fmtMoney(valor)} em ${nParc}x de ${fmtMoney(valor/nParc)} · 1ª parcela: ${dt1}<br>
+      <span style="font-size:11.5px;opacity:0.85">Isso é só informativo — as parcelas já existem no cadastro do cliente, não precisam ser mexidas aqui.</span>`;
   } else {
     el.style.display = 'block';
     el.style.background = '#FEF3C7';
@@ -13342,6 +13372,7 @@ async function salvarProcesso() {
     abertura: document.getElementById('proc-abertura').value,
     status: statusProc,
     vara: document.getElementById('proc-vara').value.trim(),
+    juiz: document.getElementById('proc-juiz').value.trim(),
     descricao: document.getElementById('proc-descricao').value.trim(),
     resultado: statusProc==='encerrado' ? (document.getElementById('proc-resultado').value||'') : '',
     dataEncerramento: statusProc==='encerrado' ? (document.getElementById('proc-data-enc').value||today()) : '',
@@ -13374,6 +13405,37 @@ async function salvarProcesso() {
   }
   saveData(); closeModal('modal-processo'); renderProcessos(); updateDashboard();
 }
+function editarProcesso(id) {
+  const p = store.processos.find(p => p.id === id);
+  if(!p) return;
+  populateClientesSelect();
+  populateTiposProcSelect();
+  document.getElementById('processo-edit-id').value = p.id;
+  document.getElementById('modal-processo-title').textContent = 'Editar Processo';
+  document.getElementById('proc-numero').value = p.numero || '';
+  document.getElementById('proc-cliente').value = p.clienteId || '';
+  document.getElementById('proc-tipo').value = p.tipoId || '';
+  document.getElementById('proc-adv').value = p.adv || '';
+  document.getElementById('proc-abertura').value = p.abertura || today();
+  document.getElementById('proc-status').value = p.status || 'andamento';
+  document.getElementById('proc-vara').value = p.vara || '';
+  document.getElementById('proc-juiz').value = p.juiz || '';
+  document.getElementById('proc-super-atencao').checked = p.superAtencao === true;
+  document.getElementById('proc-descricao').value = p.descricao || '';
+  toggleResultadoProc();
+  document.getElementById('proc-resultado').value = p.resultado || '';
+  document.getElementById('proc-data-enc').value = p.dataEncerramento || '';
+  // Lembrete
+  const lembrete = p.lembrete || {};
+  setLembreteAtivo(lembrete.ativo === true);
+  document.getElementById('proc-lembrete-data').value = lembrete.data || '';
+  document.getElementById('proc-lembrete-hora').value = lembrete.hora || '';
+  document.getElementById('proc-lembrete-msg').value = lembrete.msg || '';
+  mostrarPreviewFinanceiroCliente();
+  renderTagsProcessoModal();
+  openModal('modal-processo', false);
+}
+
 function renderProcessos() {
   const q = (document.getElementById('search-processos')||{}).value || '';
   let list = store.processos.filter(p => {
@@ -13406,11 +13468,15 @@ function renderProcessos() {
         <div style="font-size:10px;color:var(--text-muted);margin-top:2px">${pct}% pago</div>
       </td>
       <td><strong>${fmtMoney(totalParc)}</strong></td>
-      <td style="white-space:nowrap">
-        <button class="btn btn-outline btn-sm" onclick="verDetalhe('${p.id}')" title="Detalhes">🔍</button>
-        <button class="btn btn-outline btn-sm" onclick="atualizarAndamento('${p.id}')" title="Andamento">📝</button>
-        <button class="btn btn-outline btn-sm" onclick="abrirDocumentos('${p.id}')" title="Documentos" style="background:var(--blue-50);color:var(--blue-700);border-color:var(--blue-200)">📁 ${numDocs > 0 ? numDocs : ''}</button>
-        <button class="btn btn-danger btn-sm" onclick="excluirProcesso('${p.id}')" title="Excluir">🗑</button>
+      <td style="position:relative;text-align:center">
+        <button class="btn btn-outline btn-sm" onclick="toggleMenuAcoes('processo-${p.id}', event)" title="Ações">⋮</button>
+        <div class="menu-acoes-dropdown" id="menu-acoes-processo-${p.id}">
+          <button onclick="fecharMenusAcoes();verDetalhe('${p.id}')">🔍 Detalhes</button>
+          <button onclick="fecharMenusAcoes();editarProcesso('${p.id}')">✏️ Editar</button>
+          <button onclick="fecharMenusAcoes();atualizarAndamento('${p.id}')">📝 Andamento</button>
+          <button onclick="fecharMenusAcoes();abrirDocumentos('${p.id}')">📁 Documentos${numDocs > 0 ? ' ('+numDocs+')' : ''}</button>
+          <button class="item-perigo" onclick="fecharMenusAcoes();excluirProcesso('${p.id}')">🗑 Excluir</button>
+        </div>
       </td>
     </tr>`;
   }).join('');
@@ -13427,9 +13493,9 @@ async function excluirProcesso(id) {
 }
 function voltarParaDetalhe(modalId) {
   const ids = ['andamento-proc-id','tarefa-proc-id','intim-proc-id','parte-proc-id','contato-proc-id'];
-  let procId = 0;
+  let procId = null;
   for(const id of ids) {
-    const val = parseInt(document.getElementById(id)?.value)||0;
+    const val = document.getElementById(id)?.value;
     if(val) { procId = val; break; }
   }
   closeModal(modalId);
@@ -13685,7 +13751,7 @@ function verDetalhe(id) {
       <div style="display:flex;gap:0;border-bottom:2px solid var(--border);margin-bottom:14px;overflow-x:auto">
         <button class="det-tab active" onclick="switchDetTab('parcelas','${id}',this)" style="padding:7px 12px;border:none;background:none;cursor:pointer;font-size:12.5px;font-weight:600;color:var(--blue-600);border-bottom:2px solid var(--blue-600);margin-bottom:-2px;white-space:nowrap">💰 Parcelas ${parcelas.length?'('+parcelas.length+')':''}</button>
         <button class="det-tab" onclick="switchDetTab('partes','${id}',this)" style="padding:7px 12px;border:none;background:none;cursor:pointer;font-size:12.5px;color:var(--text-muted);border-bottom:2px solid transparent;margin-bottom:-2px;white-space:nowrap">👥 Partes ${nPartes?'('+nPartes+')':''}</button>
-        <button class="det-tab" onclick="switchDetTab('contatos','${id}',this)" style="padding:7px 12px;border:none;background:none;cursor:pointer;font-size:12.5px;color:var(--text-muted);border-bottom:2px solid transparent;margin-bottom:-2px;white-space:nowrap">📞 Contatos ${nContatos?'('+nContatos+')':''}</button>
+        <button class="det-tab" id="det-tab-btn-contatos" onclick="switchDetTab('contatos','${id}',this)" style="padding:7px 12px;border:none;background:none;cursor:pointer;font-size:12.5px;color:var(--text-muted);border-bottom:2px solid transparent;margin-bottom:-2px;white-space:nowrap">📞 Contatos ${nContatos?'('+nContatos+')':''}</button>
         <button class="det-tab" onclick="switchDetTab('checklist','${id}',this)" style="padding:7px 12px;border:none;background:none;cursor:pointer;font-size:12.5px;color:var(--text-muted);border-bottom:2px solid transparent;margin-bottom:-2px;white-space:nowrap">✅ Tarefas ${nTarefas?'('+nTarefas+')':''}</button>
         <button class="det-tab" onclick="switchDetTab('intimacoes','${id}',this)" style="padding:7px 12px;border:none;background:none;cursor:pointer;font-size:12.5px;color:var(--text-muted);border-bottom:2px solid transparent;margin-bottom:-2px;white-space:nowrap">📨 Prazos ${nIntims?'<span style="background:var(--danger);color:white;border-radius:10px;font-size:10px;padding:1px 6px;margin-left:3px">'+nIntims+'</span>':''}</button>
         <button class="det-tab" onclick="switchDetTab('peticao','${id}',this)" style="padding:7px 12px;border:none;background:none;cursor:pointer;font-size:12.5px;color:var(--text-muted);border-bottom:2px solid transparent;margin-bottom:-2px;white-space:nowrap">📝 Petição</button>
@@ -13722,12 +13788,14 @@ function verDetalhe(id) {
         ${renderPartesHTML(id)}
       </div>
 
-      <!-- Aba Contatos -->
+      <!-- Aba Contatos: sincronizada com Histórico de Contatos (Comunicação) —
+           busca TODOS os contatos do cliente deste processo, não só os
+           lançados por este processo especificamente. -->
       <div id="det-tab-contatos" style="display:none">
         <div style="display:flex;justify-content:flex-end;margin-bottom:12px">
-          <button class="btn btn-outline btn-sm" onclick="closeModal('modal-detalhe');abrirNovoContato('${id}')">+ Registrar Contato</button>
+          <button class="btn btn-outline btn-sm" onclick="closeModal('modal-detalhe');abrirNovoContato('${id}','${p.clienteId||''}')">+ Registrar Contato</button>
         </div>
-        ${renderContatosHTML(id)}
+        <div id="det-contatos-lista"><div style="text-align:center;color:var(--text-muted);font-size:13px;padding:24px">Carregando...</div></div>
       </div>
 
       <!-- Aba Petição -->
@@ -13783,6 +13851,7 @@ function verDetalhe(id) {
     </div>
   `;
   openModal('modal-detalhe');
+  carregarContatosDetalheProcesso(id, p.clienteId);
 }
 
 function switchDetTab(tab, procId, btn) {
@@ -13845,15 +13914,15 @@ function renderFinVisao() {
       <div style="text-align:right"><div style="color:var(--blue-600);font-weight:600">${fmtMoney(p.valor)}</div><div style="font-size:11px;color:var(--text-muted)">${fmtDate(p.vencimento)} (${dias}d)</div></div>
     </div>`;
   }).join('');
-}
+
   const de = document.getElementById('fin-periodo-de')?.value || '';
   const ate = document.getElementById('fin-periodo-ate')?.value || '';
 
   // Entradas (parcelas pagas no período)
-  let pagos = store.parcelas.filter(p => p.status === 'pago');
-  if(de)  pagos = pagos.filter(p => (p.dtPagamento||p.vencimento) >= de);
-  if(ate) pagos = pagos.filter(p => (p.dtPagamento||p.vencimento) <= ate);
-  const totalEntradas = pagos.reduce((s,p) => s+p.valor, 0);
+  let pagosPeriodo = store.parcelas.filter(p => p.status === 'pago');
+  if(de)  pagosPeriodo = pagosPeriodo.filter(p => (p.dtPagamento||p.vencimento) >= de);
+  if(ate) pagosPeriodo = pagosPeriodo.filter(p => (p.dtPagamento||p.vencimento) <= ate);
+  const totalEntradas = pagosPeriodo.reduce((s,p) => s+p.valor, 0);
 
   // Saídas (despesas pagas no período)
   let despPagas = getDespesas().filter(d => d.status === 'pago');
@@ -13862,16 +13931,14 @@ function renderFinVisao() {
   const totalSaidas = despPagas.reduce((s,d) => s+d.valor, 0);
   const saldo = totalEntradas - totalSaidas;
 
-  // A receber
-  const vencidos = store.parcelas.filter(p => p.status !== 'pago' && isVencido(p.vencimento));
-  const aReceber = store.parcelas.filter(p => p.status !== 'pago' && !isVencido(p.vencimento));
+  // A receber (vencidos/aReceber já calculados no topo da função, sem filtro de período)
   const totalVencido = vencidos.reduce((s,p) => s+p.valor, 0);
   const totalAReceber = aReceber.reduce((s,p) => s+p.valor, 0);
 
   // Cards
   const set = (id,v) => { const el=document.getElementById(id); if(el) el.textContent=v; };
   set('fin-total-entradas', fmtMoney(totalEntradas));
-  set('fin-qtd-entradas', pagos.length+' recebimento(s)');
+  set('fin-qtd-entradas', pagosPeriodo.length+' recebimento(s)');
   set('fin-total-saidas', fmtMoney(totalSaidas));
   set('fin-qtd-saidas', despPagas.length+' despesa(s)');
   const saldoEl = document.getElementById('fin-saldo-periodo');
@@ -13913,36 +13980,7 @@ function renderFinVisao() {
       </div>`;
     }).join('');
   }
-
-  // Vencidas e próximos
-  const vl = document.getElementById('vencidas-list');
-  if(vl) {
-    if(!vencidos.length) { vl.innerHTML='<div style="color:var(--text-muted);font-size:13px;text-align:center;padding:20px 0">Sem parcelas vencidas.</div>'; }
-    else vl.innerHTML = vencidos.slice(0,6).map(p => {
-      const proc = store.processos.find(pr=>pr.id===p.processoId)||{numero:'—'};
-      const c = store.clientes.find(c=>c.id===p.clienteId)||{nome:'—'};
-      const dias = diffDays(today(),p.vencimento);
-      return `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px">
-        <div><strong>${c.nome}</strong><br><span style="color:var(--text-muted)">${proc.numero} — Parc. ${p.num}/${p.total}</span></div>
-        <div style="text-align:right"><div style="color:var(--danger);font-weight:600">${fmtMoney(p.valor)}</div><div style="font-size:11px;color:var(--danger)">${dias}d atrasado</div></div>
-      </div>`;
-    }).join('');
-  }
-  const d30 = new Date(); d30.setDate(d30.getDate()+30);
-  const prox = aReceber.filter(p=>new Date(p.vencimento)<=d30).sort((a,b)=>a.vencimento.localeCompare(b.vencimento));
-  const pl = document.getElementById('proximos-list');
-  if(pl) {
-    if(!prox.length) { pl.innerHTML='<div style="color:var(--text-muted);font-size:13px;text-align:center;padding:20px 0">Sem vencimentos próximos.</div>'; }
-    else pl.innerHTML = prox.slice(0,6).map(p => {
-      const proc = store.processos.find(pr=>pr.id===p.processoId)||{numero:'—'};
-      const c = store.clientes.find(c=>c.id===p.clienteId)||{nome:'—'};
-      const dias = diffDays(p.vencimento,today());
-      return `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px">
-        <div><strong>${c.nome}</strong><br><span style="color:var(--text-muted)">${proc.numero} — Parc. ${p.num}/${p.total}</span></div>
-        <div style="text-align:right"><div style="color:var(--blue-600);font-weight:600">${fmtMoney(p.valor)}</div><div style="font-size:11px;color:var(--text-muted)">${fmtDate(p.vencimento)} (${dias}d)</div></div>
-      </div>`;
-    }).join('');
-  }
+}
 
 function renderParcelas(q = '') {
   const filterStatus = (document.getElementById('filter-status-parcela')||{}).value || '';
@@ -14144,17 +14182,32 @@ const CONTATO_TIPOS = {
   outro:      { icon:'📌', label:'Outro' }
 };
 
-function getContatos(procId) {
-  if(!store.contatos) store.contatos = {};
-  if(!store.contatos[procId]) store.contatos[procId] = [];
-  return store.contatos[procId];
+// Cache dos contatos exibidos na aba Contatos do processo atualmente
+// aberto — carregados por CLIENTE (mesma busca do Histórico de Contatos
+// em Comunicação), não só os lançados diretamente neste processo. Garante
+// que as duas telas sempre mostrem a mesma informação.
+let _procContatosCache = [];
+
+async function carregarContatosDetalheProcesso(procId, clienteId) {
+  const container = document.getElementById('det-contatos-lista');
+  if(!container) return;
+  if(!clienteId) {
+    container.innerHTML = '<div style="text-align:center;color:var(--text-muted);font-size:13px;padding:24px">Este processo não tem cliente associado.</div>';
+    return;
+  }
+  _procContatosCache = await carregarContatosDoCliente(clienteId);
+  container.innerHTML = renderContatosHTML(_procContatosCache, procId);
+  const btnTab = document.getElementById('det-tab-btn-contatos');
+  if(btnTab) btnTab.innerHTML = `📞 Contatos ${_procContatosCache.length ? '('+_procContatosCache.length+')' : ''}`;
 }
 
-function renderContatosHTML(procId) {
-  const contatos = getContatos(procId).slice().sort((a,b)=>b.data.localeCompare(a.data));
+function renderContatosHTML(contatos, procId) {
   if(!contatos.length) return `<div style="text-align:center;color:var(--text-muted);font-size:13px;padding:24px;background:var(--surface);border-radius:var(--radius)">Nenhum contato registrado.</div>`;
   return contatos.map(c => {
     const t = CONTATO_TIPOS[c.tipo]||{icon:'📌',label:c.tipo};
+    // Indica quando o contato veio de outro processo do mesmo cliente
+    // (ou foi lançado direto no cliente, sem processo específico).
+    const origemOutroProc = c.processoId && c.processoId !== procId && c.processoNumero;
     return `<div style="padding:12px 14px;border:1px solid var(--border);border-radius:var(--radius);margin-bottom:8px;background:var(--surface)">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">
         <div style="display:flex;align-items:center;gap:8px">
@@ -14163,6 +14216,7 @@ function renderContatosHTML(procId) {
             <span style="font-weight:600;font-size:13px">${t.label}</span>
             ${c.pessoa?`<span style="color:var(--text-muted);font-size:12px"> — ${c.pessoa}</span>`:''}
             ${c.duracao?`<span style="color:var(--text-muted);font-size:12px"> · ${c.duracao}</span>`:''}
+            ${origemOutroProc?`<span style="color:var(--blue-600);font-size:11px"> · Proc. ${c.processoNumero}</span>`:''}
           </div>
         </div>
         <div style="display:flex;align-items:center;gap:6px">
@@ -14176,8 +14230,9 @@ function renderContatosHTML(procId) {
   }).join('');
 }
 
-function abrirNovoContato(procId) {
+function abrirNovoContato(procId, clienteId) {
   document.getElementById('contato-proc-id').value = procId;
+  document.getElementById('contato-cliente-id').value = clienteId || '';
   document.getElementById('contato-edit-id').value = '';
   document.getElementById('modal-contato-title').textContent = '📞 Registrar Contato';
   ['contato-pessoa','contato-duracao','contato-obs'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
@@ -14187,8 +14242,9 @@ function abrirNovoContato(procId) {
 }
 
 function editarContato(procId, contatoId) {
-  const c = getContatos(procId).find(c=>c.id===contatoId); if(!c) return;
+  const c = _procContatosCache.find(c=>c.id===contatoId); if(!c) return;
   document.getElementById('contato-proc-id').value = procId;
+  document.getElementById('contato-cliente-id').value = c.clienteId || '';
   document.getElementById('contato-edit-id').value = contatoId;
   document.getElementById('modal-contato-title').textContent = '✏️ Editar Contato';
   document.getElementById('contato-tipo').value = c.tipo||'ligacao';
@@ -14202,6 +14258,7 @@ function editarContato(procId, contatoId) {
 
 async function salvarContato() {
   const procId = document.getElementById('contato-proc-id').value;
+  const clienteId = document.getElementById('contato-cliente-id').value || null;
   const obs = document.getElementById('contato-obs').value.trim();
   if(!obs) { showToast('Descreva o contato.','error'); return; }
   const editId = document.getElementById('contato-edit-id').value;
@@ -14212,19 +14269,13 @@ async function salvarContato() {
     duracao: document.getElementById('contato-duracao').value.trim(),
     obs
   };
-  if(!store.contatos[procId]) store.contatos[procId] = [];
 
-  const salvo = await salvarContatoProcessoNoBanco(procId, dados, editId || null);
+  // Grava com cliente_id + processo_id (mesma função usada pelo Histórico
+  // de Contatos) — assim o registro aparece nas duas telas.
+  const salvo = await salvarContatoClienteNoBanco(clienteId, procId, dados, editId || null);
   if(!salvo) return;
 
-  if(editId) {
-    const idx = store.contatos[procId].findIndex(c=>c.id===editId);
-    if(idx >= 0) store.contatos[procId][idx] = salvo;
-    showToast('Contato atualizado!','success');
-  } else {
-    store.contatos[procId].push(salvo);
-    showToast('Contato registrado!','success');
-  }
+  showToast(editId ? 'Contato atualizado!' : 'Contato registrado!','success');
   closeModal('modal-contato');
   setTimeout(()=>verDetalhe(procId), 100);
 }
@@ -14233,7 +14284,6 @@ async function excluirContato(procId, contatoId) {
   if(!confirm('Excluir este contato?')) return;
   const ok = await excluirContatoProcessoDoBanco(contatoId);
   if(!ok) return;
-  store.contatos[procId] = store.contatos[procId].filter(c=>c.id!==contatoId);
   showToast('Contato excluído.');
   setTimeout(()=>verDetalhe(procId), 100);
 }
