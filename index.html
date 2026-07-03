@@ -1510,7 +1510,6 @@ body.topbar-escura .notif-btn:hover { background: rgba(255,255,255,0.2); border-
       <div class="tabs-bar">
         <button class="tab-btn" onclick="switchTab('fin','visao',this)">📊 Visão Geral</button>
         <button class="tab-btn active" onclick="switchTab('fin','parcelas',this)">📋 Parcelas</button>
-        <button class="tab-btn" onclick="switchTab('fin','lancar',this)">✅ Lançar Pagamento</button>
       </div>
 
       <!-- VISÃO GERAL -->
@@ -1584,28 +1583,6 @@ body.topbar-escura .notif-btn:hover { background: rgba(255,255,255,0.2); border-
       </div>
 
       <!-- LANÇAR PAGAMENTO -->
-      <div class="tab-content" id="fin-lancar">
-        <div class="card" style="max-width:560px">
-          <div class="card-header"><span class="card-title">Confirmar Pagamento</span></div>
-          <div class="card-body">
-            <div class="form-group">
-              <label class="form-label">Selecionar Parcela</label>
-              <select class="form-control" id="select-parcela-pagar">
-                <option value="">— Selecione uma parcela pendente —</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label class="form-label">Data do Pagamento</label>
-              <input type="date" class="form-control" id="data-pagamento">
-            </div>
-            <div class="form-group">
-              <label class="form-label">Observação</label>
-              <textarea class="form-control" id="obs-pagamento" placeholder="Ex: PIX, boleto, espécie..."></textarea>
-            </div>
-            <button class="btn btn-primary" style="width:100%" onclick="confirmarPagamento()">✅ Confirmar Pagamento</button>
-          </div>
-        </div>
-      </div>
     </div>
 
 
@@ -4928,6 +4905,30 @@ body.topbar-escura .notif-btn:hover { background: rgba(255,255,255,0.2); border-
     <div class="modal-body" id="detalhe-body"></div>
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="closeModal('modal-detalhe')">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-confirmar-pagamento">
+  <div class="modal" style="width:420px">
+    <div class="modal-header">
+      <span class="modal-title">✅ Confirmar Pagamento</span>
+      <button class="btn btn-ghost btn-icon" onclick="closeModal('modal-confirmar-pagamento')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="pag-parcela-id">
+      <div class="form-group">
+        <label class="form-label">Data do Pagamento</label>
+        <input type="date" class="form-control" id="pag-data">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Observação</label>
+        <textarea class="form-control" id="pag-obs" placeholder="Ex: PIX, boleto, espécie..."></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal-confirmar-pagamento')">Cancelar</button>
+      <button class="btn btn-primary" onclick="confirmarPagamentoParcela()">✅ Confirmar Pagamento</button>
     </div>
   </div>
 </div>
@@ -9450,7 +9451,7 @@ function refreshPage(page) {
   else if(page === 'diario-oficial') renderDiarioOficial();
   else if(page === 'modelos-documentos') renderModelosDocumentos();
   else if(page === 'leads') renderLeads();
-  else if(page === 'financeiro') { renderParcelas(); renderFinVisao(); updateParcelasSelect(); }
+  else if(page === 'financeiro') { renderParcelas(); renderFinVisao(); }
   else if(page === 'despesas') renderDespesas();
   else if(page === 'faturamento') renderFaturamento();
   else if(page === 'relatorios') { gerarRelatorio(); renderConversao(); renderInadimplencia(); renderExito(); renderTaxaExito(); renderDuracao(); renderCargaTrabalho(); renderRelClientes(); }
@@ -10215,7 +10216,7 @@ function gerarParcelasManual() {
     });
   }
   saveData(); closeModal('modal-gerar-parcelas');
-  renderParcelas(); renderFinVisao(); updateParcelasSelect();
+  renderParcelas(); renderFinVisao();
   registrarAuditoria('criou','financeiro','Parcelas geradas: '+proc.numero,nParcelas+'x de '+fmtMoney(valorParcela));
   showToast('✅ '+nParcelas+' parcela(s) gerada(s)!','success');
 }
@@ -12493,7 +12494,6 @@ function switchTab(group, tab, btn) {
   if(group === 'opt' && tab === 'sistema') carregarFormAparencia();
   if(group === 'fin' && tab === 'visao') renderFinVisao();
   if(group === 'fin' && tab === 'parcelas') renderParcelas();
-  if(group === 'fin' && tab === 'lancar') updateParcelasSelect();
   if(group === 'rel' && tab === 'fluxo') gerarRelatorio();
   if(group === 'rel' && tab === 'conversao') renderConversao();
   if(group === 'rel' && tab === 'inadimplencia') renderInadimplencia();
@@ -14030,40 +14030,26 @@ function renderParcelas(q = '') {
     </tr>`;
   }).join('');
 }
-async function marcarPago(id) {
-  const p = store.parcelas.find(p => p.id === id);
-  if(!p) return;
-  const salvo = await atualizarParcelaNoBanco(id, { status: 'pago', data_pagamento: today() });
-  if(!salvo) return;
-  Object.assign(p, salvo);
-  renderParcelas(); renderFinVisao(); updateDashboard();
-  showToast('Parcela marcada como paga!', 'success');
+function marcarPago(id) {
+  document.getElementById('pag-parcela-id').value = id;
+  document.getElementById('pag-data').value = today();
+  document.getElementById('pag-obs').value = '';
+  openModal('modal-confirmar-pagamento', false);
 }
-function updateParcelasSelect() {
-  const sel = document.getElementById('select-parcela-pagar');
-  sel.innerHTML = '<option value="">— Selecione uma parcela pendente —</option>';
-  const pending = store.parcelas.filter(p => p.status !== 'pago').map(p => ({...p, computedStatus: getParcelaStatus(p)}));
-  pending.sort((a,b) => a.vencimento.localeCompare(b.vencimento));
-  pending.forEach(p => {
-    const c = store.clientes.find(c => c.id === p.clienteId)||{nome:'?'};
-    const pr = store.processos.find(pr => pr.id === p.processoId)||{numero:'?'};
-    sel.innerHTML += `<option value="${p.id}">${c.nome} — ${pr.numero} — Parc. ${p.num}/${p.total} — ${fmtDate(p.vencimento)} — ${fmtMoney(p.valor)}</option>`;
-  });
-  document.getElementById('data-pagamento').value = today();
-}
-async function confirmarPagamento() {
-  const id = document.getElementById('select-parcela-pagar').value;
-  const dt = document.getElementById('data-pagamento').value;
-  const obs = document.getElementById('obs-pagamento').value.trim();
-  if(!id) { showToast('Selecione uma parcela.', 'error'); return; }
+
+async function confirmarPagamentoParcela() {
+  const id = document.getElementById('pag-parcela-id').value;
+  const dt = document.getElementById('pag-data').value || today();
+  const obs = document.getElementById('pag-obs').value.trim();
   const p = store.parcelas.find(p => p.id === id);
   if(!p) return;
   const salvo = await atualizarParcelaNoBanco(id, { status: 'pago', data_pagamento: dt, observacoes: obs || null });
   if(!salvo) return;
   Object.assign(p, salvo);
   notifPagamentoConfirmado(p.id);
-  updateParcelasSelect(); renderFinVisao();
   registrarAuditoria('pagou','financeiro','Pagamento confirmado: parcela '+p.num+'/'+p.total,'Valor: '+fmtMoney(p.valor));
+  closeModal('modal-confirmar-pagamento');
+  renderParcelas(); renderFinVisao(); updateDashboard();
   showToast('Pagamento confirmado!', 'success');
 }
 
