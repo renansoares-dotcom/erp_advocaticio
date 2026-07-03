@@ -11042,10 +11042,13 @@ function renderDespesas() {
       <td><span class="badge ${st.cls}">${st.icon} ${st.label}</span></td>
       <td style="font-size:12px;color:var(--text-muted)">${rec}</td>
       <td style="font-size:12px;color:var(--text-muted)">${d.conta||'—'}</td>
-      <td style="white-space:nowrap">
-        ${d.status!=='pago'?`<button class="btn btn-primary btn-sm" onclick="abrirPagarDespesa('${d.id}')" title="Pagar">✅</button>`:''}
-        <button class="btn btn-outline btn-sm" onclick="editarDespesa('${d.id}')" title="Editar">✏️</button>
-        <button class="btn btn-danger btn-sm" onclick="excluirDespesa('${d.id}')" title="Excluir">🗑</button>
+      <td style="position:relative;text-align:center">
+        <button class="btn btn-outline btn-sm" onclick="toggleMenuAcoes('despesa-${d.id}', event)" title="Ações">⋮</button>
+        <div class="menu-acoes-dropdown" id="menu-acoes-despesa-${d.id}">
+          ${d.status!=='pago'?`<button onclick="fecharMenusAcoes();abrirPagarDespesa('${d.id}')">✅ Pagar</button>`:''}
+          <button onclick="fecharMenusAcoes();editarDespesa('${d.id}')">✏️ Editar</button>
+          <button class="item-perigo" onclick="fecharMenusAcoes();excluirDespesa('${d.id}')">🗑 Excluir</button>
+        </div>
       </td>
     </tr>`;
   }).join('');
@@ -14018,14 +14021,19 @@ function renderParcelas(q = '') {
       <td>${fmtDate(p.vencimento)}</td>
       <td><strong>${fmtMoney(p.valor)}</strong></td>
       <td><span class="badge ${stCls}">${stLabel}</span>${p.dtPagamento?`<br><span style="font-size:10px;color:var(--text-muted)">Pago em ${fmtDate(p.dtPagamento)}</span>`:''}</td>
-      <td>${st!=='pago'
-        ? `<button class="btn btn-primary btn-sm" onclick="marcarPago('${p.id}')">✅ Pagar</button>
-           <button class="btn btn-outline btn-sm" onclick="abrirReagendar('${p.id}')" title="Reagendar vencimento" style="font-size:11px">📅</button>
-           <button class="btn btn-outline btn-sm" onclick="abrirDescontoAcrescimo('${p.id}')" title="Desconto / Acréscimo" style="font-size:11px">💱</button>
-           <button class="btn btn-outline btn-sm" onclick="abrirModalWpp('${p.clienteId}','${p.id}')" title="Enviar Cobrança WhatsApp" style="background:#E7FFDB;border-color:#25D366;color:#128C7E">📱</button>`
-        : `<span style="color:var(--success);font-size:12px">✔ Confirmado</span>
-           <button class="btn btn-outline btn-sm" onclick="gerarReciboPagamento('${p.id}')" title="Gerar Recibo PDF" style="font-size:11px;padding:3px 8px">🧾</button>
-           <button class="btn btn-outline btn-sm" onclick="abrirModalWppRecibo('${p.clienteId}','${p.id}')" title="Enviar Recibo WhatsApp" style="background:#E7FFDB;border-color:#25D366;color:#128C7E;font-size:11px;padding:3px 8px">📱</button>`}
+      <td style="position:relative;text-align:center">
+        <button class="btn btn-outline btn-sm" onclick="toggleMenuAcoes('parcela-${p.id}', event)" title="Ações">⋮</button>
+        <div class="menu-acoes-dropdown" id="menu-acoes-parcela-${p.id}">
+          ${st!=='pago' ? `
+          <button onclick="fecharMenusAcoes();marcarPago('${p.id}')">✅ Pagar</button>
+          <button onclick="fecharMenusAcoes();abrirReagendar('${p.id}')">📅 Reagendar vencimento</button>
+          <button onclick="fecharMenusAcoes();abrirDescontoAcrescimo('${p.id}')">💱 Desconto / Acréscimo</button>
+          <button onclick="fecharMenusAcoes();abrirModalWpp('${p.clienteId}','${p.id}')">📱 Enviar Cobrança WhatsApp</button>
+          ` : `
+          <button onclick="fecharMenusAcoes();gerarReciboPagamento('${p.id}')">🧾 Gerar Recibo PDF</button>
+          <button onclick="fecharMenusAcoes();abrirModalWppRecibo('${p.clienteId}','${p.id}')">📱 Enviar Recibo WhatsApp</button>
+          `}
+        </div>
       </td>
     </tr>`;
   }).join('');
