@@ -2956,6 +2956,8 @@ body.topbar-escura .notif-btn:hover { background: rgba(255,255,255,0.2); border-
           <option value="pericia">🔍 Perícia</option>
           <option value="diligencia">📋 Diligência</option>
           <option value="outro">📌 Outro</option>
+          <option value="financeiro_receber">💰 A Receber</option>
+          <option value="financeiro_pagar">💸 A Pagar</option>
         </select>
         <select class="form-control" id="agenda-filtro-adv" onchange="renderAgenda()" style="width:160px;font-size:13px">
           <option value="">Todos os advogados</option>
@@ -11316,7 +11318,12 @@ const TIPO_EVENTO = {
   reuniao:   { label: 'Reunião',     icon: '🤝', cor: '#0B7B45', bg: '#E2F5EC' },
   pericia:   { label: 'Perícia',     icon: '🔍', cor: '#7C3AED', bg: '#EDE9FE' },
   diligencia:{ label: 'Diligência',  icon: '📋', cor: '#92400E', bg: '#FEF3C7' },
-  outro:     { label: 'Outro',       icon: '📌', cor: '#475569', bg: '#F1F5F9' }
+  outro:     { label: 'Outro',       icon: '📌', cor: '#475569', bg: '#F1F5F9' },
+  // Compromissos financeiros do escritório — calculados automaticamente a
+  // partir de Recebimentos/Despesas (não são eventos "de verdade", por
+  // isso ficam visualmente distintos dos compromissos com cliente acima).
+  financeiro_receber: { label: 'A Receber', icon: '💰', cor: '#0F766E', bg: '#CCFBF1' },
+  financeiro_pagar:   { label: 'A Pagar',   icon: '💸', cor: '#9F1239', bg: '#FCE7F3' }
 };
 const PRIO_COR = {
   normal:  { cor: '#0B7B45', bg: '#E2F5EC' },
@@ -11324,9 +11331,46 @@ const PRIO_COR = {
   urgente: { cor: '#B91C1C', bg: '#FEE2E2' }
 };
 
+// Compromissos financeiros "virtuais" — não são eventos de verdade
+// (tabela `eventos`), são calculados na hora a partir de parcelas a
+// receber e despesas a pagar ainda em aberto. Aparecem na Agenda com
+// ícone/cor próprios (💰/💸 — "compromisso do escritório"), separados
+// visualmente dos compromissos com cliente (⚖️ audiência, 🤝 reunião etc).
+// Vantagem de serem calculados, não gravados: nunca ficam dessincronizados
+// — pagar uma parcela ou excluir uma despesa já reflete na Agenda sozinho.
+function getEventosFinanceirosVirtuais() {
+  const receber = (store.parcelas||[]).filter(p => p.status !== 'pago' && p.vencimento).map(p => {
+    const c = store.clientes.find(c=>c.id===p.clienteId);
+    const proc = store.processos.find(pr=>pr.id===p.processoId);
+    return {
+      id: 'virtual-parcela-'+p.id,
+      titulo: 'A receber: '+(c?.nome||'Cliente')+' — Parc. '+p.num+'/'+p.total,
+      tipo: 'financeiro_receber',
+      data: p.vencimento, hora: '',
+      processoId: p.processoId||null,
+      prioridade: isVencido(p.vencimento) ? 'urgente' : 'normal',
+      obs: fmtMoney(p.valor) + (proc&&proc.numero!=='—'?' · Proc. '+proc.numero:''),
+      autor: '',
+      _virtual: true, _virtualTipo: 'parcela', _origemId: p.id
+    };
+  });
+  const pagar = getDespesas().filter(d => d.status !== 'pago' && d.vencimento).map(d => ({
+    id: 'virtual-despesa-'+d.id,
+    titulo: 'A pagar: '+d.descricao,
+    tipo: 'financeiro_pagar',
+    data: d.vencimento, hora: '',
+    processoId: null,
+    prioridade: d.status==='vencido' ? 'urgente' : 'normal',
+    obs: fmtMoney(d.valor),
+    autor: '',
+    _virtual: true, _virtualTipo: 'despesa', _origemId: d.id
+  }));
+  return [...receber, ...pagar];
+}
+
 function getEventos() {
   if(!store.eventos) store.eventos = [];
-  return store.eventos;
+  return [...store.eventos, ...getEventosFinanceirosVirtuais()];
 }
 
 // ==================== PRAZOS LEGAIS ====================
@@ -11748,8 +11792,10 @@ function renderEventosDia(dateStr) {
           ${e.obs ? `<div style="font-size:12px;color:var(--text-secondary);margin-top:4px">📍 ${e.obs}</div>` : ''}
         </div>
         <div style="display:flex;flex-direction:column;gap:4px;flex-shrink:0">
-          <button class="btn btn-outline btn-sm" onclick="editarEvento('${e.id}')" title="Editar">✏️</button>
-          <button class="btn btn-danger btn-sm" onclick="excluirEvento('${e.id}','${dateStr}')" title="Excluir">🗑</button>
+          ${e._virtual
+            ? `<button class="btn btn-outline btn-sm" onclick="editarEvento('${e.id}')" title="Ver na tela de origem">↗</button>`
+            : `<button class="btn btn-outline btn-sm" onclick="editarEvento('${e.id}')" title="Editar">✏️</button>
+               <button class="btn btn-danger btn-sm" onclick="excluirEvento('${e.id}','${dateStr}')" title="Excluir">🗑</button>`}
         </div>
       </div>
     </div>`;
@@ -11920,6 +11966,11 @@ async function salvarEvento() {
 function editarEvento(id) {
   const e = getEventos().find(e => e.id === id);
   if(!e) return;
+  if(e._virtual) {
+    showToast('Isso é um vencimento calculado automaticamente — ajuste direto na tela de ' + (e._virtualTipo==='parcela'?'Recebimentos':'Despesas') + '.', '');
+    navigate(e._virtualTipo==='parcela'?'financeiro':'despesas', document.querySelector('.nav-item[onclick*="'+(e._virtualTipo==='parcela'?'financeiro':'despesas')+'"]'));
+    return;
+  }
   document.getElementById('evento-edit-id').value = e.id;
   document.getElementById('modal-evento-title').textContent = 'Editar Evento';
   document.getElementById('evento-titulo').value = e.titulo;
@@ -11934,6 +11985,11 @@ function editarEvento(id) {
 }
 
 async function excluirEvento(id, dateStr) {
+  const e = getEventos().find(e => e.id === id);
+  if(e && e._virtual) {
+    showToast('Isso é um vencimento calculado automaticamente — cancele ou exclua direto na tela de ' + (e._virtualTipo==='parcela'?'Recebimentos':'Despesas') + '.', '');
+    return;
+  }
   if(!confirm('Excluir este evento?')) return;
   const ok = await excluirEventoDoBanco(id);
   if(!ok) return;
@@ -12633,9 +12689,12 @@ function renderTipos(q = '') {
       <td>${t.parcelas}x de ${fmtMoney(t.valor / t.parcelas)}</td>
       <td>${datasOk ? `<span class="badge badge-green">✔ ${t.datas.filter(Boolean).length} data(s) definida(s)</span>` : '<span class="badge badge-gray">Sem datas</span>'}</td>
       <td style="color:var(--text-muted);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${t.desc||'—'}</td>
-      <td>
-        <button class="btn btn-outline btn-sm" onclick="editarTipo('${t.id}')">✏️</button>
-        <button class="btn btn-danger btn-sm" onclick="excluirTipo('${t.id}')">🗑</button>
+      <td style="position:relative;text-align:center">
+        <button class="btn btn-outline btn-sm" onclick="toggleMenuAcoes('tipo-${t.id}', event)" title="Ações">⋮</button>
+        <div class="menu-acoes-dropdown" id="menu-acoes-tipo-${t.id}">
+          <button onclick="fecharMenusAcoes();editarTipo('${t.id}')">✏️ Editar</button>
+          <button class="item-perigo" onclick="fecharMenusAcoes();excluirTipo('${t.id}')">🗑 Excluir</button>
+        </div>
       </td>
     </tr>`;
   }).join('');
