@@ -1224,7 +1224,10 @@ body.topbar-escura .notif-btn:hover { background: rgba(255,255,255,0.2); border-
 <!-- MAIN -->
 <div class="main">
   <div class="topbar">
-    <div class="topbar-title" id="page-title">Dashboard</div>
+    <div>
+      <div id="breadcrumb" style="font-size:10.5px;font-weight:600;letter-spacing:0.6px;text-transform:uppercase;color:var(--topbar-text-muted-custom,var(--text-muted));margin-bottom:2px;display:none"></div>
+      <div class="topbar-title" id="page-title">Dashboard</div>
+    </div>
     <div class="topbar-right">
 
       <!-- BUSCA GLOBAL -->
@@ -9321,12 +9324,49 @@ let filtroClientesAdvogado = null;
 const pageTitles = {
   dashboard: 'Dashboard', tipos: 'Tipos de Processo', clientes: 'Clientes', 'historico-contatos': 'Histórico de Contatos',
   processos: 'Processos', orcamentos: 'Orçamentos', agenda: 'Agenda', kanban: 'Kanban', 'diario-oficial': 'Diário Oficial', 'modelos-documentos': 'Modelos de Documentos', 'leads': 'Leads', financeiro: 'Recebimentos',
-  despesas: 'Despesas', relatorios: 'Relatórios', informativos: 'Informativos', 'mensagens-portal': 'Mensagens do Portal', opcoes: 'Opções'
+  despesas: 'Despesas', faturamento: 'Faturamento', relatorios: 'Relatórios', informativos: 'Informativos', 'mensagens-portal': 'Mensagens do Portal', opcoes: 'Opções'
 };
 const pageActions = {
   dashboard: '', tipos: '', clientes: '', 'historico-contatos': '', processos: '',
-  orcamentos: '', agenda: '', kanban: '+ Novo Quadro', 'diario-oficial': '+ Cadastrar Publicação', 'modelos-documentos': '+ Novo Modelo', 'leads': '+ Novo Lead', financeiro: '', despesas: '', relatorios: '⬇ Exportar', informativos: '', 'mensagens-portal': '', opcoes: ''
+  orcamentos: '', agenda: '', kanban: '+ Novo Quadro', 'diario-oficial': '+ Cadastrar Publicação', 'modelos-documentos': '+ Novo Modelo', 'leads': '+ Novo Lead', financeiro: '', despesas: '', faturamento: '', relatorios: '⬇ Exportar', informativos: '', 'mensagens-portal': '', opcoes: ''
 };
+
+// Rótulo "amigável" de cada categoria do menu, pro breadcrumb discreto no
+// topo de cada página (ex: "FINANCEIRO › RECEBIMENTOS").
+const CATEGORIA_LABEL = {
+  cadastros: 'Cadastro', operacional: 'Operacional', financeiro: 'Financeiro',
+  faturamento: 'Faturamento', relatorios: 'Relatório', comunicacoes: 'Comunicação',
+  configuracoes: 'Configuração', sistema: 'Sistema'
+};
+// "Opções" é acessada tanto por Sistema quanto por Configuração — a
+// categoria/rótulo certos dependem de qual aba interna está ativa.
+const OPCOES_TAB_INFO = {
+  senha: { cat: 'Sistema', label: 'Senha' },
+  usuarios: { cat: 'Sistema', label: 'Usuários' },
+  auditoria: { cat: 'Sistema', label: 'Auditoria' },
+  whatsapp: { cat: 'Sistema', label: 'WhatsApp' },
+  sistema: { cat: 'Configuração', label: 'Parâmetros' }
+};
+
+function atualizarBreadcrumb(page) {
+  const el = document.getElementById('breadcrumb');
+  if(!el) return;
+  if(page === 'dashboard' || !page) { el.style.display = 'none'; return; }
+
+  if(page === 'opcoes') {
+    const tabAtiva = document.querySelector('#page-opcoes .tab-content.active')?.id?.replace('opt-','');
+    const info = OPCOES_TAB_INFO[tabAtiva] || OPCOES_TAB_INFO.senha;
+    el.textContent = info.cat + ' › ' + info.label;
+    el.style.display = '';
+    return;
+  }
+
+  const catLabel = CATEGORIA_LABEL[PAGINA_CATEGORIA[page]];
+  const pageLabel = pageTitles[page] || page;
+  if(!catLabel) { el.style.display = 'none'; return; }
+  el.textContent = catLabel + ' › ' + pageLabel;
+  el.style.display = '';
+}
 
 // Mapa de qual categoria do menu cada página pertence — usado para abrir
 // automaticamente a categoria certa ao navegar (menu em cascata/acordeão).
@@ -9395,6 +9435,7 @@ function navigate(page, btn) {
   }
   abrirCategoriaDaPagina(page);
   document.getElementById('page-title').textContent = pageTitles[page] || page;
+  atualizarBreadcrumb(page);
   const ab = document.getElementById('topbar-action-btn');
   ab.textContent = pageActions[page] || '';
   ab.style.display = pageActions[page] ? '' : 'none';
@@ -9629,6 +9670,18 @@ async function converterEmProcesso() {
   const abertura = document.getElementById('converter-abertura').value;
   if(!numero) { showToast('Informe o número do processo.','error'); return; }
   const o = store.orcamentos.find(o=>o.id===id); if(!o) return;
+
+  // Se o cliente já tem parcelas gerais em aberto (configuradas no cadastro
+  // dele, fora de um processo específico), confirma antes de gerar mais um
+  // conjunto de parcelas — evita cobrança duplicada por engano. Não bloqueia,
+  // porque o orçamento pode legitimamente ter condições próprias e diferentes.
+  if(o.valor > 0 && (o.parcelas||1) > 0) {
+    const jaTemGerais = store.parcelas.some(p => p.clienteId === o.clienteId && !p.processoId && p.status !== 'pago' && p.status !== 'cancelado');
+    if(jaTemGerais) {
+      const confirmar = confirm('Esse cliente já tem parcelas gerais em aberto (configuradas no cadastro dele). Converter esse orçamento vai criar um NOVO conjunto de parcelas, específico deste processo, além das que já existem.\n\nQuer continuar mesmo assim?');
+      if(!confirmar) return;
+    }
+  }
 
   const btn = document.querySelector('#modal-converter-orc .btn-primary');
   if(btn) { btn.disabled = true; btn.textContent = 'Convertendo...'; }
@@ -12550,6 +12603,7 @@ function switchTab(group, tab, btn) {
     btn.classList.add('active');
   }
   if(group === 'proc') { procTabFilter = tab; renderProcessos(); }
+  if(group === 'opt') atualizarBreadcrumb('opcoes');
   if(group === 'opt' && tab === 'sistema') carregarFormAparencia();
   if(group === 'fin' && tab === 'visao') renderFinVisao();
   if(group === 'fin' && tab === 'parcelas') renderParcelas();
