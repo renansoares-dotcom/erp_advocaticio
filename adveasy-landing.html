@@ -868,7 +868,17 @@ const WHATSAPP_NUMERO = '5581986040412';
 // permite INSERIR, nunca ler/editar/apagar a partir daqui).
 const SB_URL = 'https://voufezlvxnihfazimjqe.supabase.co';
 const SB_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZvdWZlemx2eG5paGZhemltanFlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE4MDAwOTcsImV4cCI6MjA5NzM3NjA5N30.AWWNngX-7nK0I9ZgbcJWiC6zNY2dfsBBxC1zaqMWH7s';
-const sbLanding = window.supabase.createClient(SB_URL, SB_ANON);
+
+// Se o script do Supabase não carregar por qualquer motivo (bloqueador de
+// anúncios, extensão de privacidade, falha de rede momentânea), isso NÃO
+// pode travar o resto da página — o tour, as animações e o site inteiro
+// têm que continuar funcionando normalmente mesmo sem o banco disponível.
+let sbLanding = null;
+try {
+  if(window.supabase) sbLanding = window.supabase.createClient(SB_URL, SB_ANON);
+} catch(e){
+  console.warn('Supabase indisponível — o formulário ainda funciona, só não salva no banco:', e);
+}
 
 document.getElementById('lead-form').addEventListener('submit', async function(ev){
   ev.preventDefault();
@@ -883,17 +893,20 @@ document.getElementById('lead-form').addEventListener('submit', async function(e
 
   // Salva no banco primeiro — isso garante que o contato chega até você
   // mesmo que a pessoa feche a aba do WhatsApp sem confirmar o envio.
-  const { error } = await sbLanding.from('landing_leads').insert({
-    nome, escritorio_nome: escritorio, whatsapp: whats, mensagem: msg || null
-  });
+  // Se o Supabase não estiver disponível, só pula essa parte e segue
+  // direto pro WhatsApp — o formulário nunca trava por causa disso.
+  if(sbLanding){
+    try {
+      const { error } = await sbLanding.from('landing_leads').insert({
+        nome, escritorio_nome: escritorio, whatsapp: whats, mensagem: msg || null
+      });
+      if(error) console.error('Erro ao salvar contato:', error.message);
+    } catch(e){
+      console.error('Erro ao salvar contato:', e);
+    }
+  }
 
   btn.disabled = false; btn.textContent = textoOriginal;
-
-  if(error){
-    console.error('Erro ao salvar contato:', error.message);
-    // Mesmo se der erro ao salvar, ainda tenta abrir o WhatsApp — o
-    // contato não fica perdido só porque o banco falhou nesse instante.
-  }
 
   const texto = `Olá! Meu nome é ${nome}, do escritório ${escritorio}. Meu WhatsApp: ${whats}. Gostaria de solicitar uma demonstração do ADV Easy.` + (msg ? ` Observação: ${msg}` : '');
   window.open(`https://wa.me/${WHATSAPP_NUMERO}?text=${encodeURIComponent(texto)}`, '_blank');
