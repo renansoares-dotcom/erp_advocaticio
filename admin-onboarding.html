@@ -184,6 +184,24 @@
       </div>
     </div>
 
+    <!-- ===== CONTATOS DO SITE (landing page) ===== -->
+    <div class="card">
+      <h2>📩 Contatos do Site</h2>
+      <p style="font-size:12.5px;color:#9DB5D0;margin-bottom:14px">
+        Pessoas que preencheram o formulário de "Solicitar demonstração" na landing page do ADV Easy.
+      </p>
+      <div class="table-wrap" style="overflow-x:auto">
+        <table>
+          <thead><tr>
+            <th>Nome</th><th>Escritório</th><th>WhatsApp</th><th>Mensagem</th><th>Recebido em</th><th>Status</th><th>Ações</th>
+          </tr></thead>
+          <tbody id="tbody-landing-leads">
+            <tr><td colspan="7" style="text-align:center;color:#9DB5D0;padding:20px">Carregando...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
     <!-- ===== PORTAL DO CLIENTE ===== -->
     <div class="card">
       <h2>🔑 Portal do Cliente</h2>
@@ -459,6 +477,7 @@ async function fazerLogin() {
   carregarEscritorios();
   iniciarBlocoGithub();
   carregarListaInformativosAdmin();
+  carregarLandingLeads();
 }
 
 async function sair() {
@@ -538,6 +557,70 @@ async function toggleFeatureEscritorio(id, chave, ativo) {
   const { error } = await supabase.from('escritorios').update({ features: features }).eq('id', id);
   if(error) { showToast('Erro ao atualizar: ' + error.message, 'error'); carregarEscritorios(); return; }
   showToast('✅ Atualizado.', 'success');
+}
+
+// Contatos vindos do formulário da landing page — usa a Service Role Key
+// porque a tabela landing_leads não tem política de RLS pra usuário comum
+// autenticado (só INSERT público), de propósito: ninguém além de quem tem
+// a Service Role Key deve conseguir ver esse funil comercial.
+const LL_STATUS = {
+  novo:       { label: '🆕 Novo',        cor: '#93C5FD' },
+  contatado:  { label: '📞 Contatado',   cor: '#FCD34D' },
+  convertido: { label: '✅ Convertido',  cor: '#86EFAC' },
+  descartado: { label: '✕ Descartado',   cor: '#9DB5D0' }
+};
+
+async function carregarLandingLeads() {
+  const tb = document.getElementById('tbody-landing-leads');
+  if(!tb) return;
+  const sbAdmin = getSBAdmin();
+  if(!sbAdmin) {
+    tb.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#9DB5D0;padding:20px">Salve a Service Role Key acima pra ver os contatos do site.</td></tr>';
+    return;
+  }
+  const { data, error } = await sbAdmin.from('landing_leads').select('*').order('criado_em', { ascending: false });
+  if(error) {
+    tb.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#FCA5A5;padding:20px">Erro ao carregar: ' + error.message + '</td></tr>';
+    return;
+  }
+  if(!data || !data.length) {
+    tb.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#9DB5D0;padding:20px">Nenhum contato recebido ainda.</td></tr>';
+    return;
+  }
+  tb.innerHTML = data.map(function(l) {
+    const dt = new Date(l.criado_em).toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
+    const whatsLimpo = (l.whatsapp || '').replace(/\D/g, '');
+    const opcoes = Object.keys(LL_STATUS).map(function(k) {
+      return '<option value="' + k + '"' + (l.status === k ? ' selected' : '') + '>' + LL_STATUS[k].label + '</option>';
+    }).join('');
+    return '<tr>' +
+      '<td><strong>' + (l.nome || '—') + '</strong></td>' +
+      '<td>' + (l.escritorio_nome || '—') + '</td>' +
+      '<td><a href="https://wa.me/' + whatsLimpo + '" target="_blank" style="color:#93C5FD">' + (l.whatsapp || '—') + '</a></td>' +
+      '<td style="max-width:220px;font-size:12px;color:#9DB5D0">' + (l.mensagem || '—') + '</td>' +
+      '<td style="font-size:12px;white-space:nowrap">' + dt + '</td>' +
+      '<td><select class="status-select" onchange="atualizarStatusLandingLead(\'' + l.id + '\', this.value)">' + opcoes + '</select></td>' +
+      '<td><button class="btn-excluir" onclick="excluirLandingLead(\'' + l.id + '\')">🗑 Excluir</button></td>' +
+    '</tr>';
+  }).join('');
+}
+
+async function atualizarStatusLandingLead(id, status) {
+  const sbAdmin = getSBAdmin();
+  if(!sbAdmin) return;
+  const { error } = await sbAdmin.from('landing_leads').update({ status }).eq('id', id);
+  if(error) { showToast('Erro ao atualizar: ' + error.message, 'error'); return; }
+  showToast('✅ Status atualizado.', 'success');
+}
+
+async function excluirLandingLead(id) {
+  if(!confirm('Excluir este contato?')) return;
+  const sbAdmin = getSBAdmin();
+  if(!sbAdmin) return;
+  const { error } = await sbAdmin.from('landing_leads').delete().eq('id', id);
+  if(error) { showToast('Erro ao excluir: ' + error.message, 'error'); return; }
+  showToast('Contato excluído.', 'success');
+  carregarLandingLeads();
 }
 
 async function carregarEscritorios() {
