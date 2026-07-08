@@ -455,6 +455,28 @@ footer{background:var(--navy-deep); border-top:1px solid var(--line-dark); paddi
 .t-wpp-typing span:nth-child(3){animation-delay:.4s}
 @keyframes typingDot{0%,60%,100%{transform:translateY(0); opacity:.4} 30%{transform:translateY(-4px); opacity:1}}
 
+/* cabeçalho de perfil do cliente (Cadastro de Clientes) */
+.t-client-head{display:flex; align-items:center; gap:12px; margin-bottom:16px; padding-bottom:16px; border-bottom:1px solid rgba(255,255,255,0.08)}
+.t-client-avatar{width:40px; height:40px; border-radius:50%; background:linear-gradient(135deg,var(--gold-bright),var(--gold-deep)); display:flex; align-items:center; justify-content:center; font-family:'Cormorant Garamond',serif; font-weight:700; color:var(--navy-deep); font-size:15px; flex-shrink:0}
+.t-client-name{font-size:14.5px; font-weight:600; color:#fff}
+.t-client-sub{font-size:11.5px; color:var(--text-on-dark-dim); margin-top:2px}
+
+/* abas internas (dentro do próprio slide do tour) */
+.t-mini-tabs{display:flex; gap:4px; margin-bottom:16px; border-bottom:1px solid rgba(255,255,255,0.08)}
+.t-mini-tab{
+  font-family:'IBM Plex Mono',monospace; font-size:10.5px; letter-spacing:0.03em; color:var(--text-on-dark-dim);
+  padding:0 2px 10px; cursor:pointer; border-bottom:2px solid transparent; transition:all .18s; margin-right:16px;
+}
+.t-mini-tab:hover{color:var(--text-on-dark)}
+.t-mini-tab.active{color:var(--gold-bright); border-bottom-color:var(--gold)}
+.t-mini-panel{display:none}
+.t-mini-panel.active{display:block}
+
+/* barra de progresso financeira */
+.t-progress-wrap{background:rgba(255,255,255,0.06); border-radius:100px; height:8px; overflow:hidden; margin-top:4px}
+.t-progress-fill{height:100%; width:0; background:linear-gradient(90deg,var(--gold-deep),var(--gold-bright)); border-radius:100px; transition:width 1s var(--ease)}
+.t-progress-label{font-size:10.5px; color:var(--text-on-dark-dim); margin-top:7px}
+
 @media (max-width:640px){
   .tour-body{flex-direction:column; min-height:0}
   .tour-side{width:100%; flex-direction:row; padding:10px 16px}
@@ -825,6 +847,17 @@ document.querySelectorAll('.folder-tab').forEach(tab => {
   });
 });
 
+// ---------- Abas internas (Cadastro de Clientes, dentro do tour) ----------
+document.querySelectorAll('.t-mini-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    const grupo = tab.closest('.tour-slide');
+    grupo.querySelectorAll('.t-mini-tab').forEach(t => t.classList.remove('active'));
+    grupo.querySelectorAll('.t-mini-panel').forEach(p => p.classList.remove('active'));
+    tab.classList.add('active');
+    grupo.querySelector(`.t-mini-panel[data-cpanel="${tab.dataset.ctab}"]`).classList.add('active');
+  });
+});
+
 // ---------- Formulário de contato -> salva no banco + abre WhatsApp ----------
 // IMPORTANTE: troque SEUNUMERO pelo número de WhatsApp do escritório, com
 // código do país e DDD, só dígitos (ex: 5511999999999).
@@ -912,6 +945,15 @@ function animarSlideAtual(){
     el.textContent = (el.dataset.prefix||'') + '0' + (el.dataset.suffix||'');
   });
   slide.querySelectorAll('.t-funnel-bar').forEach(el => { el.style.width = '0'; });
+  slide.querySelectorAll('.t-progress-fill').forEach(el => { el.style.width = '0'; });
+  // Reseta as abas internas (Cadastro de Clientes) pra "Dados Pessoais"
+  // sempre que a tela é (re)aberta, mesmo que a pessoa tenha deixado numa
+  // outra aba da última vez que passou por aqui.
+  const miniTabs = slide.querySelectorAll('.t-mini-tab');
+  if(miniTabs.length){
+    miniTabs.forEach((t, n) => t.classList.toggle('active', n === 0));
+    slide.querySelectorAll('.t-mini-panel').forEach((p, n) => p.classList.toggle('active', n === 0));
+  }
   const fatStatus = slide.querySelector('#fat-status');
   if(fatStatus) fatStatus.style.opacity = '0';
   const wppReply = slide.querySelector('#wpp-reply');
@@ -933,6 +975,7 @@ function animarSlideAtual(){
     slide.querySelectorAll('[data-stagger]').forEach(el => el.classList.add('played'));
     slide.querySelectorAll('[data-count]').forEach(el => animarContador(el));
     slide.querySelectorAll('.t-funnel-bar').forEach(el => { el.style.width = (el.dataset.width||0) + '%'; });
+    slide.querySelectorAll('.t-progress-fill').forEach(el => { el.style.width = (el.dataset.width||0) + '%'; });
   });
 
   // Faturamento: o cursor "anda" até o botão, "clica", e só então a
@@ -1036,18 +1079,58 @@ document.addEventListener('keydown', (ev) => {
 
           <div class="tour-slide">
             <div class="tour-slide-title">Cadastro de Clientes</div>
-            <p class="tour-slide-caption">Histórico completo, origem do cliente e um sinal de atenção especial pra quem precisa de acompanhamento mais de perto.</p>
-            <div class="t-form-row">
-              <div class="t-field"><div class="fl">Nome</div><div class="fv">Pedro Henrique Oliveira</div></div>
-              <div class="t-field"><div class="fl">Telefone</div><div class="fv">(11) 92222-8877</div></div>
+            <p class="tour-slide-caption">O cadastro mais completo do sistema: histórico pessoal, financeiro, origem e sinalizações — tudo debaixo de um só cliente.</p>
+
+            <div class="t-client-head">
+              <div class="t-client-avatar">PH</div>
+              <div style="min-width:0">
+                <div class="t-client-name">Pedro Henrique Oliveira</div>
+                <div class="t-client-sub">Cliente desde jan/2026 · Previdenciário</div>
+              </div>
+              <span class="t-badge red" style="margin-left:auto; flex-shrink:0">🔴 Super Atenção</span>
             </div>
-            <div class="t-form-row">
-              <div class="t-field"><div class="fl">CPF</div><div class="fv">890.123.456-78</div></div>
-              <div class="t-field"><div class="fl">Financeiro</div><div class="fv">4/6 parcelas pagas</div></div>
+
+            <div class="t-mini-tabs" id="cli-tabs">
+              <div class="t-mini-tab active" data-ctab="dados">Dados Pessoais</div>
+              <div class="t-mini-tab" data-ctab="financeiro">Financeiro</div>
+              <div class="t-mini-tab" data-ctab="origem">Origem &amp; Tags</div>
             </div>
-            <div style="display:flex; gap:8px; margin-top:6px" data-stagger>
-              <span class="t-badge red">🔴 Super Atenção</span>
-              <span class="t-badge gray">Origem: Indicação</span>
+
+            <div class="t-mini-panel active" data-cpanel="dados">
+              <div class="t-form-row">
+                <div class="t-field"><div class="fl">CPF</div><div class="fv">890.123.456-78</div></div>
+                <div class="t-field"><div class="fl">Nascimento</div><div class="fv">25/04/1965</div></div>
+              </div>
+              <div class="t-form-row">
+                <div class="t-field"><div class="fl">Telefone</div><div class="fv">(11) 92222-8877</div></div>
+                <div class="t-field"><div class="fl">Telefone 2</div><div class="fv">(11) 5566-7788</div></div>
+              </div>
+              <div class="t-form-row">
+                <div class="t-field"><div class="fl">E-mail</div><div class="fv" style="font-size:11.5px">pedro.oliveira@email.com</div></div>
+                <div class="t-field"><div class="fl">Estado Civil</div><div class="fv">Casado</div></div>
+              </div>
+            </div>
+
+            <div class="t-mini-panel" data-cpanel="financeiro">
+              <div class="t-stats">
+                <div class="t-stat"><div class="dl">Valor total</div><div class="dv gold" data-count="7200" data-prefix="R$ ">0</div></div>
+                <div class="t-stat"><div class="dl">Parcelas</div><div class="dv">4/6</div></div>
+                <div class="t-stat"><div class="dl">Próx. vencimento</div><div class="dv" style="font-size:15px">15/07</div></div>
+              </div>
+              <div class="t-progress-wrap"><div class="t-progress-fill" data-width="66"></div></div>
+              <div class="t-progress-label mono">66% do valor já pago</div>
+            </div>
+
+            <div class="t-mini-panel" data-cpanel="origem">
+              <div class="t-form-row">
+                <div class="t-field"><div class="fl">Origem</div><div class="fv">Indicação Interna</div></div>
+                <div class="t-field"><div class="fl">Indicado por</div><div class="fv" style="font-size:11.5px">Ex-cliente do escritório</div></div>
+              </div>
+              <div style="display:flex; gap:8px; margin-top:12px; flex-wrap:wrap" data-stagger>
+                <span class="t-badge red">🔴 Super Atenção</span>
+                <span class="t-badge amber">VIP</span>
+                <span class="t-badge gray">🔑 3 credenciais salvas</span>
+              </div>
             </div>
           </div>
 
