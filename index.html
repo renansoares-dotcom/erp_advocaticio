@@ -336,6 +336,19 @@ body {
 
   /* Btn instalar */
   #btn-instalar-app { bottom: 68px !important; }
+
+  /* Grids de 2 colunas declarados via style inline (padrão usado em vários
+     lugares — Faturamento, detalhe de processo, config de WhatsApp etc.)
+     não eram cobertos pela regra de .form-row, que só pega a classe.
+     Isso pega qualquer um deles pelo conteúdo do atributo style. */
+  [style*="grid-template-columns:1fr 1fr"] { grid-template-columns: 1fr !important; }
+
+  /* Carousel de destaques do Dashboard: no desktop fica com largura fixa
+     (320px) ao lado dos cards de estatística; no celular ocupa a largura
+     toda, empilhado abaixo dos cards. */
+  .dash-carousel { width: 100% !important; flex: 1 1 100% !important; height: 200px !important; }
+  .dash-slide-content h3 { font-size: 15px !important; }
+  .dash-slide-content { padding: 12px 14px !important; }
 }
 
 /* SIDEBAR */
@@ -2723,6 +2736,7 @@ body.topbar-escura .notif-btn:hover { background: rgba(255,255,255,0.2); border-
               <option value="despesa">📤 Despesas</option>
               <option value="usuario">👥 Usuários</option>
               <option value="documento">📁 Documentos</option>
+              <option value="agenda">📅 Agenda</option>
               <option value="sistema">⚙️ Sistema</option>
             </select>
             <select class="form-control" id="audit-filtro-acao" onchange="renderAuditoria()" style="width:140px;font-size:13px">
@@ -10285,12 +10299,19 @@ function buscaGlobal(q) {
   if(limpar) limpar.style.display = q ? '' : 'none';
   if(!q || q.trim().length < 2) { dropdown.style.display = 'none'; return; }
   const termo = q.toLowerCase().trim();
+  // Versão só com dígitos do termo buscado — permite achar CPF/CNPJ/número
+  // de processo (CNJ) digitando com ou sem pontuação, batendo com o valor
+  // guardado com ou sem pontuação também. Exige um mínimo de dígitos pra
+  // não dar match largo demais em buscas curtas.
+  const termoDigitos = termo.replace(/\D/g, '');
+  const soDigitos = s => (s||'').replace(/\D/g, '');
   const resultados = [];
 
   // Clientes
   const clientes = store.clientes.filter(c =>
     c.nome.toLowerCase().includes(termo) || (c.cpf||'').includes(termo) ||
-    (c.tel||'').includes(termo) || (c.email||'').toLowerCase().includes(termo)
+    (c.tel||'').includes(termo) || (c.email||'').toLowerCase().includes(termo) ||
+    (termoDigitos.length >= 3 && (soDigitos(c.cpf).includes(termoDigitos) || soDigitos(c.tel).includes(termoDigitos) || soDigitos(c.tel2).includes(termoDigitos)))
   ).slice(0,4);
   if(clientes.length) {
     resultados.push({tipo:'grupo', label:'👤 Clientes'});
@@ -10302,7 +10323,8 @@ function buscaGlobal(q) {
   const processos = store.processos.filter(p => {
     const c = store.clientes.find(c=>c.id===p.clienteId)||{nome:''};
     return p.numero.toLowerCase().includes(termo) || c.nome.toLowerCase().includes(termo) ||
-      (p.vara||'').toLowerCase().includes(termo) || (p.adv||'').toLowerCase().includes(termo);
+      (p.vara||'').toLowerCase().includes(termo) || (p.adv||'').toLowerCase().includes(termo) ||
+      (termoDigitos.length >= 4 && soDigitos(p.numero).includes(termoDigitos));
   }).slice(0,4);
   if(processos.length) {
     resultados.push({tipo:'grupo', label:'⚖️ Processos'});
@@ -12000,6 +12022,11 @@ async function salvarEvento() {
   };
   const editId = document.getElementById('evento-edit-id').value;
 
+  // Guarda o estado anterior só pra poder registrar na auditoria o que
+  // mudou — principalmente a data, que é o dado mais importante de
+  // rastrear num prazo (quando mudou, de quando pra quando).
+  const eventoAnterior = editId ? store.eventos.find(e => e.id === editId) : null;
+
   const salvo = await salvarEventoNoBanco(ev, editId || null);
   if(!salvo) return;
 
@@ -12007,6 +12034,16 @@ async function salvarEvento() {
     const idx = store.eventos.findIndex(e => e.id === editId);
     if(idx > -1) store.eventos[idx] = salvo;
     showToast('Evento atualizado!', 'success');
+    if(eventoAnterior) {
+      const tipoLabel = (TIPO_EVENTO[ev.tipo]||{}).label || ev.tipo;
+      if(eventoAnterior.data !== ev.data) {
+        registrarAuditoria('editou', 'agenda',
+          tipoLabel + ' alterado(a): "' + ev.titulo + '"',
+          'Data mudou de ' + fmtDate(eventoAnterior.data) + ' para ' + fmtDate(ev.data) + (ev.hora ? ' às ' + ev.hora : ''));
+      } else if(eventoAnterior.titulo !== ev.titulo || eventoAnterior.hora !== ev.hora) {
+        registrarAuditoria('editou', 'agenda', tipoLabel + ' alterado(a): "' + ev.titulo + '"', 'Título ou horário atualizado (data manteve-se igual).');
+      }
+    }
   } else {
     store.eventos.push(salvo);
     showToast('Evento salvo!', 'success');
