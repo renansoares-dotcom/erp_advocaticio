@@ -334,6 +334,92 @@ footer{background:var(--navy-deep); border-top:1px solid var(--line-dark); paddi
 .foot-links a{font-size:13px; color:var(--text-on-dark-dim); transition:color .2s}
 .foot-links a:hover{color:#fff}
 .foot-copy{font-size:12px; color:var(--text-on-dark-dim); margin-top:24px; padding-top:24px; border-top:1px solid var(--line-dark)}
+
+/* ================= TOUR DO PRODUTO (modal) ================= */
+.tour-overlay{
+  position:fixed; inset:0; z-index:1000; background:rgba(11,22,34,0.82); backdrop-filter:blur(6px);
+  display:none; align-items:center; justify-content:center; padding:24px;
+}
+.tour-overlay.open{display:flex}
+.tour-close{
+  position:absolute; top:22px; right:26px; width:38px; height:38px; border-radius:50%;
+  background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.14); color:#fff;
+  font-size:16px; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:all .18s;
+}
+.tour-close:hover{background:rgba(255,255,255,0.16)}
+.tour-window{
+  width:100%; max-width:760px; background:#0E1B29; border-radius:var(--radius-l);
+  border:1px solid rgba(255,255,255,0.09); box-shadow:0 40px 100px -20px rgba(0,0,0,0.6);
+  overflow:hidden; position:relative;
+}
+.tour-bar{display:flex; align-items:center; gap:7px; padding:13px 16px; background:rgba(255,255,255,0.03); border-bottom:1px solid rgba(255,255,255,0.06)}
+.tour-bar .mono{margin-left:8px; font-size:11px; color:rgba(255,255,255,0.32)}
+.tour-bar .tb-count{margin-left:auto; margin-right:6px; font-size:11px; color:var(--gold-bright); font-family:'IBM Plex Mono',monospace}
+.tour-body{display:flex; min-height:380px}
+.tour-side{width:70px; background:#0B1622; border-right:1px solid rgba(255,255,255,0.06); padding:16px 0; display:flex; flex-direction:column; align-items:center; gap:14px; flex-shrink:0}
+.tour-side .d-mark{width:24px; height:24px; border-radius:6px; background:linear-gradient(135deg,var(--gold-bright),var(--gold-deep)); margin-bottom:6px}
+.tour-side i{width:28px; height:8px; border-radius:4px; background:rgba(255,255,255,0.08); transition:all .25s}
+.tour-side i.active{background:var(--gold); width:32px}
+.tour-main{flex:1; padding:26px 28px 0; min-width:0; display:flex; flex-direction:column}
+.tour-slides{position:relative; flex:1; min-height:236px}
+.tour-slide{position:absolute; inset:0; opacity:0; transform:translateX(14px); transition:opacity .35s var(--ease), transform .35s var(--ease); pointer-events:none}
+.tour-slide.active{opacity:1; transform:none; pointer-events:auto}
+.tour-slide-title{font-family:'Cormorant Garamond',serif; font-size:20px; color:#fff; margin-bottom:4px}
+.tour-slide-caption{font-size:12.5px; color:var(--text-on-dark); margin-bottom:16px; line-height:1.5; max-width:52ch}
+.tour-foot{display:flex; align-items:center; justify-content:space-between; padding:16px 28px; border-top:1px solid rgba(255,255,255,0.07); margin-top:auto}
+.tour-dots{display:flex; gap:6px}
+.tour-dot{width:6px; height:6px; border-radius:50%; background:rgba(255,255,255,0.18); cursor:pointer; transition:all .2s}
+.tour-dot.active{background:var(--gold); width:18px; border-radius:3px}
+.tour-nav-btns{display:flex; gap:8px}
+.tour-nav-btn{
+  width:34px; height:34px; border-radius:50%; border:1px solid rgba(255,255,255,0.14); background:rgba(255,255,255,0.04);
+  color:#fff; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:14px; transition:all .18s;
+}
+.tour-nav-btn:hover{background:rgba(255,255,255,0.1)}
+.tour-nav-btn:disabled{opacity:0.3; cursor:default}
+
+/* --- conteúdo reutilizável dentro dos slides --- */
+.t-stats{display:grid; grid-template-columns:repeat(3,1fr); gap:9px; margin-bottom:12px}
+.t-stat{background:rgba(255,255,255,0.035); border:1px solid rgba(255,255,255,0.07); border-radius:9px; padding:10px 12px}
+.t-stat .dl{font-size:9px; letter-spacing:0.08em; text-transform:uppercase; color:rgba(255,255,255,0.35); font-family:'IBM Plex Mono',monospace}
+.t-stat .dv{font-family:'Cormorant Garamond',serif; font-size:19px; color:#fff; margin-top:4px; font-weight:600}
+.t-stat .dv.gold{color:var(--gold-bright)}
+.t-chart{background:rgba(255,255,255,0.035); border:1px solid rgba(255,255,255,0.07); border-radius:9px; padding:14px 16px 10px; display:flex; align-items:flex-end; gap:6px; height:84px}
+.t-chart b{flex:1; background:linear-gradient(180deg,var(--gold-bright),rgba(196,169,107,0.35)); border-radius:3px 3px 0 0}
+.t-table{width:100%; border-collapse:collapse; font-size:12px}
+.t-table th{text-align:left; font-family:'IBM Plex Mono',monospace; font-size:9.5px; letter-spacing:0.06em; text-transform:uppercase; color:rgba(255,255,255,0.35); padding:0 0 8px; font-weight:400}
+.t-table td{padding:9px 10px 9px 0; border-top:1px solid rgba(255,255,255,0.06); color:var(--text-on-dark)}
+.t-badge{display:inline-block; padding:2px 9px; border-radius:100px; font-size:10.5px; font-weight:600}
+.t-badge.blue{background:rgba(96,165,250,0.16); color:#93C5FD}
+.t-badge.green{background:rgba(74,222,128,0.16); color:#86EFAC}
+.t-badge.amber{background:rgba(251,191,36,0.16); color:#FCD34D}
+.t-badge.gray{background:rgba(255,255,255,0.1); color:rgba(255,255,255,0.6)}
+.t-badge.red{background:rgba(248,113,113,0.16); color:#FCA5A5}
+.t-form-row{display:flex; gap:10px; margin-bottom:10px}
+.t-field{flex:1; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.1); border-radius:8px; padding:9px 12px}
+.t-field .fl{font-size:9px; color:rgba(255,255,255,0.35); font-family:'IBM Plex Mono',monospace; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:3px}
+.t-field .fv{font-size:12.5px; color:#fff}
+.t-btn-mini{display:inline-flex; align-items:center; gap:6px; background:var(--gold); color:var(--navy-deep); font-size:12px; font-weight:700; padding:9px 16px; border-radius:8px; margin-top:2px}
+.t-funnel{display:flex; flex-direction:column; gap:7px}
+.t-funnel-row{display:flex; align-items:center; gap:10px}
+.t-funnel-label{width:92px; font-size:11px; color:var(--text-on-dark); flex-shrink:0}
+.t-funnel-bar-wrap{flex:1; background:rgba(255,255,255,0.05); border-radius:5px; height:22px; overflow:hidden}
+.t-funnel-bar{height:100%; background:linear-gradient(90deg, var(--gold-deep), var(--gold-bright)); border-radius:5px; display:flex; align-items:center; justify-content:flex-end; padding-right:8px}
+.t-funnel-bar span{font-size:10.5px; font-weight:700; color:var(--navy-deep)}
+.t-users{display:flex; flex-direction:column; gap:9px}
+.t-user{display:flex; align-items:center; gap:10px; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.06); border-radius:9px; padding:9px 12px}
+.t-user-av{width:30px; height:30px; border-radius:50%; background:linear-gradient(135deg,var(--gold-bright),var(--gold-deep)); display:flex; align-items:center; justify-content:center; font-family:'Cormorant Garamond',serif; font-weight:700; color:var(--navy-deep); font-size:12px; flex-shrink:0}
+.t-user-name{font-size:12.5px; color:#fff; font-weight:500}
+.t-user-role{font-size:10.5px; color:var(--text-on-dark-dim)}
+.t-wpp-bubble{background:rgba(74,222,128,0.09); border:1px solid rgba(74,222,128,0.2); border-radius:12px; padding:12px 14px; font-size:12.5px; color:var(--text-on-dark); line-height:1.5; margin-bottom:10px}
+.t-wpp-sent{display:flex; align-items:center; gap:8px; font-size:11.5px; color:#86EFAC; font-family:'IBM Plex Mono',monospace}
+
+@media (max-width:640px){
+  .tour-body{flex-direction:column}
+  .tour-side{width:100%; flex-direction:row; padding:10px 16px}
+  .tour-side .d-mark{margin-bottom:0; margin-right:2px}
+  .t-stats{grid-template-columns:1fr 1fr}
+}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 </head>
@@ -363,7 +449,7 @@ footer{background:var(--navy-deep); border-top:1px solid var(--line-dark); paddi
       <p class="hero-sub">O ADV Easy reúne clientes, processos, agenda, financeiro, faturamento e a comunicação com quem você representa em um único sistema — para que nada dependa da sua memória, de um post-it ou de uma planilha aberta em três computadores diferentes.</p>
       <div class="hero-ctas">
         <a class="btn-primary" href="#contato">Solicitar demonstração →</a>
-        <a class="btn-ghost" href="#como-funciona">Ver como funciona</a>
+        <a class="btn-ghost" href="#" onclick="abrirTour(event)">Ver como funciona</a>
       </div>
       <p class="hero-fineprint">Sem instalação. Sem planilha paralela. Sem surpresa na mensalidade.</p>
     </div>
@@ -740,7 +826,164 @@ document.getElementById('lead-form').addEventListener('submit', async function(e
 });
 
 document.getElementById('foot-year').textContent = new Date().getFullYear();
+
+// ---------- Tour do produto (8 telas) ----------
+let tourIdx = 0;
+const TOUR_TOTAL = 8;
+
+function abrirTour(ev){
+  if(ev) ev.preventDefault();
+  document.getElementById('tour-overlay').classList.add('open');
+  document.body.style.overflow = 'hidden';
+  irParaSlide(0);
+}
+function fecharTour(){
+  document.getElementById('tour-overlay').classList.remove('open');
+  document.body.style.overflow = '';
+}
+function irParaSlide(i){
+  tourIdx = Math.max(0, Math.min(TOUR_TOTAL - 1, i));
+  document.querySelectorAll('.tour-slide').forEach((el, n) => el.classList.toggle('active', n === tourIdx));
+  document.querySelectorAll('.tour-side i').forEach((el, n) => el.classList.toggle('active', n === tourIdx));
+  document.querySelectorAll('.tour-dot').forEach((el, n) => el.classList.toggle('active', n === tourIdx));
+  document.getElementById('tour-count').textContent = 'tela ' + (tourIdx + 1) + ' de ' + TOUR_TOTAL;
+  document.getElementById('tour-prev').disabled = tourIdx === 0;
+  document.getElementById('tour-next').disabled = tourIdx === TOUR_TOTAL - 1;
+}
+document.getElementById('tour-overlay').addEventListener('click', (ev) => {
+  if(ev.target.id === 'tour-overlay') fecharTour();
+});
+document.addEventListener('keydown', (ev) => {
+  if(!document.getElementById('tour-overlay').classList.contains('open')) return;
+  if(ev.key === 'Escape') fecharTour();
+  if(ev.key === 'ArrowRight') irParaSlide(tourIdx + 1);
+  if(ev.key === 'ArrowLeft') irParaSlide(tourIdx - 1);
+});
 </script>
+
+<div class="tour-overlay" id="tour-overlay">
+  <button class="tour-close" onclick="fecharTour()" aria-label="Fechar">✕</button>
+  <div class="tour-window">
+    <div class="tour-bar">
+      <span class="device-dot"></span><span class="device-dot"></span><span class="device-dot"></span>
+      <span class="mono">app.adveasy.com.br</span>
+      <span class="tb-count mono" id="tour-count">tela 1 de 8</span>
+    </div>
+    <div class="tour-body">
+      <div class="tour-side">
+        <div class="d-mark"></div>
+        <i class="active"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+      </div>
+      <div class="tour-main">
+        <div class="tour-slides">
+
+          <div class="tour-slide active">
+            <div class="tour-slide-title">Dashboard</div>
+            <p class="tour-slide-caption">Assim que você entra, já vê o que importa: processos ativos, clientes, taxa de êxito e os prazos mais urgentes da semana.</p>
+            <div class="t-stats">
+              <div class="t-stat"><div class="dl">Processos ativos</div><div class="dv">47</div></div>
+              <div class="t-stat"><div class="dl">Clientes</div><div class="dv">128</div></div>
+              <div class="t-stat"><div class="dl">Taxa de êxito</div><div class="dv gold">86%</div></div>
+            </div>
+            <div class="t-chart"><b style="height:38%"></b><b style="height:58%"></b><b style="height:44%"></b><b style="height:72%"></b><b style="height:63%"></b><b style="height:91%"></b><b style="height:80%"></b></div>
+          </div>
+
+          <div class="tour-slide">
+            <div class="tour-slide-title">Processos</div>
+            <p class="tour-slide-caption">Cada processo com vara, status e cliente visíveis de cara — sem abrir pasta por pasta pra saber onde as coisas estão.</p>
+            <table class="t-table">
+              <thead><tr><th>Processo</th><th>Cliente</th><th>Status</th></tr></thead>
+              <tbody>
+                <tr><td class="mono">5001234-56...053</td><td>Maria A. Souza</td><td><span class="t-badge blue">Em andamento</span></td></tr>
+                <tr><td class="mono">1002345-67...031</td><td>Carlos E. Lima</td><td><span class="t-badge amber">Aguardando</span></td></tr>
+                <tr><td class="mono">1003456-78...100</td><td>Fernanda Costa</td><td><span class="t-badge green">Encerrado</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="tour-slide">
+            <div class="tour-slide-title">Cadastro de Clientes</div>
+            <p class="tour-slide-caption">Histórico completo, origem do cliente e um sinal de atenção especial pra quem precisa de acompanhamento mais de perto.</p>
+            <div class="t-form-row">
+              <div class="t-field"><div class="fl">Nome</div><div class="fv">Pedro Henrique Oliveira</div></div>
+              <div class="t-field"><div class="fl">CPF</div><div class="fv">890.123.456-78</div></div>
+            </div>
+            <div style="display:flex; gap:8px; margin-top:14px">
+              <span class="t-badge red">🔴 Super Atenção</span>
+              <span class="t-badge gray">Origem: Indicação</span>
+            </div>
+          </div>
+
+          <div class="tour-slide">
+            <div class="tour-slide-title">Faturamento</div>
+            <p class="tour-slide-caption">Emita a nota fiscal de serviço direto dos dados do cliente já cadastrado — sem digitar tudo de novo em outro sistema.</p>
+            <div class="t-form-row">
+              <div class="t-field"><div class="fl">CNPJ do escritório</div><div class="fv">12.345.678/0001-90</div></div>
+              <div class="t-field"><div class="fl">Tomador</div><div class="fv">Fernanda Ribeiro Costa</div></div>
+            </div>
+            <div class="t-btn-mini">🧾 Emitir Nota Fiscal</div>
+          </div>
+
+          <div class="tour-slide">
+            <div class="tour-slide-title">Fluxo de Caixa</div>
+            <p class="tour-slide-caption">Entradas e saídas do período, lado a lado — pra você saber se o mês fechou no azul antes de chegar o extrato do banco.</p>
+            <div class="t-stats">
+              <div class="t-stat"><div class="dl">Entradas</div><div class="dv" style="color:#86EFAC">R$ 18.400</div></div>
+              <div class="t-stat"><div class="dl">Saídas</div><div class="dv" style="color:#FCA5A5">R$ 7.230</div></div>
+              <div class="t-stat"><div class="dl">Saldo</div><div class="dv gold">R$ 11.170</div></div>
+            </div>
+            <div class="t-chart"><b style="height:50%"></b><b style="height:70%"></b><b style="height:35%"></b><b style="height:85%"></b><b style="height:60%"></b><b style="height:95%"></b><b style="height:45%"></b></div>
+          </div>
+
+          <div class="tour-slide">
+            <div class="tour-slide-title">Conversão de Leads</div>
+            <p class="tour-slide-caption">Do primeiro contato até virar cliente — veja em que etapa do funil as oportunidades estão travando.</p>
+            <div class="t-funnel">
+              <div class="t-funnel-row"><div class="t-funnel-label">Novo Lead</div><div class="t-funnel-bar-wrap"><div class="t-funnel-bar" style="width:100%"><span>40</span></div></div></div>
+              <div class="t-funnel-row"><div class="t-funnel-label">Contato feito</div><div class="t-funnel-bar-wrap"><div class="t-funnel-bar" style="width:70%"><span>28</span></div></div></div>
+              <div class="t-funnel-row"><div class="t-funnel-label">Proposta</div><div class="t-funnel-bar-wrap"><div class="t-funnel-bar" style="width:38%"><span>15</span></div></div></div>
+              <div class="t-funnel-row"><div class="t-funnel-label">Convertido</div><div class="t-funnel-bar-wrap"><div class="t-funnel-bar" style="width:23%"><span>9</span></div></div></div>
+            </div>
+          </div>
+
+          <div class="tour-slide">
+            <div class="tour-slide-title">Usuários</div>
+            <p class="tour-slide-caption">Cada pessoa da equipe com seu próprio acesso e permissão — o financeiro não precisa ver o que é só do advogado, por exemplo.</p>
+            <div class="t-users">
+              <div class="t-user"><div class="t-user-av">RS</div><div><div class="t-user-name">Renan Soares</div><div class="t-user-role">Administrador</div></div></div>
+              <div class="t-user"><div class="t-user-av">JC</div><div><div class="t-user-name">Juliana Campos</div><div class="t-user-role">Advogada</div></div></div>
+              <div class="t-user"><div class="t-user-av">MF</div><div><div class="t-user-name">Marcos Ferreira</div><div class="t-user-role">Financeiro</div></div></div>
+            </div>
+          </div>
+
+          <div class="tour-slide">
+            <div class="tour-slide-title">Cobrança por WhatsApp</div>
+            <p class="tour-slide-caption">Envie lembretes de pagamento e recibos direto pelo WhatsApp do cliente, com um clique — sem sair do sistema.</p>
+            <div class="t-wpp-bubble">Olá, Carlos! Passando pra lembrar que a parcela 3/6 do seu processo vence amanhã (01/08). Qualquer dúvida, é só chamar por aqui. 😊</div>
+            <div class="t-wpp-sent">✓✓ Enviado via WhatsApp às 14:32</div>
+          </div>
+
+        </div>
+        <div class="tour-foot">
+          <div class="tour-dots" id="tour-dots">
+            <span class="tour-dot active" onclick="irParaSlide(0)"></span>
+            <span class="tour-dot" onclick="irParaSlide(1)"></span>
+            <span class="tour-dot" onclick="irParaSlide(2)"></span>
+            <span class="tour-dot" onclick="irParaSlide(3)"></span>
+            <span class="tour-dot" onclick="irParaSlide(4)"></span>
+            <span class="tour-dot" onclick="irParaSlide(5)"></span>
+            <span class="tour-dot" onclick="irParaSlide(6)"></span>
+            <span class="tour-dot" onclick="irParaSlide(7)"></span>
+          </div>
+          <div class="tour-nav-btns">
+            <button class="tour-nav-btn" id="tour-prev" onclick="irParaSlide(tourIdx-1)" aria-label="Anterior">←</button>
+            <button class="tour-nav-btn" id="tour-next" onclick="irParaSlide(tourIdx+1)" aria-label="Próxima">→</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
 
 </body>
 </html>
