@@ -357,13 +357,14 @@ footer{background:var(--navy-deep); border-top:1px solid var(--line-dark); paddi
 .tour-bar .tb-count{margin-left:auto; margin-right:6px; font-size:11px; color:var(--gold-bright); font-family:'IBM Plex Mono',monospace}
 .tour-progress{height:2.5px; background:rgba(255,255,255,0.06); position:relative; overflow:hidden}
 .tour-progress-fill{position:absolute; inset:0 auto 0 0; width:12.5%; background:linear-gradient(90deg,var(--gold-deep),var(--gold-bright)); transition:width .45s var(--ease)}
-.tour-body{display:flex; min-height:460px}
+.tour-body{display:flex; min-height:500px}
 .tour-side{width:78px; background:#0B1622; border-right:1px solid rgba(255,255,255,0.06); padding:20px 0; display:flex; flex-direction:column; align-items:center; gap:16px; flex-shrink:0}
 .tour-side .d-mark{width:26px; height:26px; border-radius:7px; background:linear-gradient(135deg,var(--gold-bright),var(--gold-deep)); margin-bottom:8px}
 .tour-side i{width:30px; height:8px; border-radius:4px; background:rgba(255,255,255,0.08); transition:all .25s}
 .tour-side i.active{background:var(--gold); width:34px}
 .tour-main{flex:1; padding:34px 38px 0; min-width:0; display:flex; flex-direction:column}
-.tour-slides{position:relative; flex:1; min-height:300px}
+.tour-slides{position:relative; flex:1; min-height:360px}
+.tour-slide{overflow-y:auto}
 .tour-slide{position:absolute; inset:0; opacity:0; transform:translateX(14px); transition:opacity .35s var(--ease), transform .35s var(--ease); pointer-events:none}
 .tour-slide.active{opacity:1; transform:none; pointer-events:auto}
 .tour-slide-title{font-family:'Cormorant Garamond',serif; font-size:20px; color:#fff; margin-bottom:4px}
@@ -456,13 +457,13 @@ footer{background:var(--navy-deep); border-top:1px solid var(--line-dark); paddi
 @keyframes typingDot{0%,60%,100%{transform:translateY(0); opacity:.4} 30%{transform:translateY(-4px); opacity:1}}
 
 /* cabeçalho de perfil do cliente (Cadastro de Clientes) */
-.t-client-head{display:flex; align-items:center; gap:12px; margin-bottom:16px; padding-bottom:16px; border-bottom:1px solid rgba(255,255,255,0.08)}
+.t-client-head{display:flex; align-items:center; gap:12px; margin-bottom:12px; padding-bottom:12px; border-bottom:1px solid rgba(255,255,255,0.08)}
 .t-client-avatar{width:40px; height:40px; border-radius:50%; background:linear-gradient(135deg,var(--gold-bright),var(--gold-deep)); display:flex; align-items:center; justify-content:center; font-family:'Cormorant Garamond',serif; font-weight:700; color:var(--navy-deep); font-size:15px; flex-shrink:0}
 .t-client-name{font-size:14.5px; font-weight:600; color:#fff}
 .t-client-sub{font-size:11.5px; color:var(--text-on-dark-dim); margin-top:2px}
 
 /* abas internas (dentro do próprio slide do tour) */
-.t-mini-tabs{display:flex; gap:4px; margin-bottom:16px; border-bottom:1px solid rgba(255,255,255,0.08)}
+.t-mini-tabs{display:flex; gap:4px; margin-bottom:12px; border-bottom:1px solid rgba(255,255,255,0.08)}
 .t-mini-tab{
   font-family:'IBM Plex Mono',monospace; font-size:10.5px; letter-spacing:0.03em; color:var(--text-on-dark-dim);
   padding:0 2px 10px; cursor:pointer; border-bottom:2px solid transparent; transition:all .18s; margin-right:16px;
@@ -482,7 +483,7 @@ footer{background:var(--navy-deep); border-top:1px solid var(--line-dark); paddi
   .tour-side{width:100%; flex-direction:row; padding:10px 16px}
   .tour-side .d-mark{margin-bottom:0; margin-right:2px}
   .tour-main{padding:22px 20px 0}
-  .tour-slides{min-height:340px}
+  .tour-slides{min-height:400px}
   .t-stats{grid-template-columns:1fr 1fr}
 }
 </style>
