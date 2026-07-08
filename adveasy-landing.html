@@ -385,7 +385,8 @@ footer{background:var(--navy-deep); border-top:1px solid var(--line-dark); paddi
 .t-stat .dv{font-family:'Cormorant Garamond',serif; font-size:19px; color:#fff; margin-top:4px; font-weight:600}
 .t-stat .dv.gold{color:var(--gold-bright)}
 .t-chart{background:rgba(255,255,255,0.035); border:1px solid rgba(255,255,255,0.07); border-radius:9px; padding:14px 16px 10px; display:flex; align-items:flex-end; gap:6px; height:84px}
-.t-chart b{flex:1; background:linear-gradient(180deg,var(--gold-bright),rgba(196,169,107,0.35)); border-radius:3px 3px 0 0}
+.t-chart b{flex:1; background:linear-gradient(180deg,var(--gold-bright),rgba(196,169,107,0.35)); border-radius:3px 3px 0 0; transform-origin:bottom; transform:scaleY(0); transition:transform .9s var(--ease)}
+.tour-slide.played .t-chart b{transform:scaleY(1)}
 .t-table{width:100%; border-collapse:collapse; font-size:12px}
 .t-table th{text-align:left; font-family:'IBM Plex Mono',monospace; font-size:9.5px; letter-spacing:0.06em; text-transform:uppercase; color:rgba(255,255,255,0.35); padding:0 0 8px; font-weight:400}
 .t-table td{padding:9px 10px 9px 0; border-top:1px solid rgba(255,255,255,0.06); color:var(--text-on-dark)}
@@ -413,6 +414,16 @@ footer{background:var(--navy-deep); border-top:1px solid var(--line-dark); paddi
 .t-user-role{font-size:10.5px; color:var(--text-on-dark-dim)}
 .t-wpp-bubble{background:rgba(74,222,128,0.09); border:1px solid rgba(74,222,128,0.2); border-radius:12px; padding:12px 14px; font-size:12.5px; color:var(--text-on-dark); line-height:1.5; margin-bottom:10px}
 .t-wpp-sent{display:flex; align-items:center; gap:8px; font-size:11.5px; color:#86EFAC; font-family:'IBM Plex Mono',monospace}
+
+/* stagger reveal reutilizável dentro do tour — disparado via JS quando o
+   slide vira o atual, não por scroll (por isso não usa IntersectionObserver) */
+[data-stagger] > *{opacity:0; transform:translateY(9px); transition:opacity .45s var(--ease), transform .45s var(--ease)}
+[data-stagger].played > *{opacity:1; transform:none}
+[data-stagger].played > *:nth-child(1){transition-delay:.02s}
+[data-stagger].played > *:nth-child(2){transition-delay:.09s}
+[data-stagger].played > *:nth-child(3){transition-delay:.16s}
+[data-stagger].played > *:nth-child(4){transition-delay:.23s}
+.t-funnel-bar{transition:width 1s var(--ease)}
 
 @media (max-width:640px){
   .tour-body{flex-direction:column}
@@ -849,6 +860,71 @@ function irParaSlide(i){
   document.getElementById('tour-count').textContent = 'tela ' + (tourIdx + 1) + ' de ' + TOUR_TOTAL;
   document.getElementById('tour-prev').disabled = tourIdx === 0;
   document.getElementById('tour-next').disabled = tourIdx === TOUR_TOTAL - 1;
+  animarSlideAtual();
+}
+
+// Anima o conteúdo (contadores, gráfico, funil, listas em sequência) toda
+// vez que uma tela do tour se torna a atual — dá vida ao conteúdo em vez
+// de só aparecer estático, e "reseta" pra poder rodar de novo se a pessoa
+// voltar numa tela que já tinha visto.
+function animarSlideAtual(){
+  const slide = document.querySelectorAll('.tour-slide')[tourIdx];
+  if(!slide) return;
+  const meuIdx = tourIdx; // pra checar depois se a pessoa não navegou pra outra tela
+
+  // Reset
+  slide.classList.remove('played');
+  slide.querySelectorAll('[data-stagger]').forEach(el => el.classList.remove('played'));
+  slide.querySelectorAll('[data-count]').forEach(el => {
+    el.textContent = (el.dataset.prefix||'') + '0' + (el.dataset.suffix||'');
+  });
+  slide.querySelectorAll('.t-funnel-bar').forEach(el => { el.style.width = '0'; });
+  const fatStatus = slide.querySelector('#fat-status');
+  if(fatStatus) fatStatus.style.opacity = '0';
+  const wppReply = slide.querySelector('#wpp-reply');
+  if(wppReply) wppReply.style.opacity = '0';
+
+  // Força o navegador a "esquecer" o estado anterior antes de religar as
+  // transições — sem isso, reanimar a mesma tela duas vezes seguidas não
+  // dispara transição CSS nenhuma.
+  void slide.offsetWidth;
+
+  requestAnimationFrame(() => {
+    slide.classList.add('played');
+    slide.querySelectorAll('[data-stagger]').forEach(el => el.classList.add('played'));
+    slide.querySelectorAll('[data-count]').forEach(el => animarContador(el));
+    slide.querySelectorAll('.t-funnel-bar').forEach(el => { el.style.width = (el.dataset.width||0) + '%'; });
+  });
+
+  if(fatStatus){
+    setTimeout(() => { if(tourIdx === meuIdx) fatStatus.style.opacity = '1'; }, 900);
+  }
+  if(wppReply){
+    setTimeout(() => { if(tourIdx === meuIdx) wppReply.style.opacity = '1'; }, 1200);
+  }
+  const wppStatus = slide.querySelector('#wpp-status');
+  if(wppStatus){
+    wppStatus.textContent = '✓ Enviado às 14:32';
+    wppStatus.style.color = '';
+    setTimeout(() => {
+      if(tourIdx === meuIdx){ wppStatus.textContent = '✓✓ Lido às 14:34'; wppStatus.style.color = '#60A5FA'; }
+    }, 1100);
+  }
+}
+
+function animarContador(el){
+  const alvo = parseInt(el.dataset.count, 10);
+  const prefixo = el.dataset.prefix || '';
+  const sufixo = el.dataset.suffix || '';
+  const dur = 1100; const t0 = performance.now();
+  function passo(t){
+    const p = Math.min(1, (t - t0) / dur);
+    const ease = 1 - Math.pow(1 - p, 3);
+    const valor = Math.round(ease * alvo);
+    el.textContent = prefixo + valor.toLocaleString('pt-BR') + sufixo;
+    if(p < 1) requestAnimationFrame(passo);
+  }
+  requestAnimationFrame(passo);
 }
 document.getElementById('tour-overlay').addEventListener('click', (ev) => {
   if(ev.target.id === 'tour-overlay') fecharTour();
@@ -881,22 +957,25 @@ document.addEventListener('keydown', (ev) => {
             <div class="tour-slide-title">Dashboard</div>
             <p class="tour-slide-caption">Assim que você entra, já vê o que importa: processos ativos, clientes, taxa de êxito e os prazos mais urgentes da semana.</p>
             <div class="t-stats">
-              <div class="t-stat"><div class="dl">Processos ativos</div><div class="dv">47</div></div>
-              <div class="t-stat"><div class="dl">Clientes</div><div class="dv">128</div></div>
-              <div class="t-stat"><div class="dl">Taxa de êxito</div><div class="dv gold">86%</div></div>
+              <div class="t-stat"><div class="dl">Processos ativos</div><div class="dv" data-count="47">0</div></div>
+              <div class="t-stat"><div class="dl">Clientes</div><div class="dv" data-count="128">0</div></div>
+              <div class="t-stat"><div class="dl">Taxa de êxito</div><div class="dv gold" data-count="86" data-suffix="%">0</div></div>
             </div>
             <div class="t-chart"><b style="height:38%"></b><b style="height:58%"></b><b style="height:44%"></b><b style="height:72%"></b><b style="height:63%"></b><b style="height:91%"></b><b style="height:80%"></b></div>
+            <div style="margin-top:12px"><span class="t-badge amber">🔔 3 prazos essa semana</span></div>
           </div>
 
           <div class="tour-slide">
             <div class="tour-slide-title">Processos</div>
             <p class="tour-slide-caption">Cada processo com vara, status e cliente visíveis de cara — sem abrir pasta por pasta pra saber onde as coisas estão.</p>
+            <div style="background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08); border-radius:8px; padding:8px 12px; font-size:11.5px; color:rgba(255,255,255,0.32); margin-bottom:12px; font-family:'IBM Plex Mono',monospace">🔍 Buscar por cliente, número ou vara...</div>
             <table class="t-table">
               <thead><tr><th>Processo</th><th>Cliente</th><th>Status</th></tr></thead>
-              <tbody>
+              <tbody data-stagger>
                 <tr><td class="mono">5001234-56...053</td><td>Maria A. Souza</td><td><span class="t-badge blue">Em andamento</span></td></tr>
                 <tr><td class="mono">1002345-67...031</td><td>Carlos E. Lima</td><td><span class="t-badge amber">Aguardando</span></td></tr>
                 <tr><td class="mono">1003456-78...100</td><td>Fernanda Costa</td><td><span class="t-badge green">Encerrado</span></td></tr>
+                <tr><td class="mono">0004567-89...050</td><td>José R. Almeida</td><td><span class="t-badge blue">Em andamento</span></td></tr>
               </tbody>
             </table>
           </div>
@@ -906,9 +985,13 @@ document.addEventListener('keydown', (ev) => {
             <p class="tour-slide-caption">Histórico completo, origem do cliente e um sinal de atenção especial pra quem precisa de acompanhamento mais de perto.</p>
             <div class="t-form-row">
               <div class="t-field"><div class="fl">Nome</div><div class="fv">Pedro Henrique Oliveira</div></div>
-              <div class="t-field"><div class="fl">CPF</div><div class="fv">890.123.456-78</div></div>
+              <div class="t-field"><div class="fl">Telefone</div><div class="fv">(11) 92222-8877</div></div>
             </div>
-            <div style="display:flex; gap:8px; margin-top:14px">
+            <div class="t-form-row">
+              <div class="t-field"><div class="fl">CPF</div><div class="fv">890.123.456-78</div></div>
+              <div class="t-field"><div class="fl">Financeiro</div><div class="fv">4/6 parcelas pagas</div></div>
+            </div>
+            <div style="display:flex; gap:8px; margin-top:6px" data-stagger>
               <span class="t-badge red">🔴 Super Atenção</span>
               <span class="t-badge gray">Origem: Indicação</span>
             </div>
@@ -921,16 +1004,20 @@ document.addEventListener('keydown', (ev) => {
               <div class="t-field"><div class="fl">CNPJ do escritório</div><div class="fv">12.345.678/0001-90</div></div>
               <div class="t-field"><div class="fl">Tomador</div><div class="fv">Fernanda Ribeiro Costa</div></div>
             </div>
-            <div class="t-btn-mini">🧾 Emitir Nota Fiscal</div>
+            <div class="t-btn-mini" id="fat-btn">🧾 Emitir Nota Fiscal</div>
+            <div id="fat-status" style="margin-top:12px; opacity:0; transition:opacity .4s var(--ease)">
+              <span class="t-badge green">✓ Nota nº 00187 emitida com sucesso</span>
+            </div>
           </div>
 
           <div class="tour-slide">
             <div class="tour-slide-title">Fluxo de Caixa</div>
             <p class="tour-slide-caption">Entradas e saídas do período, lado a lado — pra você saber se o mês fechou no azul antes de chegar o extrato do banco.</p>
+            <div style="margin-bottom:10px"><span class="t-badge gray mono">📅 Julho 2026</span></div>
             <div class="t-stats">
-              <div class="t-stat"><div class="dl">Entradas</div><div class="dv" style="color:#86EFAC">R$ 18.400</div></div>
-              <div class="t-stat"><div class="dl">Saídas</div><div class="dv" style="color:#FCA5A5">R$ 7.230</div></div>
-              <div class="t-stat"><div class="dl">Saldo</div><div class="dv gold">R$ 11.170</div></div>
+              <div class="t-stat"><div class="dl">Entradas</div><div class="dv" style="color:#86EFAC" data-count="18400" data-prefix="R$ ">0</div></div>
+              <div class="t-stat"><div class="dl">Saídas</div><div class="dv" style="color:#FCA5A5" data-count="7230" data-prefix="R$ ">0</div></div>
+              <div class="t-stat"><div class="dl">Saldo</div><div class="dv gold" data-count="11170" data-prefix="R$ ">0</div></div>
             </div>
             <div class="t-chart"><b style="height:50%"></b><b style="height:70%"></b><b style="height:35%"></b><b style="height:85%"></b><b style="height:60%"></b><b style="height:95%"></b><b style="height:45%"></b></div>
           </div>
@@ -939,20 +1026,21 @@ document.addEventListener('keydown', (ev) => {
             <div class="tour-slide-title">Conversão de Leads</div>
             <p class="tour-slide-caption">Do primeiro contato até virar cliente — veja em que etapa do funil as oportunidades estão travando.</p>
             <div class="t-funnel">
-              <div class="t-funnel-row"><div class="t-funnel-label">Novo Lead</div><div class="t-funnel-bar-wrap"><div class="t-funnel-bar" style="width:100%"><span>40</span></div></div></div>
-              <div class="t-funnel-row"><div class="t-funnel-label">Contato feito</div><div class="t-funnel-bar-wrap"><div class="t-funnel-bar" style="width:70%"><span>28</span></div></div></div>
-              <div class="t-funnel-row"><div class="t-funnel-label">Proposta</div><div class="t-funnel-bar-wrap"><div class="t-funnel-bar" style="width:38%"><span>15</span></div></div></div>
-              <div class="t-funnel-row"><div class="t-funnel-label">Convertido</div><div class="t-funnel-bar-wrap"><div class="t-funnel-bar" style="width:23%"><span>9</span></div></div></div>
+              <div class="t-funnel-row"><div class="t-funnel-label">Novo Lead</div><div class="t-funnel-bar-wrap"><div class="t-funnel-bar" data-width="100" style="width:0"><span data-count="40">0</span></div></div></div>
+              <div class="t-funnel-row"><div class="t-funnel-label">Contato feito</div><div class="t-funnel-bar-wrap"><div class="t-funnel-bar" data-width="70" style="width:0"><span data-count="28">0</span></div></div></div>
+              <div class="t-funnel-row"><div class="t-funnel-label">Proposta</div><div class="t-funnel-bar-wrap"><div class="t-funnel-bar" data-width="38" style="width:0"><span data-count="15">0</span></div></div></div>
+              <div class="t-funnel-row"><div class="t-funnel-label">Convertido</div><div class="t-funnel-bar-wrap"><div class="t-funnel-bar" data-width="23" style="width:0"><span data-count="9">0</span></div></div></div>
             </div>
+            <div style="margin-top:14px"><span class="t-badge amber">Taxa de conversão geral: 22,5%</span></div>
           </div>
 
           <div class="tour-slide">
             <div class="tour-slide-title">Usuários</div>
             <p class="tour-slide-caption">Cada pessoa da equipe com seu próprio acesso e permissão — o financeiro não precisa ver o que é só do advogado, por exemplo.</p>
-            <div class="t-users">
-              <div class="t-user"><div class="t-user-av">RS</div><div><div class="t-user-name">Renan Soares</div><div class="t-user-role">Administrador</div></div></div>
-              <div class="t-user"><div class="t-user-av">JC</div><div><div class="t-user-name">Juliana Campos</div><div class="t-user-role">Advogada</div></div></div>
-              <div class="t-user"><div class="t-user-av">MF</div><div><div class="t-user-name">Marcos Ferreira</div><div class="t-user-role">Financeiro</div></div></div>
+            <div class="t-users" data-stagger>
+              <div class="t-user"><div class="t-user-av">RS</div><div><div class="t-user-name">Renan Soares</div><div class="t-user-role">Administrador · acesso total</div></div></div>
+              <div class="t-user"><div class="t-user-av">JC</div><div><div class="t-user-name">Juliana Campos</div><div class="t-user-role">Advogada · processos e agenda</div></div></div>
+              <div class="t-user"><div class="t-user-av">MF</div><div><div class="t-user-name">Marcos Ferreira</div><div class="t-user-role">Financeiro · recebimentos e despesas</div></div></div>
             </div>
           </div>
 
@@ -960,7 +1048,8 @@ document.addEventListener('keydown', (ev) => {
             <div class="tour-slide-title">Cobrança por WhatsApp</div>
             <p class="tour-slide-caption">Envie lembretes de pagamento e recibos direto pelo WhatsApp do cliente, com um clique — sem sair do sistema.</p>
             <div class="t-wpp-bubble">Olá, Carlos! Passando pra lembrar que a parcela 3/6 do seu processo vence amanhã (01/08). Qualquer dúvida, é só chamar por aqui. 😊</div>
-            <div class="t-wpp-sent">✓✓ Enviado via WhatsApp às 14:32</div>
+            <div class="t-wpp-sent" id="wpp-status">✓ Enviado às 14:32</div>
+            <div class="t-wpp-bubble" id="wpp-reply" style="background:rgba(255,255,255,0.04); border-color:rgba(255,255,255,0.1); opacity:0; transition:opacity .4s var(--ease); margin-top:10px; margin-bottom:0">Ah, obrigado por avisar! Já vou providenciar o pagamento. 🙏</div>
           </div>
 
         </div>
