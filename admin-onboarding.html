@@ -166,6 +166,7 @@
         <div class="admin-nav-item" data-win="win-portal" onclick="navigateAdmin('win-portal', this)">🔑 Portal do Cliente</div>
         <div class="admin-nav-item" data-win="win-versoes" onclick="navigateAdmin('win-versoes', this)">🗂️ Versões do Sistema</div>
         <div class="admin-nav-item" data-win="win-informativos" onclick="navigateAdmin('win-informativos', this)">📢 Informativos</div>
+        <div class="admin-nav-item" data-win="win-dashboard-geral" onclick="navigateAdmin('win-dashboard-geral', this); carregarDashboardGeral();">📊 Dashboard Geral</div>
       </div>
       <div class="admin-sidebar-foot">
         <button class="btn-sair" onclick="sair()" style="width:100%">Sair</button>
@@ -388,6 +389,46 @@
       <h4 style="font-size:13px;color:#9DB5D0;margin:22px 0 10px;text-transform:uppercase;letter-spacing:0.5px">Informativos publicados</h4>
       <div id="lista-informativos-admin">
         <p style="font-size:12.5px;color:#9DB5D0">Carregando...</p>
+      </div>
+    </div>
+
+    <!-- ===== DASHBOARD GERAL DA PLATAFORMA ===== -->
+    <div class="card admin-window" id="win-dashboard-geral">
+      <h2>📊 Dashboard Geral</h2>
+      <p style="font-size:12.5px;color:#9DB5D0;margin-bottom:18px">Números agregados de todos os escritórios clientes.</p>
+      <div id="dg-cards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;margin-bottom:24px">
+        <p style="font-size:12.5px;color:#9DB5D0">Carregando...</p>
+      </div>
+      <h4 style="font-size:13px;color:#9DB5D0;margin:22px 0 10px;text-transform:uppercase;letter-spacing:0.5px">Escritórios criados por mês (últimos 6 meses)</h4>
+      <div id="dg-grafico" style="display:flex;align-items:flex-end;gap:10px;height:120px;padding:10px 0"></div>
+      <h4 style="font-size:13px;color:#9DB5D0;margin:24px 0 10px;text-transform:uppercase;letter-spacing:0.5px">Distribuição por status</h4>
+      <div id="dg-status-lista" style="display:flex;flex-direction:column;gap:8px"></div>
+    </div>
+
+    <!-- ===== DETALHE DO ESCRITÓRIO (aberta a partir de "🔍 Detalhes") ===== -->
+    <div class="card admin-window" id="win-detalhe-escritorio">
+      <h2>🔍 <span id="det-esc-nome">Escritório</span></h2>
+      <button class="btn-financeiro" style="margin-bottom:18px" onclick="navigateAdmin('win-escritorios', document.querySelector('[data-win=win-escritorios]'))">← Voltar pra lista de escritórios</button>
+
+      <h4 style="font-size:13px;color:#9DB5D0;margin:8px 0 10px;text-transform:uppercase;letter-spacing:0.5px">Saúde / Atividade</h4>
+      <div id="det-esc-saude" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin-bottom:26px">
+        <p style="font-size:12.5px;color:#9DB5D0">Carregando...</p>
+      </div>
+
+      <h4 style="font-size:13px;color:#9DB5D0;margin:22px 0 10px;text-transform:uppercase;letter-spacing:0.5px">Equipe</h4>
+      <div class="table-wrap" style="overflow-x:auto;margin-bottom:26px">
+        <table>
+          <thead><tr><th>Nome</th><th>E-mail</th><th>Papel</th><th>Status</th><th>Último login</th><th>Ações</th></tr></thead>
+          <tbody id="det-esc-equipe"><tr><td colspan="6" style="text-align:center;color:#9DB5D0;padding:20px">Carregando...</td></tr></tbody>
+        </table>
+      </div>
+
+      <h4 style="font-size:13px;color:#9DB5D0;margin:22px 0 10px;text-transform:uppercase;letter-spacing:0.5px">Auditoria recente</h4>
+      <div class="table-wrap" style="overflow-x:auto">
+        <table>
+          <thead><tr><th>Quando</th><th>Quem</th><th>Ação</th><th>Descrição</th></tr></thead>
+          <tbody id="det-esc-auditoria"><tr><td colspan="4" style="text-align:center;color:#9DB5D0;padding:20px">Carregando...</td></tr></tbody>
+        </table>
       </div>
     </div>
 
@@ -704,6 +745,205 @@ async function excluirLandingLead(id) {
   carregarLandingLeads();
 }
 
+const PAPEL_LABEL_ADMIN = {
+  administrador: 'Administrador', advogado: 'Advogado', financeiro: 'Financeiro',
+  assistente: 'Assistente', secretaria: 'Secretária', cliente: 'Cliente (Portal)'
+};
+
+// ==================== DASHBOARD GERAL DA PLATAFORMA ====================
+async function carregarDashboardGeral() {
+  const sbAdmin = getSBAdmin();
+  const cardsEl = document.getElementById('dg-cards');
+  if(!sbAdmin) { cardsEl.innerHTML = '<p style="font-size:12.5px;color:#9DB5D0">Salve a Service Role Key acima pra ver o dashboard.</p>'; return; }
+
+  const { data: escritorios, error } = await sbAdmin.from('escritorios').select('id, status_pagamento, criado_em');
+  if(error) { cardsEl.innerHTML = '<p style="color:#FCA5A5;font-size:12.5px">Erro: ' + error.message + '</p>'; return; }
+
+  const { count: totalClientes } = await sbAdmin.from('clientes').select('id', { count: 'exact', head: true });
+  const { count: totalProcessos } = await sbAdmin.from('processos').select('id', { count: 'exact', head: true });
+
+  const total = escritorios.length;
+  const ativos = escritorios.filter(function(e){ return e.status_pagamento === 'em_dia' || e.status_pagamento === 'trial'; }).length;
+  const inadimplentes = escritorios.filter(function(e){ return e.status_pagamento === 'inadimplente'; }).length;
+
+  function card(label, valor, cor) {
+    return '<div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:16px">' +
+      '<div style="font-size:11px;color:#9DB5D0;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">' + label + '</div>' +
+      '<div style="font-size:26px;font-weight:700;color:' + (cor||'#E8F0F8') + '">' + valor + '</div></div>';
+  }
+  cardsEl.innerHTML =
+    card('Escritórios (total)', total) +
+    card('Escritórios ativos', ativos, '#86EFAC') +
+    card('Inadimplentes', inadimplentes, inadimplentes > 0 ? '#FCA5A5' : '#9DB5D0') +
+    card('Clientes na plataforma', totalClientes || 0) +
+    card('Processos na plataforma', totalProcessos || 0);
+
+  // Escritórios criados por mês, últimos 6 meses
+  const hoje = new Date();
+  const meses = [];
+  for(let i = 5; i >= 0; i--) {
+    const d = new Date(hoje.getFullYear(), hoje.getMonth() - i, 1);
+    meses.push({ label: d.toLocaleDateString('pt-BR', { month: 'short' }), ano: d.getFullYear(), mes: d.getMonth(), qtd: 0 });
+  }
+  escritorios.forEach(function(e) {
+    if(!e.criado_em) return;
+    const d = new Date(e.criado_em);
+    const m = meses.find(function(m){ return m.ano === d.getFullYear() && m.mes === d.getMonth(); });
+    if(m) m.qtd++;
+  });
+  const max = Math.max(1, Math.max.apply(null, meses.map(function(m){ return m.qtd; })));
+  document.getElementById('dg-grafico').innerHTML = meses.map(function(m) {
+    const altura = Math.max(4, Math.round((m.qtd / max) * 100));
+    return '<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:6px">' +
+      '<div style="font-size:11px;color:#DCC48E;font-weight:600">' + m.qtd + '</div>' +
+      '<div style="width:100%;height:' + altura + 'px;background:linear-gradient(180deg,#DCC48E,#8B6F3D);border-radius:4px 4px 0 0"></div>' +
+      '<div style="font-size:10px;color:#9DB5D0;text-transform:capitalize">' + m.label + '</div></div>';
+  }).join('');
+
+  // Distribuição por status
+  const statusLabels = { trial: '🆕 Trial', em_dia: '✅ Em dia', inadimplente: '⚠️ Inadimplente', cancelado: '✕ Cancelado' };
+  const contagem = {};
+  escritorios.forEach(function(e) { contagem[e.status_pagamento] = (contagem[e.status_pagamento] || 0) + 1; });
+  document.getElementById('dg-status-lista').innerHTML = Object.keys(statusLabels).map(function(s) {
+    const qtd = contagem[s] || 0;
+    return '<div style="display:flex;justify-content:space-between;align-items:center;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:8px;padding:10px 14px;font-size:13px">' +
+      '<span>' + statusLabels[s] + '</span><strong>' + qtd + '</strong></div>';
+  }).join('');
+}
+
+// ==================== DETALHE DO ESCRITÓRIO ====================
+let _detalheEscritorioAtual = null;
+
+function abrirDetalheEscritorio(id, nome) {
+  _detalheEscritorioAtual = id;
+  document.getElementById('det-esc-nome').textContent = nome;
+  navigateAdmin('win-detalhe-escritorio', null);
+  carregarDetalheEscritorio(id);
+}
+
+async function carregarDetalheEscritorio(id) {
+  const sbAdmin = getSBAdmin();
+  const saudeEl = document.getElementById('det-esc-saude');
+  const equipeEl = document.getElementById('det-esc-equipe');
+  const auditoriaEl = document.getElementById('det-esc-auditoria');
+  if(!sbAdmin) { saudeEl.innerHTML = '<p style="font-size:12.5px;color:#9DB5D0">Salve a Service Role Key acima primeiro.</p>'; return; }
+
+  // Contadores
+  const { count: nClientes } = await sbAdmin.from('clientes').select('id', { count: 'exact', head: true }).eq('escritorio_id', id);
+  const { count: nProcessos } = await sbAdmin.from('processos').select('id', { count: 'exact', head: true }).eq('escritorio_id', id);
+  const { data: vinculos, error: errVinculos } = await sbAdmin.from('usuarios_escritorios').select('id, usuario_id, papel, ativo, criado_em').eq('escritorio_id', id).order('criado_em');
+
+  if(errVinculos) {
+    equipeEl.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#FCA5A5;padding:20px">Erro: ' + errVinculos.message + '</td></tr>';
+    return;
+  }
+
+  const staffVinculos = (vinculos || []).filter(function(v){ return v.papel !== 'cliente'; });
+
+  // Busca nome/e-mail/último login de cada membro da equipe direto do
+  // cadastro de autenticação — só a Service Role Key consegue ler isso.
+  const staffCompleto = await Promise.all(staffVinculos.map(async function(v) {
+    const { data } = await sbAdmin.auth.admin.getUserById(v.usuario_id);
+    const u = data && data.user;
+    return {
+      vinculoId: v.id, usuarioId: v.usuario_id, papel: v.papel, ativo: v.ativo,
+      nome: (u && u.user_metadata && u.user_metadata.nome) || '—',
+      email: (u && u.email) || '—',
+      ultimoLogin: u && u.last_sign_in_at
+    };
+  }));
+
+  const ultimosLogins = staffCompleto.map(function(s){ return s.ultimoLogin ? new Date(s.ultimoLogin).getTime() : 0; });
+  const loginMaisRecente = Math.max(0, Math.max.apply(null, ultimosLogins));
+
+  function cardSaude(label, valor, cor) {
+    return '<div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:16px">' +
+      '<div style="font-size:11px;color:#9DB5D0;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">' + label + '</div>' +
+      '<div style="font-size:22px;font-weight:700;color:' + (cor||'#E8F0F8') + '">' + valor + '</div></div>';
+  }
+  saudeEl.innerHTML =
+    cardSaude('Clientes cadastrados', nClientes || 0) +
+    cardSaude('Processos cadastrados', nProcessos || 0) +
+    cardSaude('Pessoas na equipe', staffCompleto.length) +
+    cardSaude('Último login', loginMaisRecente ? new Date(loginMaisRecente).toLocaleDateString('pt-BR') : 'Nunca', loginMaisRecente ? '#86EFAC' : '#FCA5A5');
+
+  if(!staffCompleto.length) {
+    equipeEl.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#9DB5D0;padding:20px">Nenhum membro de equipe encontrado.</td></tr>';
+  } else {
+    equipeEl.innerHTML = staffCompleto.map(function(s) {
+      const label = PAPEL_LABEL_ADMIN[s.papel] || s.papel;
+      const ultimoLoginTxt = s.ultimoLogin ? new Date(s.ultimoLogin).toLocaleDateString('pt-BR') : 'Nunca';
+      return '<tr>' +
+        '<td><strong>' + s.nome + '</strong></td>' +
+        '<td style="font-size:12px">' + s.email + '</td>' +
+        '<td>' + label + '</td>' +
+        '<td><span class="badge" style="background:' + (s.ativo ? 'rgba(74,222,128,0.15)' : 'rgba(255,255,255,0.1)') + ';color:' + (s.ativo ? '#86EFAC' : '#9DB5D0') + '">' + (s.ativo ? 'Ativo' : 'Inativo') + '</span></td>' +
+        '<td style="font-size:12px">' + ultimoLoginTxt + '</td>' +
+        '<td style="white-space:nowrap">' +
+          '<button class="btn-financeiro" style="font-size:11px;padding:4px 8px" onclick="entrarComoUsuario(\'' + s.email + '\')" title="Entrar como esse usuário">🔓 Entrar como</button> ' +
+          '<button class="btn-financeiro" style="font-size:11px;padding:4px 8px" onclick="resetarSenhaStaff(\'' + s.usuarioId + '\',\'' + s.nome.replace(/'/g,"\\'") + '\')">🔄 Resetar senha</button> ' +
+          '<button class="btn-excluir" style="font-size:11px;padding:4px 8px" onclick="toggleAtivoStaff(\'' + s.vinculoId + '\',' + (!s.ativo) + ')">' + (s.ativo ? '🚫 Desativar' : '✅ Ativar') + '</button>' +
+        '</td>' +
+      '</tr>';
+    }).join('');
+  }
+
+  // Auditoria
+  const { data: auditoria, error: errAud } = await sbAdmin.from('auditoria').select('*').eq('escritorio_id', id).order('criado_em', { ascending: false }).limit(50);
+  if(errAud) {
+    auditoriaEl.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#FCA5A5;padding:20px">Erro: ' + errAud.message + '</td></tr>';
+  } else if(!auditoria || !auditoria.length) {
+    auditoriaEl.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#9DB5D0;padding:20px">Nenhum registro de auditoria ainda.</td></tr>';
+  } else {
+    auditoriaEl.innerHTML = auditoria.map(function(a) {
+      const dt = new Date(a.criado_em).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+      return '<tr>' +
+        '<td style="font-size:12px;white-space:nowrap">' + dt + '</td>' +
+        '<td style="font-size:12px">' + (a.usuario_nome || '—') + '</td>' +
+        '<td style="font-size:12px">' + (a.acao || '—') + ' · ' + (a.modulo || '—') + '</td>' +
+        '<td style="font-size:12px">' + (a.descricao || '—') + '</td>' +
+      '</tr>';
+    }).join('');
+  }
+}
+
+function gerarSenhaAleatoria8() {
+  return Math.floor(10000000 + Math.random() * 90000000).toString();
+}
+
+async function resetarSenhaStaff(usuarioId, nome) {
+  if(!confirm('Gerar uma senha nova pra ' + nome + '? A senha antiga para de funcionar na hora.')) return;
+  const sbAdmin = getSBAdmin();
+  if(!sbAdmin) return;
+  const senha = gerarSenhaAleatoria8();
+  const { error } = await sbAdmin.auth.admin.updateUserById(usuarioId, { password: senha });
+  if(error) { showToast('Erro ao gerar senha: ' + error.message, 'error'); return; }
+  alert('✅ Nova senha de ' + nome + ':\n\n' + senha + '\n\nCopie agora — essa senha não aparece de novo.');
+}
+
+async function toggleAtivoStaff(vinculoId, novoAtivo) {
+  const sbAdmin = getSBAdmin();
+  if(!sbAdmin) return;
+  const { error } = await sbAdmin.from('usuarios_escritorios').update({ ativo: novoAtivo }).eq('id', vinculoId);
+  if(error) { showToast('Erro ao atualizar: ' + error.message, 'error'); return; }
+  showToast('✅ Atualizado.', 'success');
+  if(_detalheEscritorioAtual) carregarDetalheEscritorio(_detalheEscritorioAtual);
+}
+
+// Gera um link de acesso temporário (magic link) pra entrar no ERP como
+// se fosse aquele usuário, sem precisar saber a senha dele — útil pra
+// suporte, pra ver exatamente o que o cliente está vendo.
+async function entrarComoUsuario(email) {
+  if(!confirm('Isso vai gerar um link de acesso como ' + email + '. Continuar?')) return;
+  const sbAdmin = getSBAdmin();
+  if(!sbAdmin) return;
+  const { data, error } = await sbAdmin.auth.admin.generateLink({ type: 'magiclink', email: email });
+  if(error) { showToast('Erro ao gerar link: ' + error.message, 'error'); return; }
+  const link = data && data.properties && data.properties.action_link;
+  if(!link) { showToast('Não foi possível gerar o link.', 'error'); return; }
+  window.open(link, '_blank');
+}
+
 async function carregarEscritorios() {
   const supabase = getSB();
   const { data, error } = await supabase
@@ -739,7 +979,7 @@ async function carregarEscritorios() {
       '<td style="font-size:12px;white-space:nowrap"><label style="display:flex;align-items:center;gap:6px;cursor:pointer">' +
         '<input type="checkbox" ' + (carouselAtivo?'checked':'') + ' onchange="toggleFeatureEscritorio(\'' + e.id + '\', \'carousel_dashboard\', this.checked)"> Carousel Dashboard' +
       '</label></td>' +
-      '<td><button class="btn-financeiro" onclick="abrirModalFinanceiro(\'' + e.id + '\', \'' + nomeEscapado + '\')">💰 Financeiro</button><button class="btn-excluir" onclick="abrirModalExcluir(\'' + e.id + '\', \'' + nomeEscapado + '\')">🗑 Excluir</button></td>' +
+      '<td><button class="btn-financeiro" onclick="abrirDetalheEscritorio(\'' + e.id + '\', \'' + nomeEscapado + '\')" style="background:rgba(147,197,253,0.15);border-color:#93C5FD;color:#93C5FD">🔍 Detalhes</button><button class="btn-financeiro" onclick="abrirModalFinanceiro(\'' + e.id + '\', \'' + nomeEscapado + '\')">💰 Financeiro</button><button class="btn-excluir" onclick="abrirModalExcluir(\'' + e.id + '\', \'' + nomeEscapado + '\')">🗑 Excluir</button></td>' +
     '</tr>';
   }).join('');
 
