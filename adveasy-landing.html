@@ -93,8 +93,17 @@ header.site-nav{
 }
 .nav-cta:hover{background:var(--gold-bright); transform:translateY(-1px); box-shadow:0 8px 20px -6px rgba(196,169,107,0.5)}
 .nav-burger{display:none}
+.nav-mobile-panel{
+  display:none; flex-direction:column; gap:4px; padding:16px 20px 20px;
+  background:rgba(11,22,34,0.98); border-top:1px solid var(--line-dark);
+}
+.nav-mobile-panel.open{display:flex}
+.nav-mobile-panel a{font-size:14.5px; color:var(--text-on-dark); padding:11px 4px; border-bottom:1px solid var(--line-dark); transition:color .2s}
+.nav-mobile-panel a:last-child{border-bottom:none}
+.nav-mobile-panel a:hover{color:#fff}
 @media (max-width:860px){
   .nav-links{display:none}
+  .nav-cta{display:none}
   .nav-burger{display:block; background:none; border:none; color:#fff; font-size:22px; cursor:pointer}
 }
 
@@ -478,6 +487,19 @@ footer{background:var(--navy-deep); border-top:1px solid var(--line-dark); paddi
 .t-progress-fill{height:100%; width:0; background:linear-gradient(90deg,var(--gold-deep),var(--gold-bright)); border-radius:100px; transition:width 1s var(--ease)}
 .t-progress-label{font-size:10.5px; color:var(--text-on-dark-dim); margin-top:7px}
 
+/* mini-lista reutilizável (prazos, notas recentes, categorias, origem) */
+.t-list-label{font-size:10px; color:var(--text-on-dark-dim); text-transform:uppercase; letter-spacing:0.06em; font-family:'IBM Plex Mono',monospace; margin:16px 0 8px}
+.t-mini-list{display:flex; flex-direction:column; gap:7px}
+.t-list-item{display:flex; align-items:center; gap:10px; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.06); border-radius:9px; padding:9px 12px}
+.t-list-dot{width:8px; height:8px; border-radius:50%; flex-shrink:0}
+.t-list-dot.red{background:#FCA5A5}
+.t-list-dot.amber{background:#FCD34D}
+.t-list-dot.green{background:#86EFAC}
+.t-list-dot.blue{background:#93C5FD}
+.t-list-title{font-size:12px; color:#fff; font-weight:500}
+.t-list-sub{font-size:10.5px; color:var(--text-on-dark-dim); margin-top:1px}
+.t-list-value{margin-left:auto; font-size:12.5px; font-weight:700; color:var(--gold-bright); font-family:'IBM Plex Mono',monospace; flex-shrink:0}
+
 @media (max-width:640px){
   .tour-body{flex-direction:column; min-height:0}
   .tour-side{width:100%; flex-direction:row; padding:10px 16px}
@@ -504,6 +526,14 @@ footer{background:var(--navy-deep); border-top:1px solid var(--line-dark); paddi
       <a href="#seguranca">Segurança</a>
     </nav>
     <a class="nav-cta" href="#contato">Solicitar demonstração</a>
+    <button class="nav-burger" id="nav-burger" onclick="toggleMenuMobile()" aria-label="Abrir menu">☰</button>
+  </div>
+  <div class="nav-mobile-panel" id="nav-mobile-panel">
+    <a href="#modulos" onclick="fecharMenuMobile()">Recursos</a>
+    <a href="#portal" onclick="fecharMenuMobile()">Portal do Cliente</a>
+    <a href="#como-funciona" onclick="fecharMenuMobile()">Como funciona</a>
+    <a href="#seguranca" onclick="fecharMenuMobile()">Segurança</a>
+    <a href="#contato" class="nav-cta" style="text-align:center; margin-top:6px" onclick="fecharMenuMobile()">Solicitar demonstração</a>
   </div>
 </header>
 
@@ -849,6 +879,26 @@ try {
   }
 } catch(e){ console.warn('Falha no contador do hero:', e); }
 
+// ---------- Menu mobile ----------
+function toggleMenuMobile(){
+  try {
+    const painel = document.getElementById('nav-mobile-panel');
+    const btn = document.getElementById('nav-burger');
+    if(!painel) return;
+    const abrindo = !painel.classList.contains('open');
+    painel.classList.toggle('open', abrindo);
+    if(btn) btn.textContent = abrindo ? '✕' : '☰';
+  } catch(e){ console.warn('Falha no menu mobile:', e); }
+}
+function fecharMenuMobile(){
+  try {
+    const painel = document.getElementById('nav-mobile-panel');
+    const btn = document.getElementById('nav-burger');
+    if(painel) painel.classList.remove('open');
+    if(btn) btn.textContent = '☰';
+  } catch(e){ console.warn('Falha ao fechar o menu mobile:', e); }
+}
+
 // ---------- Abas de módulos (dossiê) ----------
 try {
   document.querySelectorAll('.folder-tab').forEach(tab => {
@@ -1107,12 +1157,23 @@ document.addEventListener('keydown', (ev) => {
               <div class="t-stat"><div class="dl">Taxa de êxito</div><div class="dv gold" data-count="86" data-suffix="%">0</div></div>
             </div>
             <div class="t-chart"><b style="height:38%"></b><b style="height:58%"></b><b style="height:44%"></b><b style="height:72%"></b><b style="height:63%"></b><b style="height:91%"></b><b style="height:80%"></b></div>
-            <div style="margin-top:12px"><span class="t-badge amber">🔔 3 prazos essa semana</span></div>
+            <div class="t-list-label">Próximos prazos</div>
+            <div class="t-mini-list" data-stagger>
+              <div class="t-list-item"><span class="t-list-dot red"></span><div><div class="t-list-title">Audiência — Carlos E. Lima</div><div class="t-list-sub">Amanhã, 14h00</div></div></div>
+              <div class="t-list-item"><span class="t-list-dot amber"></span><div><div class="t-list-title">Prazo recursal — Fernanda Costa</div><div class="t-list-sub">Em 3 dias</div></div></div>
+              <div class="t-list-item"><span class="t-list-dot blue"></span><div><div class="t-list-title">Perícia médica — Maria A. Souza</div><div class="t-list-sub">Em 6 dias</div></div></div>
+            </div>
           </div>
 
           <div class="tour-slide">
             <div class="tour-slide-title">Processos</div>
             <p class="tour-slide-caption">Cada processo com vara, status e cliente visíveis de cara — sem abrir pasta por pasta pra saber onde as coisas estão.</p>
+            <div class="t-stats" style="grid-template-columns:repeat(4,1fr)">
+              <div class="t-stat"><div class="dl">Andamento</div><div class="dv" style="font-size:16px" data-count="28">0</div></div>
+              <div class="t-stat"><div class="dl">Aguardando</div><div class="dv" style="font-size:16px" data-count="12">0</div></div>
+              <div class="t-stat"><div class="dl">Encerrados</div><div class="dv" style="font-size:16px" data-count="19">0</div></div>
+              <div class="t-stat"><div class="dl">Suspensos</div><div class="dv" style="font-size:16px" data-count="3">0</div></div>
+            </div>
             <div style="background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08); border-radius:8px; padding:8px 12px; font-size:11.5px; color:rgba(255,255,255,0.32); margin-bottom:12px; font-family:'IBM Plex Mono',monospace">🔍 Buscar por cliente, número ou vara...</div>
             <table class="t-table">
               <thead><tr><th>Processo</th><th>Cliente</th><th>Status</th></tr></thead>
@@ -1121,6 +1182,7 @@ document.addEventListener('keydown', (ev) => {
                 <tr><td class="mono">1002345-67...031</td><td>Carlos E. Lima</td><td><span class="t-badge amber">Aguardando</span></td></tr>
                 <tr><td class="mono">1003456-78...100</td><td>Fernanda Costa</td><td><span class="t-badge green">Encerrado</span></td></tr>
                 <tr><td class="mono">0004567-89...050</td><td>José R. Almeida</td><td><span class="t-badge blue">Em andamento</span></td></tr>
+                <tr><td class="mono">1006789-01...045</td><td>Roberto C. Nunes</td><td><span class="t-badge gray">Suspenso</span></td></tr>
               </tbody>
             </table>
           </div>
@@ -1196,6 +1258,12 @@ document.addEventListener('keydown', (ev) => {
             <div id="fat-status" style="margin-top:12px; opacity:0; transition:opacity .4s var(--ease)">
               <span class="t-badge green">✓ Nota nº 00187 emitida com sucesso</span>
             </div>
+            <div class="t-list-label">Notas emitidas recentemente</div>
+            <div class="t-mini-list" data-stagger>
+              <div class="t-list-item"><span class="t-list-dot green"></span><div><div class="t-list-title">Nº 00186 — Pedro H. Oliveira</div><div class="t-list-sub">03/07/2026</div></div><div class="t-list-value">R$ 1.200</div></div>
+              <div class="t-list-item"><span class="t-list-dot green"></span><div><div class="t-list-title">Nº 00185 — Ana P. Martins</div><div class="t-list-sub">28/06/2026</div></div><div class="t-list-value">R$ 900</div></div>
+              <div class="t-list-item"><span class="t-list-dot green"></span><div><div class="t-list-title">Nº 00184 — José R. Almeida</div><div class="t-list-sub">25/06/2026</div></div><div class="t-list-value">R$ 2.000</div></div>
+            </div>
           </div>
 
           <div class="tour-slide">
@@ -1208,6 +1276,12 @@ document.addEventListener('keydown', (ev) => {
               <div class="t-stat"><div class="dl">Saldo</div><div class="dv gold" data-count="11170" data-prefix="R$ ">0</div><div class="t-compare up">↑ 34% vs. junho</div></div>
             </div>
             <div class="t-chart"><b style="height:50%"></b><b style="height:70%"></b><b style="height:35%"></b><b style="height:85%"></b><b style="height:60%"></b><b style="height:95%"></b><b style="height:45%"></b></div>
+            <div class="t-list-label">Despesas por categoria</div>
+            <div class="t-mini-list" data-stagger>
+              <div class="t-list-item"><span class="t-list-dot amber"></span><div><div class="t-list-title">Estrutura (aluguel, contas)</div></div><div class="t-list-value">R$ 4.330</div></div>
+              <div class="t-list-item"><span class="t-list-dot amber"></span><div><div class="t-list-title">Pessoal</div></div><div class="t-list-value">R$ 2.800</div></div>
+              <div class="t-list-item"><span class="t-list-dot amber"></span><div><div class="t-list-title">Marketing</div></div><div class="t-list-value">R$ 900</div></div>
+            </div>
           </div>
 
           <div class="tour-slide">
@@ -1223,21 +1297,38 @@ document.addEventListener('keydown', (ev) => {
               <span class="t-badge amber">Taxa de conversão geral: 22,5%</span>
               <span class="t-compare up" style="opacity:1; margin-top:0; display:flex; align-items:center">↑ 4 pontos vs. junho</span>
             </div>
+            <div class="t-list-label">Origem dos leads</div>
+            <div class="t-mini-list" data-stagger>
+              <div class="t-list-item"><span class="t-list-dot blue"></span><div><div class="t-list-title">Google Ads</div></div><div class="t-list-value">42%</div></div>
+              <div class="t-list-item"><span class="t-list-dot green"></span><div><div class="t-list-title">Indicação</div></div><div class="t-list-value">35%</div></div>
+              <div class="t-list-item"><span class="t-list-dot amber"></span><div><div class="t-list-title">Instagram</div></div><div class="t-list-value">23%</div></div>
+            </div>
           </div>
 
           <div class="tour-slide">
             <div class="tour-slide-title">Usuários</div>
             <p class="tour-slide-caption">Cada pessoa da equipe com seu próprio acesso e permissão — o financeiro não precisa ver o que é só do advogado, por exemplo.</p>
+            <div class="t-stats" style="grid-template-columns:repeat(3,1fr)">
+              <div class="t-stat"><div class="dl">Usuários ativos</div><div class="dv" data-count="4">0</div></div>
+              <div class="t-stat"><div class="dl">Perfis diferentes</div><div class="dv" data-count="3">0</div></div>
+              <div class="t-stat"><div class="dl">Online agora</div><div class="dv gold" data-count="2">0</div></div>
+            </div>
             <div class="t-users" data-stagger>
-              <div class="t-user"><div class="t-user-av">RS</div><div><div class="t-user-name">Renan Soares</div><div class="t-user-role">Administrador · acesso total</div></div></div>
-              <div class="t-user"><div class="t-user-av">JC</div><div><div class="t-user-name">Juliana Campos</div><div class="t-user-role">Advogada · processos e agenda</div></div></div>
-              <div class="t-user"><div class="t-user-av">MF</div><div><div class="t-user-name">Marcos Ferreira</div><div class="t-user-role">Financeiro · recebimentos e despesas</div></div></div>
+              <div class="t-user"><div class="t-user-av">RS</div><div style="flex:1"><div class="t-user-name">Renan Soares</div><div class="t-user-role">Administrador · acesso total</div></div><span class="t-badge green" style="flex-shrink:0">● Online</span></div>
+              <div class="t-user"><div class="t-user-av">JC</div><div style="flex:1"><div class="t-user-name">Juliana Campos</div><div class="t-user-role">Advogada · processos e agenda</div></div><span class="t-badge green" style="flex-shrink:0">● Online</span></div>
+              <div class="t-user"><div class="t-user-av">MF</div><div style="flex:1"><div class="t-user-name">Marcos Ferreira</div><div class="t-user-role">Financeiro · recebimentos e despesas</div></div><span class="t-badge gray" style="flex-shrink:0">há 2h</span></div>
+              <div class="t-user"><div class="t-user-av">LT</div><div style="flex:1"><div class="t-user-name">Larissa Tavares</div><div class="t-user-role">Secretária · agenda e clientes</div></div><span class="t-badge gray" style="flex-shrink:0">ontem</span></div>
             </div>
           </div>
 
           <div class="tour-slide">
             <div class="tour-slide-title">Cobrança por WhatsApp</div>
             <p class="tour-slide-caption">Envie lembretes de pagamento e recibos direto pelo WhatsApp do cliente, com um clique — sem sair do sistema.</p>
+            <div class="t-stats" style="grid-template-columns:repeat(3,1fr); margin-bottom:16px">
+              <div class="t-stat"><div class="dl">Enviadas essa semana</div><div class="dv" data-count="32">0</div></div>
+              <div class="t-stat"><div class="dl">Taxa de resposta</div><div class="dv gold" data-count="78" data-suffix="%">0</div></div>
+              <div class="t-stat"><div class="dl">Recibos enviados</div><div class="dv" data-count="14">0</div></div>
+            </div>
             <div class="t-wpp-bubble">Olá, Carlos! Passando pra lembrar que a parcela 3/6 do seu processo vence amanhã (01/08). Qualquer dúvida, é só chamar por aqui. 😊</div>
             <div class="t-wpp-sent" id="wpp-status">✓ Enviado às 14:32</div>
             <div class="t-wpp-typing" id="wpp-typing"><span></span><span></span><span></span></div>
