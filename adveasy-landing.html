@@ -3,1416 +3,1419 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="robots" content="noindex, nofollow">
-<title>Painel Administrativo — ERP Jurídico</title>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<title>ADV Easy — Sistema de Gestão para Escritórios de Advocacia</title>
+<meta name="description" content="O escritório inteiro em um só lugar: clientes, processos, agenda, financeiro, faturamento e um portal exclusivo para quem você representa.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,500;1,600&family=Inter:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
-  * { margin:0; padding:0; box-sizing:border-box; }
-  body {
-    font-family: 'Inter', -apple-system, sans-serif;
-    background: #0F1E2E;
-    color: #E8F0F8;
-    min-height: 100vh;
-  }
-  .container { max-width: 980px; margin: 0 auto; padding: 32px 20px; }
+:root{
+  --ink:#12202E;
+  --navy-deep:#0B1622;
+  --navy:#1A2E45;
+  --navy-soft:#24405E;
+  --gold:#C4A96B;
+  --gold-deep:#8B6F3D;
+  --gold-bright:#DCC48E;
+  --paper:#F6F3EC;
+  --paper-dim:#EFEAE0;
+  --white:#FFFFFF;
+  --line:rgba(196,169,107,0.28);
+  --line-dark:rgba(255,255,255,0.09);
+  --text-muted:#5B6B7A;
+  --text-on-dark:rgba(255,255,255,0.72);
+  --text-on-dark-dim:rgba(255,255,255,0.45);
+  --radius-s:8px;
+  --radius-m:14px;
+  --radius-l:22px;
+  --shadow-soft:0 20px 60px -20px rgba(11,22,34,0.35);
+  --ease:cubic-bezier(.16,.8,.24,1);
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+@media (prefers-reduced-motion: reduce){
+  html{scroll-behavior:auto}
+  *{animation-duration:0.01ms !important; animation-iteration-count:1 !important; transition-duration:0.01ms !important; scroll-behavior:auto !important}
+}
+body{
+  margin:0; background:var(--paper); color:var(--ink);
+  font-family:'Inter',sans-serif; font-size:16px; line-height:1.6;
+  -webkit-font-smoothing:antialiased;
+}
+img,svg{display:block; max-width:100%}
+a{color:inherit; text-decoration:none}
+h1,h2,h3,h4{font-family:'Cormorant Garamond',serif; margin:0; font-weight:600; letter-spacing:-0.01em}
+p{margin:0}
+.mono{font-family:'IBM Plex Mono',monospace}
+.wrap{max-width:1180px; margin:0 auto; padding:0 32px}
+@media (max-width:768px){ .wrap{padding:0 20px} }
 
-  /* PAINEL EM JANELAS COM MENU LATERAL */
-  .admin-shell { display:flex; min-height:100vh; }
-  .admin-sidebar {
-    width: 232px; flex-shrink:0; background:#0B1622; border-right:1px solid rgba(255,255,255,0.08);
-    padding: 22px 0; display:flex; flex-direction:column; position:sticky; top:0; height:100vh; overflow-y:auto;
-  }
-  .admin-sidebar-brand { padding: 0 20px 20px; font-size:15px; font-weight:600; color:#fff; border-bottom:1px solid rgba(255,255,255,0.08); margin-bottom:14px; }
-  .admin-sidebar-brand small { display:block; font-size:11px; color:#9DB5D0; font-weight:400; margin-top:2px; }
-  .admin-nav-item {
-    display:flex; align-items:center; gap:10px; padding:11px 20px; font-size:13.5px; color:#9DB5D0;
-    cursor:pointer; border-left:3px solid transparent; transition:all .15s;
-  }
-  .admin-nav-item:hover { background:rgba(255,255,255,0.04); color:#E8F0F8; }
-  .admin-nav-item.active { background:rgba(196,169,107,0.1); color:#DCC48E; border-left-color:#C4A96B; }
-  .admin-sidebar-foot { margin-top:auto; padding:16px 20px 0; border-top:1px solid rgba(255,255,255,0.08); }
-  .admin-main { flex:1; min-width:0; }
-  .admin-window { display:none; }
-  .admin-window.active { display:block; }
-  .admin-burger { display:none; }
-  @media (max-width:860px) {
-    .admin-shell { flex-direction:column; }
-    .admin-sidebar { position:relative; height:auto; width:100%; padding:14px 0; }
-    .admin-sidebar-nav { display:none; flex-direction:column; }
-    .admin-sidebar-nav.open { display:flex; }
-    .admin-burger { display:block; background:none; border:none; color:#fff; font-size:20px; cursor:pointer; padding:0 20px; }
-  }
+.eyebrow{
+  font-family:'IBM Plex Mono',monospace; font-size:12px; letter-spacing:0.18em;
+  text-transform:uppercase; font-weight:500;
+}
+.eyebrow::before{content:'§ '}
 
-  /* LOGIN */
-  #tela-login { display:flex; align-items:center; justify-content:center; min-height:100vh; }
-  .login-box { background:#1A2E45; border-radius:16px; padding:36px; width:380px; box-shadow:0 12px 40px rgba(0,0,0,0.4); }
-  .login-box h1 { font-size:18px; font-weight:700; margin-bottom:6px; }
-  .login-box p { font-size:13px; color:#9DB5D0; margin-bottom:22px; }
-  .login-box input {
-    width:100%; padding:11px 14px; margin-bottom:12px; border-radius:8px;
-    border:1.5px solid #2A4D6E; background:#0F1E2E; color:#E8F0F8; font-size:14px; outline:none;
-  }
-  .login-box input:focus { border-color:#5A87B8; }
-  .login-box button {
-    width:100%; padding:12px; border-radius:8px; border:none; background:#C4A96B;
-    color:#0F1E2E; font-weight:600; font-size:14px; cursor:pointer; margin-top:6px;
-  }
-  .login-box button:disabled { opacity:0.6; cursor:default; }
-  .erro { background:#2E0A0A; border:1px solid #B91C1C; color:#FCA5A5; padding:10px 14px; border-radius:8px; font-size:13px; margin-bottom:14px; display:none; }
+/* ---------- reveal on scroll ---------- */
+.reveal{opacity:0; transform:translateY(22px); transition:opacity .8s var(--ease), transform .8s var(--ease)}
+.reveal.in{opacity:1; transform:none}
+.reveal-stagger > *{opacity:0; transform:translateY(18px); transition:opacity .7s var(--ease), transform .7s var(--ease)}
+.reveal-stagger.in > *{opacity:1; transform:none}
+.reveal-stagger.in > *:nth-child(1){transition-delay:.05s}
+.reveal-stagger.in > *:nth-child(2){transition-delay:.14s}
+.reveal-stagger.in > *:nth-child(3){transition-delay:.23s}
+.reveal-stagger.in > *:nth-child(4){transition-delay:.32s}
+.reveal-stagger.in > *:nth-child(5){transition-delay:.41s}
+.reveal-stagger.in > *:nth-child(6){transition-delay:.50s}
 
-  /* PAINEL */
-  #tela-painel { display:none; }
-  header { display:flex; justify-content:space-between; align-items:center; margin-bottom:28px; }
-  header h1 { font-size:20px; font-weight:700; }
-  header span { font-size:12px; color:#9DB5D0; }
-  .btn-sair { background:none; border:1px solid #2A4D6E; color:#9DB5D0; padding:7px 14px; border-radius:8px; font-size:12px; cursor:pointer; }
+/* ================= NAV ================= */
+header.site-nav{
+  position:fixed; top:0; left:0; right:0; z-index:500;
+  background:rgba(11,22,34,0.72); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
+  border-bottom:1px solid var(--line-dark);
+}
+.nav-inner{display:flex; align-items:center; justify-content:space-between; height:76px}
+.nav-logo{display:flex; align-items:center; gap:10px}
+.nav-logo-mark{
+  width:34px; height:34px; border-radius:9px;
+  background:linear-gradient(135deg, var(--gold-bright), var(--gold-deep));
+  display:flex; align-items:center; justify-content:center;
+  font-family:'Cormorant Garamond',serif; font-weight:700; font-size:16px; color:var(--navy-deep);
+}
+.nav-logo-text{font-family:'Cormorant Garamond',serif; font-size:21px; font-weight:600; color:#fff; letter-spacing:0.01em}
+.nav-logo-text em{color:var(--gold-bright); font-style:normal}
+.nav-links{display:flex; align-items:center; gap:36px}
+.nav-links a{font-size:14px; color:var(--text-on-dark); transition:color .2s}
+.nav-links a:hover{color:#fff}
+.nav-cta{
+  font-size:13.5px; font-weight:600; padding:11px 22px; border-radius:100px;
+  background:var(--gold); color:var(--navy-deep); transition:all .2s var(--ease);
+  border:1px solid var(--gold);
+}
+.nav-cta:hover{background:var(--gold-bright); transform:translateY(-1px); box-shadow:0 8px 20px -6px rgba(196,169,107,0.5)}
+.nav-burger{display:none}
+.nav-mobile-panel{
+  display:none; flex-direction:column; gap:4px; padding:16px 20px 20px;
+  background:rgba(11,22,34,0.98); border-top:1px solid var(--line-dark);
+}
+.nav-mobile-panel.open{display:flex}
+.nav-mobile-panel a{font-size:14.5px; color:var(--text-on-dark); padding:11px 4px; border-bottom:1px solid var(--line-dark); transition:color .2s}
+.nav-mobile-panel a:last-child{border-bottom:none}
+.nav-mobile-panel a:hover{color:#fff}
+@media (max-width:860px){
+  .nav-links{display:none}
+  .nav-cta{display:none}
+  .nav-burger{display:block; background:none; border:none; color:#fff; font-size:22px; cursor:pointer}
+}
 
-  .card { background:#1A2E45; border-radius:12px; padding:22px; margin-bottom:20px; border:1px solid #2A4D6E; }
-  .card h2 { font-size:15px; font-weight:600; margin-bottom:14px; }
-  .form-group { margin-bottom:12px; }
-  .form-group label { display:block; font-size:12px; color:#9DB5D0; margin-bottom:5px; }
-  .form-group input, .form-group select {
-    width:100%; padding:9px 12px; border-radius:8px; border:1.5px solid #2A4D6E;
-    background:#0F1E2E; color:#E8F0F8; font-size:13.5px; outline:none;
-  }
-  .form-row { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
-  .btn-primary {
-    background:#5A87B8; color:white; border:none; padding:10px 20px; border-radius:8px;
-    font-size:13.5px; font-weight:600; cursor:pointer; margin-top:8px;
-  }
-  .btn-primary:disabled { opacity:0.6; cursor:default; }
+/* ================= HERO ================= */
+.hero{
+  position:relative; background:var(--navy-deep); color:#fff; overflow:hidden;
+  padding:168px 0 120px;
+}
+.hero::before{
+  /* textura sutil de "papel timbrado" digital: linhas finas douradas quase invisíveis */
+  content:''; position:absolute; inset:0; opacity:0.5; pointer-events:none;
+  background-image:
+    radial-gradient(ellipse 900px 500px at 15% -10%, rgba(196,169,107,0.16), transparent 60%),
+    radial-gradient(ellipse 700px 500px at 100% 10%, rgba(36,64,94,0.5), transparent 55%);
+}
+.hero-grid{position:relative; display:grid; grid-template-columns:1fr; gap:64px; align-items:center}
+.hero-eyebrow{color:var(--gold-bright); margin-bottom:22px}
+.hero h1{
+  font-size:clamp(38px,5.6vw,64px); line-height:1.08; color:#fff; max-width:15ch;
+  font-weight:600;
+}
+.hero h1 em{font-style:italic; color:var(--gold-bright); font-weight:500}
+.hero-sub{
+  margin-top:26px; font-size:18px; line-height:1.65; color:var(--text-on-dark);
+  max-width:46ch; font-weight:300;
+}
+.hero-ctas{display:flex; gap:16px; margin-top:38px; flex-wrap:wrap}
+.btn-primary{
+  font-size:14.5px; font-weight:600; padding:15px 28px; border-radius:100px;
+  background:var(--gold); color:var(--navy-deep); transition:all .22s var(--ease);
+  display:inline-flex; align-items:center; gap:8px; border:1px solid var(--gold);
+}
+.btn-primary:hover{background:var(--gold-bright); transform:translateY(-2px); box-shadow:0 14px 30px -10px rgba(196,169,107,0.55)}
+.btn-ghost{
+  font-size:14.5px; font-weight:500; padding:15px 26px; border-radius:100px;
+  border:1px solid var(--line-dark); color:#fff; transition:all .22s var(--ease);
+  display:inline-flex; align-items:center; gap:8px;
+}
+.btn-ghost:hover{border-color:rgba(255,255,255,0.35); background:rgba(255,255,255,0.04)}
+.hero-fineprint{margin-top:20px; font-size:12.5px; color:var(--text-on-dark-dim)}
 
-  table { width:100%; border-collapse:collapse; font-size:13px; }
-  th { text-align:left; padding:8px 6px; color:#9DB5D0; font-size:11px; text-transform:uppercase; border-bottom:1px solid #2A4D6E; }
-  td { padding:10px 6px; border-bottom:1px solid #16243a; }
-  select.status-select { background:#0F1E2E; color:#E8F0F8; border:1px solid #2A4D6E; border-radius:6px; padding:4px 8px; font-size:12px; }
-  .toast { position:fixed; top:20px; right:20px; background:#1A2E45; border:1px solid #2A4D6E; padding:12px 18px; border-radius:8px; font-size:13px; display:none; }
-  .toast.success { border-color:#0B7B45; }
-  .toast.error { border-color:#B91C1C; }
-  .credenciais-box {
-    background:#0F1E2E; border:1px solid #C4A96B; border-radius:8px; padding:14px; margin-top:14px; font-size:13px;
-  }
-  .credenciais-box code { background:#1A2E45; padding:2px 6px; border-radius:4px; }
+/* --- mockup: janela de produto estilizada, com a mesma identidade do sistema real --- */
+.device{
+  position:relative; border-radius:var(--radius-l); overflow:hidden;
+  background:#0E1B29; border:1px solid rgba(255,255,255,0.08);
+  box-shadow:var(--shadow-soft), 0 0 0 1px rgba(196,169,107,0.06);
+  transform:perspective(1400px) rotateX(2deg);
+}
+.device-bar{
+  display:flex; align-items:center; gap:7px; padding:13px 16px;
+  background:rgba(255,255,255,0.03); border-bottom:1px solid rgba(255,255,255,0.06);
+}
+.device-dot{width:9px; height:9px; border-radius:50%; background:rgba(255,255,255,0.18)}
+.device-bar .mono{margin-left:12px; font-size:11px; color:rgba(255,255,255,0.32)}
+.device-body{display:flex; min-height:340px}
+.device-side{
+  width:76px; background:#0B1622; border-right:1px solid rgba(255,255,255,0.06);
+  padding:18px 0; display:flex; flex-direction:column; align-items:center; gap:16px; flex-shrink:0;
+}
+.device-side .d-mark{width:26px; height:26px; border-radius:7px; background:linear-gradient(135deg,var(--gold-bright),var(--gold-deep)); margin-bottom:8px}
+.device-side i{width:30px; height:9px; border-radius:5px; background:rgba(255,255,255,0.09)}
+.device-side i.active{background:var(--gold); width:34px}
+.device-main{flex:1; padding:22px 24px; min-width:0}
+.device-title{font-family:'Cormorant Garamond',serif; font-size:19px; color:#fff; margin-bottom:16px}
+.device-stats{display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:18px}
+.device-stat{
+  background:rgba(255,255,255,0.035); border:1px solid rgba(255,255,255,0.07); border-radius:10px; padding:12px 13px;
+}
+.device-stat .dl{font-size:9.5px; letter-spacing:0.09em; text-transform:uppercase; color:rgba(255,255,255,0.35); font-family:'IBM Plex Mono',monospace}
+.device-stat .dv{font-family:'Cormorant Garamond',serif; font-size:23px; color:#fff; margin-top:5px; font-weight:600}
+.device-stat .dv.gold{color:var(--gold-bright)}
+.device-chart{
+  background:rgba(255,255,255,0.035); border:1px solid rgba(255,255,255,0.07); border-radius:10px;
+  padding:16px 18px 12px; display:flex; align-items:flex-end; gap:8px; height:96px;
+}
+.device-chart b{
+  flex:1; background:linear-gradient(180deg, var(--gold-bright), rgba(196,169,107,0.35));
+  border-radius:4px 4px 0 0; transform-origin:bottom; transform:scaleY(0);
+  transition:transform 1.1s var(--ease);
+}
+.device.play .device-chart b{transform:scaleY(1)}
+.device-row{display:flex; justify-content:space-between; align-items:center; margin-top:14px; padding-top:14px; border-top:1px solid rgba(255,255,255,0.06)}
+.device-badge{
+  display:inline-flex; align-items:center; gap:6px; font-size:11px; color:var(--gold-bright);
+  background:rgba(196,169,107,0.12); padding:5px 11px; border-radius:100px; font-family:'IBM Plex Mono',monospace;
+}
+.device-pulse{width:6px; height:6px; border-radius:50%; background:var(--gold-bright); animation:pulse 1.8s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1} 50%{opacity:.35}}
 
-  .btn-excluir { background:none; border:1px solid #7f1d1d; color:#FCA5A5; padding:5px 12px; border-radius:6px; font-size:11.5px; cursor:pointer; }
-  .btn-excluir:hover { background:#2E0A0A; }
+@media (min-width:960px){
+  .hero-grid{grid-template-columns:1.05fr 1fr}
+}
+@media (max-width:640px){
+  .device-body{flex-direction:column}
+  .device-side{width:100%; flex-direction:row; padding:10px 16px; justify-content:flex-start}
+  .device-side .d-mark{margin-bottom:0; margin-right:4px}
+}
 
-  .modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); align-items:center; justify-content:center; z-index:50; }
-  .modal-overlay.aberto { display:flex; }
-  .modal-confirma { background:#1A2E45; border:1px solid #B91C1C; border-radius:12px; padding:26px; width:420px; }
-  .modal-confirma h3 { font-size:16px; margin-bottom:10px; color:#FCA5A5; }
-  .modal-confirma p { font-size:13px; color:#9DB5D0; margin-bottom:14px; line-height:1.5; }
-  .modal-confirma strong { color:#E8F0F8; }
-  .modal-confirma input { width:100%; padding:10px 12px; border-radius:8px; border:1.5px solid #2A4D6E; background:#0F1E2E; color:#E8F0F8; font-size:14px; outline:none; margin-bottom:14px; }
-  .modal-confirma-botoes { display:flex; gap:10px; justify-content:flex-end; }
-  .btn-cancelar-modal { background:none; border:1px solid #2A4D6E; color:#9DB5D0; padding:9px 16px; border-radius:8px; font-size:13px; cursor:pointer; }
-  .btn-confirmar-exclusao { background:#B91C1C; border:none; color:white; padding:9px 16px; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer; }
-  .btn-confirmar-exclusao:disabled { opacity:0.4; cursor:default; }
+/* ================= TRUST STRIP ================= */
+.trust{background:var(--navy); padding:30px 0; border-bottom:1px solid var(--line-dark)}
+.trust-row{display:flex; flex-wrap:wrap; gap:28px 48px; justify-content:center; align-items:center}
+.trust-item{display:flex; align-items:center; gap:10px; color:var(--text-on-dark); font-size:13.5px}
+.trust-item b{color:#fff; font-family:'Cormorant Garamond',serif; font-size:18px; font-weight:600}
 
-  .btn-financeiro { background:none; border:1px solid #2A4D6E; color:#9DB5D0; padding:5px 12px; border-radius:6px; font-size:11.5px; cursor:pointer; margin-right:6px; }
-  .btn-financeiro:hover { background:#0F1E2E; }
+/* ================= DE/PARA ================= */
+.section{padding:120px 0}
+.section-head{max-width:640px; margin-bottom:56px}
+.section-head .eyebrow{color:var(--gold-deep); margin-bottom:16px}
+.section-head h2{font-size:clamp(28px,3.6vw,42px); line-height:1.15}
+.section-head p{margin-top:16px; font-size:16.5px; color:var(--text-muted); line-height:1.65}
 
-  .modal-financeiro { background:#1A2E45; border:1px solid #2A4D6E; border-radius:12px; padding:26px; width:720px; max-height:85vh; overflow-y:auto; }
-  .modal-financeiro h3 { font-size:17px; margin-bottom:18px; }
-  .modal-financeiro h4 { font-size:13px; color:#9DB5D0; margin:18px 0 10px; text-transform:uppercase; letter-spacing:0.5px; }
-  .plano-resumo { background:#0F1E2E; border:1px solid #2A4D6E; border-radius:8px; padding:14px; margin-bottom:6px; font-size:13px; }
-  .plano-resumo strong { color:#C4A96B; }
-  .btn-fechar-financeiro { background:none; border:1px solid #2A4D6E; color:#9DB5D0; padding:8px 16px; border-radius:8px; font-size:13px; cursor:pointer; float:right; }
+.depara{display:grid; grid-template-columns:1fr; gap:20px}
+@media (min-width:860px){ .depara{grid-template-columns:1fr 1fr} }
+.depara-col{border-radius:var(--radius-l); padding:36px 34px}
+.depara-col.antes{background:var(--paper-dim); border:1px solid rgba(18,32,46,0.08)}
+.depara-col.depois{background:var(--navy); color:#fff; position:relative; overflow:hidden}
+.depara-col.depois::before{content:''; position:absolute; inset:0; background:radial-gradient(ellipse 400px 300px at 100% 0%, rgba(196,169,107,0.18), transparent 60%)}
+.depara-tag{font-family:'IBM Plex Mono',monospace; font-size:11px; letter-spacing:0.14em; text-transform:uppercase; opacity:0.5; margin-bottom:18px; position:relative}
+.depara-col.antes .depara-tag{color:var(--ink)}
+.depara-col.depois .depara-tag{color:var(--gold-bright); opacity:0.9}
+.depara ul{list-style:none; margin:0; padding:0; position:relative}
+.depara li{display:flex; gap:12px; padding:13px 0; font-size:15px; line-height:1.5; border-top:1px solid rgba(18,32,46,0.08)}
+.depara-col.depois li{border-top:1px solid rgba(255,255,255,0.09); color:var(--text-on-dark)}
+.depara li:first-child{border-top:none}
+.depara li span.ico{flex-shrink:0; font-size:14px; margin-top:1px}
 
-  .cobranca-status { display:inline-block; padding:2px 9px; border-radius:12px; font-size:11px; font-weight:600; }
-  .cobranca-status.pendente { background:#1D3A5C; color:#9DB5D0; }
-  .cobranca-status.pago { background:#0A2E1C; color:#6FCF97; }
-  .cobranca-status.atrasado { background:#2E0A0A; color:#FCA5A5; }
-  .cobranca-status.cancelado { background:#1f2937; color:#9ca3af; }
-  .btn-marcar-pago { background:#0B7B45; border:none; color:white; padding:4px 10px; border-radius:6px; font-size:11px; cursor:pointer; }
-  table.tabela-cobrancas td, table.tabela-cobrancas th { padding:7px 8px; }
+/* ================= MÓDULOS (dossiê) ================= */
+.dossie{background:var(--paper)}
+.folder-tabs{display:flex; gap:6px; flex-wrap:wrap; margin-bottom:0; position:relative; z-index:2}
+.folder-tab{
+  font-family:'IBM Plex Mono',monospace; font-size:11.5px; letter-spacing:0.04em;
+  padding:12px 20px 13px; border-radius:10px 10px 0 0; cursor:pointer; user-select:none;
+  background:var(--paper-dim); color:var(--text-muted); border:1px solid rgba(18,32,46,0.09); border-bottom:none;
+  transition:all .18s;
+}
+.folder-tab:hover{color:var(--ink)}
+.folder-tab.active{background:var(--navy); color:var(--gold-bright); border-color:var(--navy)}
+.folder-panel{
+  background:var(--navy); border-radius:0 var(--radius-l) var(--radius-l) var(--radius-l);
+  padding:44px 44px; position:relative; overflow:hidden; min-height:280px;
+}
+.folder-panel::before{content:''; position:absolute; inset:0; background:radial-gradient(ellipse 500px 350px at 100% 0%, rgba(196,169,107,0.14), transparent 60%); pointer-events:none}
+.folder-content{display:none; position:relative}
+.folder-content.active{display:block}
+.folder-content h3{color:#fff; font-size:26px; margin-bottom:10px}
+.folder-content > p{color:var(--text-on-dark); font-size:15px; max-width:56ch; margin-bottom:28px; line-height:1.6}
+.feat-grid{display:grid; grid-template-columns:1fr; gap:14px}
+@media (min-width:720px){ .feat-grid{grid-template-columns:1fr 1fr} }
+.feat{display:flex; gap:13px; padding:16px 0; border-top:1px solid rgba(255,255,255,0.08)}
+.feat:nth-child(-n+2){border-top:none}
+@media (max-width:719px){ .feat:nth-child(2){border-top:1px solid rgba(255,255,255,0.08)} }
+.feat .fico{font-size:17px; flex-shrink:0; margin-top:2px}
+.feat .ft{font-size:14.5px; font-weight:600; color:#fff; margin-bottom:3px}
+.feat .fd{font-size:13.5px; color:var(--text-on-dark); line-height:1.5}
 
-  .versao-item { background:#0F1E2E; border:1px solid #2A4D6E; border-radius:8px; padding:12px 16px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center; gap:12px; }
-  .versao-item.atual { border-color:#0B7B45; }
-  .versao-info { flex:1; min-width:0; }
-  .versao-msg { font-size:13.5px; font-weight:500; margin-bottom:3px; word-break:break-word; }
-  .versao-meta { font-size:11.5px; color:#9DB5D0; }
-  .badge-atual { background:#0A2E1C; color:#6FCF97; font-size:10.5px; padding:2px 8px; border-radius:10px; font-weight:600; margin-left:8px; }
-  .btn-restaurar { background:none; border:1px solid #5A87B8; color:#9DB5D0; padding:6px 14px; border-radius:6px; font-size:12px; cursor:pointer; white-space:nowrap; }
-  .btn-restaurar:hover { background:#0F1E2E; color:#E8F0F8; }
-  .btn-restaurar:disabled { opacity:0.4; cursor:default; }
+/* ================= PORTAL DO CLIENTE ================= */
+.portal-grid{display:grid; grid-template-columns:1fr; gap:52px; align-items:center}
+@media (min-width:920px){ .portal-grid{grid-template-columns:1fr 1fr} }
+.portal-mock{
+  background:var(--navy-deep); border-radius:var(--radius-l); padding:28px;
+  border:1px solid rgba(196,169,107,0.15); box-shadow:var(--shadow-soft);
+}
+.pm-head{display:flex; align-items:center; gap:12px; margin-bottom:20px}
+.pm-avatar{width:38px; height:38px; border-radius:50%; background:linear-gradient(135deg,var(--gold-bright),var(--gold-deep)); display:flex; align-items:center; justify-content:center; font-family:'Cormorant Garamond',serif; font-weight:700; color:var(--navy-deep); font-size:15px}
+.pm-name{color:#fff; font-size:14px; font-weight:600}
+.pm-sub{color:var(--text-on-dark-dim); font-size:11.5px}
+.pm-bubble{background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.08); border-radius:14px; padding:14px 16px; margin-bottom:10px; font-size:13.5px; color:var(--text-on-dark); line-height:1.5}
+.pm-bubble.me{background:rgba(196,169,107,0.14); border-color:rgba(196,169,107,0.25); margin-left:14%}
+.pm-status{display:flex; gap:10px; margin-top:22px; padding-top:20px; border-top:1px solid rgba(255,255,255,0.08)}
+.pm-status-item{flex:1; background:rgba(255,255,255,0.04); border-radius:10px; padding:12px; text-align:center}
+.pm-status-item .n{font-family:'Cormorant Garamond',serif; font-size:20px; color:var(--gold-bright); font-weight:600}
+.pm-status-item .l{font-size:10px; color:var(--text-on-dark-dim); text-transform:uppercase; letter-spacing:0.06em; margin-top:3px; font-family:'IBM Plex Mono',monospace}
+.portal-copy .section-head{margin-bottom:26px}
+.portal-list{list-style:none; padding:0; margin:0}
+.portal-list li{display:flex; gap:13px; padding:14px 0; border-top:1px solid rgba(18,32,46,0.08); font-size:15px; line-height:1.55}
+.portal-list li:first-child{border-top:none}
+.portal-list b{display:block; margin-bottom:2px}
+
+/* ================= COMO FUNCIONA ================= */
+.steps{display:grid; grid-template-columns:1fr; gap:0; counter-reset:step}
+@media (min-width:860px){ .steps{grid-template-columns:repeat(3,1fr); gap:32px} }
+.step{position:relative; padding:32px 0 0}
+@media (min-width:860px){ .step{padding:0} }
+.step-num{
+  font-family:'Cormorant Garamond',serif; font-size:15px; color:var(--gold-deep); font-weight:700;
+  width:38px; height:38px; border-radius:50%; border:1.5px solid var(--gold); display:flex; align-items:center; justify-content:center;
+  margin-bottom:20px;
+}
+.step h4{font-size:20px; margin-bottom:10px}
+.step p{color:var(--text-muted); font-size:14.5px; line-height:1.6}
+.step-line{position:absolute; top:19px; left:38px; right:-32px; height:1px; background:var(--line); display:none}
+@media (min-width:860px){ .step:not(:last-child) .step-line{display:block} }
+
+/* ================= SEGURANÇA ================= */
+.seguranca{background:var(--paper-dim)}
+.sec-grid{display:grid; grid-template-columns:1fr; gap:16px}
+@media (min-width:720px){ .sec-grid{grid-template-columns:repeat(3,1fr)} }
+.sec-card{background:var(--white); border:1px solid rgba(18,32,46,0.08); border-radius:var(--radius-m); padding:26px}
+.sec-card .sico{font-size:20px; margin-bottom:14px}
+.sec-card h4{font-size:16.5px; margin-bottom:8px; font-family:'Inter',sans-serif; font-weight:600}
+.sec-card p{font-size:13.5px; color:var(--text-muted); line-height:1.55}
+
+/* ================= FAQ ================= */
+.faq-list{max-width:760px}
+.faq-item{border-bottom:1px solid rgba(18,32,46,0.1)}
+.faq-item:first-child{border-top:1px solid rgba(18,32,46,0.1)}
+.faq-q{
+  display:flex; align-items:center; justify-content:space-between; gap:16px;
+  padding:20px 4px; cursor:pointer; font-size:15.5px; font-weight:500; color:var(--ink);
+}
+.faq-q-icon{flex-shrink:0; font-size:18px; color:var(--gold-deep); transition:transform .3s var(--ease); font-family:'IBM Plex Mono',monospace}
+.faq-item.open .faq-q-icon{transform:rotate(45deg)}
+.faq-a{max-height:0; overflow:hidden; transition:max-height .35s var(--ease)}
+.faq-a-inner{padding:0 4px 20px; font-size:14px; color:var(--text-muted); line-height:1.65; max-width:64ch}
+
+/* ================= CTA FINAL ================= */
+.cta-final{background:var(--navy-deep); color:#fff; position:relative; overflow:hidden}
+.cta-final::before{content:''; position:absolute; inset:0; background:radial-gradient(ellipse 700px 500px at 50% -10%, rgba(196,169,107,0.16), transparent 60%)}
+.cta-grid{display:grid; grid-template-columns:1fr; gap:56px; position:relative}
+@media (min-width:920px){ .cta-grid{grid-template-columns:1fr 0.9fr} }
+.cta-final h2{color:#fff; font-size:clamp(28px,3.6vw,40px); max-width:14ch; line-height:1.15}
+.cta-final .section-head p{color:var(--text-on-dark)}
+.cta-bullets{list-style:none; padding:0; margin:28px 0 0}
+.cta-bullets li{display:flex; gap:10px; color:var(--text-on-dark); font-size:14.5px; padding:8px 0}
+.form-card{background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.1); border-radius:var(--radius-l); padding:32px}
+.form-row2{display:grid; grid-template-columns:1fr; gap:14px}
+@media (min-width:520px){ .form-row2{grid-template-columns:1fr 1fr} }
+.f-group{margin-bottom:14px}
+.f-group label{display:block; font-size:11.5px; color:var(--text-on-dark-dim); margin-bottom:7px; font-family:'IBM Plex Mono',monospace; letter-spacing:0.04em}
+.f-group input, .f-group textarea{
+  width:100%; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.14); border-radius:9px;
+  padding:12px 14px; color:#fff; font-family:'Inter',sans-serif; font-size:14.5px; outline:none; transition:border-color .18s;
+}
+.f-group input::placeholder, .f-group textarea::placeholder{color:rgba(255,255,255,0.28)}
+.f-group input:focus, .f-group textarea:focus{border-color:var(--gold)}
+.f-submit{
+  width:100%; margin-top:6px; padding:15px; border-radius:9px; border:none; cursor:pointer;
+  background:var(--gold); color:var(--navy-deep); font-weight:700; font-size:14.5px; font-family:'Inter',sans-serif;
+  transition:all .2s var(--ease);
+}
+.f-submit:hover{background:var(--gold-bright); transform:translateY(-1px)}
+.f-note{font-size:11.5px; color:var(--text-on-dark-dim); margin-top:12px; text-align:center}
+
+/* ================= FOOTER ================= */
+footer{background:var(--navy-deep); border-top:1px solid var(--line-dark); padding:44px 0}
+.foot-row{display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:20px}
+.foot-logo{display:flex; align-items:center; gap:9px}
+.foot-logo-text{font-family:'Cormorant Garamond',serif; color:#fff; font-size:16px}
+.foot-links{display:flex; gap:26px; flex-wrap:wrap}
+.foot-links a{font-size:13px; color:var(--text-on-dark-dim); transition:color .2s}
+.foot-links a:hover{color:#fff}
+.foot-copy{font-size:12px; color:var(--text-on-dark-dim); margin-top:24px; padding-top:24px; border-top:1px solid var(--line-dark)}
+
+/* ================= TOUR DO PRODUTO (modal) ================= */
+.tour-overlay{
+  position:fixed; inset:0; z-index:1000; background:rgba(11,22,34,0.82); backdrop-filter:blur(6px);
+  display:none; align-items:center; justify-content:center; padding:24px;
+}
+.tour-overlay.open{display:flex}
+.tour-close{
+  position:absolute; top:22px; right:26px; width:38px; height:38px; border-radius:50%;
+  background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.14); color:#fff;
+  font-size:16px; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:all .18s;
+}
+.tour-close:hover{background:rgba(255,255,255,0.16)}
+.tour-window{
+  width:100%; max-width:920px; background:#0E1B29; border-radius:var(--radius-l);
+  border:1px solid rgba(255,255,255,0.09); box-shadow:0 40px 100px -20px rgba(0,0,0,0.6);
+  overflow:hidden; position:relative;
+}
+.tour-bar{display:flex; align-items:center; gap:7px; padding:13px 16px; background:rgba(255,255,255,0.03); border-bottom:1px solid rgba(255,255,255,0.06)}
+.tour-bar .mono{margin-left:8px; font-size:11px; color:rgba(255,255,255,0.32)}
+.tour-bar .tb-count{margin-left:auto; margin-right:6px; font-size:11px; color:var(--gold-bright); font-family:'IBM Plex Mono',monospace}
+.tour-progress{height:2.5px; background:rgba(255,255,255,0.06); position:relative; overflow:hidden}
+.tour-progress-fill{position:absolute; inset:0 auto 0 0; width:12.5%; background:linear-gradient(90deg,var(--gold-deep),var(--gold-bright)); transition:width .45s var(--ease)}
+.tour-body{display:flex; min-height:560px}
+.tour-side{width:78px; background:#0B1622; border-right:1px solid rgba(255,255,255,0.06); padding:20px 0; display:flex; flex-direction:column; align-items:center; gap:16px; flex-shrink:0}
+.tour-side .d-mark{width:26px; height:26px; border-radius:7px; background:linear-gradient(135deg,var(--gold-bright),var(--gold-deep)); margin-bottom:8px}
+.tour-side i{width:30px; height:8px; border-radius:4px; background:rgba(255,255,255,0.08); transition:all .25s}
+.tour-side i.active{background:var(--gold); width:34px}
+.tour-main{flex:1; padding:34px 38px 0; min-width:0; display:flex; flex-direction:column}
+.tour-slides{position:relative; flex:1; min-height:420px}
+.tour-slide{overflow-y:auto}
+.tour-slide{position:absolute; inset:0; opacity:0; transform:translateX(14px); transition:opacity .35s var(--ease), transform .35s var(--ease); pointer-events:none}
+.tour-slide.active{opacity:1; transform:none; pointer-events:auto}
+.tour-slide-title{font-family:'Cormorant Garamond',serif; font-size:20px; color:#fff; margin-bottom:4px}
+.tour-slide-caption{font-size:12.5px; color:var(--text-on-dark); margin-bottom:16px; line-height:1.5; max-width:52ch}
+.tour-foot{display:flex; align-items:center; justify-content:space-between; padding:16px 28px; border-top:1px solid rgba(255,255,255,0.07); margin-top:auto}
+.tour-dots{display:flex; gap:6px}
+.tour-dot{width:6px; height:6px; border-radius:50%; background:rgba(255,255,255,0.18); cursor:pointer; transition:all .2s}
+.tour-dot.active{background:var(--gold); width:18px; border-radius:3px}
+.tour-nav-btns{display:flex; gap:8px}
+.tour-nav-btn{
+  width:34px; height:34px; border-radius:50%; border:1px solid rgba(255,255,255,0.14); background:rgba(255,255,255,0.04);
+  color:#fff; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:14px; transition:all .18s;
+}
+.tour-nav-btn:hover{background:rgba(255,255,255,0.1)}
+.tour-nav-btn:disabled{opacity:0.3; cursor:default}
+
+/* --- conteúdo reutilizável dentro dos slides --- */
+.t-stats{display:grid; grid-template-columns:repeat(3,1fr); gap:9px; margin-bottom:12px}
+.t-stat{background:rgba(255,255,255,0.035); border:1px solid rgba(255,255,255,0.07); border-radius:9px; padding:10px 12px}
+.t-stat .dl{font-size:9px; letter-spacing:0.08em; text-transform:uppercase; color:rgba(255,255,255,0.35); font-family:'IBM Plex Mono',monospace}
+.t-stat .dv{font-family:'Cormorant Garamond',serif; font-size:19px; color:#fff; margin-top:4px; font-weight:600}
+.t-stat .dv.gold{color:var(--gold-bright)}
+.t-chart{background:rgba(255,255,255,0.035); border:1px solid rgba(255,255,255,0.07); border-radius:9px; padding:14px 16px 10px; display:flex; align-items:flex-end; gap:6px; height:84px}
+.t-chart b{flex:1; background:linear-gradient(180deg,var(--gold-bright),rgba(196,169,107,0.35)); border-radius:3px 3px 0 0; transform-origin:bottom; transform:scaleY(0); transition:transform .9s var(--ease)}
+.tour-slide.played .t-chart b{transform:scaleY(1)}
+.t-table{width:100%; border-collapse:collapse; font-size:12px}
+.t-table th{text-align:left; font-family:'IBM Plex Mono',monospace; font-size:9.5px; letter-spacing:0.06em; text-transform:uppercase; color:rgba(255,255,255,0.35); padding:0 0 8px; font-weight:400}
+.t-table td{padding:9px 10px 9px 0; border-top:1px solid rgba(255,255,255,0.06); color:var(--text-on-dark)}
+.t-badge{display:inline-block; padding:2px 9px; border-radius:100px; font-size:10.5px; font-weight:600}
+.t-badge.blue{background:rgba(96,165,250,0.16); color:#93C5FD}
+.t-badge.green{background:rgba(74,222,128,0.16); color:#86EFAC}
+.t-badge.amber{background:rgba(251,191,36,0.16); color:#FCD34D}
+.t-badge.gray{background:rgba(255,255,255,0.1); color:rgba(255,255,255,0.6)}
+.t-badge.red{background:rgba(248,113,113,0.16); color:#FCA5A5}
+.t-form-row{display:flex; gap:10px; margin-bottom:10px}
+.t-field{flex:1; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.1); border-radius:8px; padding:9px 12px}
+.t-field .fl{font-size:9px; color:rgba(255,255,255,0.35); font-family:'IBM Plex Mono',monospace; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:3px}
+.t-field .fv{font-size:12.5px; color:#fff}
+.t-btn-mini{display:inline-flex; align-items:center; gap:6px; background:var(--gold); color:var(--navy-deep); font-size:12px; font-weight:700; padding:9px 16px; border-radius:8px; margin-top:2px}
+.t-funnel{display:flex; flex-direction:column; gap:7px}
+.t-funnel-row{display:flex; align-items:center; gap:10px}
+.t-funnel-label{width:92px; font-size:11px; color:var(--text-on-dark); flex-shrink:0}
+.t-funnel-bar-wrap{flex:1; background:rgba(255,255,255,0.05); border-radius:5px; height:22px; overflow:hidden}
+.t-funnel-bar{height:100%; background:linear-gradient(90deg, var(--gold-deep), var(--gold-bright)); border-radius:5px; display:flex; align-items:center; justify-content:flex-end; padding-right:8px}
+.t-funnel-bar span{font-size:10.5px; font-weight:700; color:var(--navy-deep)}
+.t-users{display:flex; flex-direction:column; gap:9px}
+.t-user{display:flex; align-items:center; gap:10px; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.06); border-radius:9px; padding:9px 12px}
+.t-user-av{width:30px; height:30px; border-radius:50%; background:linear-gradient(135deg,var(--gold-bright),var(--gold-deep)); display:flex; align-items:center; justify-content:center; font-family:'Cormorant Garamond',serif; font-weight:700; color:var(--navy-deep); font-size:12px; flex-shrink:0}
+.t-user-name{font-size:12.5px; color:#fff; font-weight:500}
+.t-user-role{font-size:10.5px; color:var(--text-on-dark-dim)}
+.t-wpp-bubble{background:rgba(74,222,128,0.09); border:1px solid rgba(74,222,128,0.2); border-radius:12px; padding:12px 14px; font-size:12.5px; color:var(--text-on-dark); line-height:1.5; margin-bottom:10px}
+.t-wpp-sent{display:flex; align-items:center; gap:8px; font-size:11.5px; color:#86EFAC; font-family:'IBM Plex Mono',monospace}
+
+/* stagger reveal reutilizável dentro do tour — disparado via JS quando o
+   slide vira o atual, não por scroll (por isso não usa IntersectionObserver) */
+[data-stagger] > *{opacity:0; transform:translateY(9px); transition:opacity .45s var(--ease), transform .45s var(--ease)}
+[data-stagger].played > *{opacity:1; transform:none}
+[data-stagger].played > *:nth-child(1){transition-delay:.02s}
+[data-stagger].played > *:nth-child(2){transition-delay:.09s}
+[data-stagger].played > *:nth-child(3){transition-delay:.16s}
+[data-stagger].played > *:nth-child(4){transition-delay:.23s}
+.t-funnel-bar{transition:width 1s var(--ease)}
+.t-compare{font-size:10px; font-family:'IBM Plex Mono',monospace; margin-top:3px; opacity:0; transition:opacity .4s var(--ease)}
+.t-compare.up{color:#86EFAC}
+.t-compare.down{color:#FCA5A5}
+.tour-slide.played .t-compare{opacity:1; transition-delay:.9s}
+
+/* cursor animado clicando o botão (Faturamento) */
+.t-cursor{
+  position:absolute; font-size:22px; top:8px; left:50%;
+  transform:translate(-70px,-26px) scale(1); opacity:0; pointer-events:none;
+  filter:drop-shadow(0 3px 6px rgba(0,0,0,0.5)); z-index:2;
+}
+.t-cursor.move{opacity:1; transition:transform .55s var(--ease), opacity .3s}
+.t-cursor.move{transform:translate(-6px,10px) scale(1)}
+.t-cursor.clicking{transition:transform .12s ease}
+.t-cursor.clicking{transform:translate(-6px,10px) scale(0.82)}
+.t-btn-mini{transition:transform .12s ease}
+.t-btn-mini.clicked{transform:scale(0.95)}
+
+/* indicador de "digitando..." (WhatsApp) */
+.t-wpp-typing{
+  display:inline-flex; gap:4px; align-items:center; background:rgba(255,255,255,0.04);
+  border:1px solid rgba(255,255,255,0.1); border-radius:12px; padding:11px 15px; margin-top:10px;
+  opacity:0; transition:opacity .3s var(--ease);
+}
+.t-wpp-typing span{width:6px; height:6px; border-radius:50%; background:rgba(255,255,255,0.45); animation:typingDot 1.2s infinite ease-in-out}
+.t-wpp-typing span:nth-child(2){animation-delay:.2s}
+.t-wpp-typing span:nth-child(3){animation-delay:.4s}
+@keyframes typingDot{0%,60%,100%{transform:translateY(0); opacity:.4} 30%{transform:translateY(-4px); opacity:1}}
+
+/* cabeçalho de perfil do cliente (Cadastro de Clientes) */
+.t-client-head{display:flex; align-items:center; gap:12px; margin-bottom:12px; padding-bottom:12px; border-bottom:1px solid rgba(255,255,255,0.08)}
+.t-client-avatar{width:40px; height:40px; border-radius:50%; background:linear-gradient(135deg,var(--gold-bright),var(--gold-deep)); display:flex; align-items:center; justify-content:center; font-family:'Cormorant Garamond',serif; font-weight:700; color:var(--navy-deep); font-size:15px; flex-shrink:0}
+.t-client-name{font-size:14.5px; font-weight:600; color:#fff}
+.t-client-sub{font-size:11.5px; color:var(--text-on-dark-dim); margin-top:2px}
+
+/* abas internas (dentro do próprio slide do tour) */
+.t-mini-tabs{display:flex; gap:4px; margin-bottom:12px; border-bottom:1px solid rgba(255,255,255,0.08)}
+.t-mini-tab{
+  font-family:'IBM Plex Mono',monospace; font-size:10.5px; letter-spacing:0.03em; color:var(--text-on-dark-dim);
+  padding:0 2px 10px; cursor:pointer; border-bottom:2px solid transparent; transition:all .18s; margin-right:16px;
+}
+.t-mini-tab:hover{color:var(--text-on-dark)}
+.t-mini-tab.active{color:var(--gold-bright); border-bottom-color:var(--gold)}
+.t-mini-panel{display:none}
+.t-mini-panel.active{display:block}
+
+/* barra de progresso financeira */
+.t-progress-wrap{background:rgba(255,255,255,0.06); border-radius:100px; height:8px; overflow:hidden; margin-top:4px}
+.t-progress-fill{height:100%; width:0; background:linear-gradient(90deg,var(--gold-deep),var(--gold-bright)); border-radius:100px; transition:width 1s var(--ease)}
+.t-progress-label{font-size:10.5px; color:var(--text-on-dark-dim); margin-top:7px}
+
+/* mini-lista reutilizável (prazos, notas recentes, categorias, origem) */
+.t-list-label{font-size:10px; color:var(--text-on-dark-dim); text-transform:uppercase; letter-spacing:0.06em; font-family:'IBM Plex Mono',monospace; margin:16px 0 8px}
+.t-mini-list{display:flex; flex-direction:column; gap:7px}
+.t-list-item{display:flex; align-items:center; gap:10px; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.06); border-radius:9px; padding:9px 12px}
+.t-list-dot{width:8px; height:8px; border-radius:50%; flex-shrink:0}
+.t-list-dot.red{background:#FCA5A5}
+.t-list-dot.amber{background:#FCD34D}
+.t-list-dot.green{background:#86EFAC}
+.t-list-dot.blue{background:#93C5FD}
+.t-list-title{font-size:12px; color:#fff; font-weight:500}
+.t-list-sub{font-size:10.5px; color:var(--text-on-dark-dim); margin-top:1px}
+.t-list-value{margin-left:auto; font-size:12.5px; font-weight:700; color:var(--gold-bright); font-family:'IBM Plex Mono',monospace; flex-shrink:0}
+
+@media (max-width:640px){
+  .tour-body{flex-direction:column; min-height:0}
+  .tour-side{width:100%; flex-direction:row; padding:10px 16px}
+  .tour-side .d-mark{margin-bottom:0; margin-right:2px}
+  .tour-main{padding:22px 20px 0}
+  .tour-slides{min-height:440px}
+  .t-stats{grid-template-columns:1fr 1fr}
+}
 </style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 </head>
 <body>
-
-<div id="tela-login">
-  <div class="login-box">
-    <h1>🔐 Painel Administrativo</h1>
-    <p>Acesso restrito — gestão de escritórios clientes.</p>
-    <div class="erro" id="erro-login"></div>
-    <input type="email" id="login-email" placeholder="Seu e-mail" onkeydown="if(event.key==='Enter') fazerLogin()">
-    <input type="password" id="login-senha" placeholder="Sua senha" onkeydown="if(event.key==='Enter') fazerLogin()">
-    <button id="btn-login" onclick="fazerLogin()">Entrar</button>
-  </div>
+<div id="page-loader" style="position:fixed; top:0; left:0; right:0; height:2.5px; z-index:2000; background:transparent">
+  <div id="page-loader-fill" style="height:100%; width:0; background:linear-gradient(90deg,var(--gold-deep),var(--gold-bright)); transition:width 1.1s var(--ease), opacity .4s ease .3s"></div>
 </div>
 
-<div id="tela-painel">
-  <div class="admin-shell">
-    <div class="admin-sidebar">
-      <div class="admin-sidebar-brand">
-        Painel Administrativo
-        <small id="info-usuario"></small>
-      </div>
-      <button class="admin-burger" onclick="document.getElementById('admin-sidebar-nav').classList.toggle('open')">☰ Menu</button>
-      <div class="admin-sidebar-nav" id="admin-sidebar-nav" style="display:flex;flex-direction:column">
-        <div class="admin-nav-item active" data-win="win-criar" onclick="navigateAdmin('win-criar', this)">➕ Criar Escritório</div>
-        <div class="admin-nav-item" data-win="win-escritorios" onclick="navigateAdmin('win-escritorios', this)">📋 Escritórios</div>
-        <div class="admin-nav-item" data-win="win-contatos" onclick="navigateAdmin('win-contatos', this)">📩 Contatos do Site</div>
-        <div class="admin-nav-item" data-win="win-portal" onclick="navigateAdmin('win-portal', this)">🔑 Portal do Cliente</div>
-        <div class="admin-nav-item" data-win="win-versoes" onclick="navigateAdmin('win-versoes', this)">🗂️ Versões do Sistema</div>
-        <div class="admin-nav-item" data-win="win-informativos" onclick="navigateAdmin('win-informativos', this)">📢 Informativos</div>
-      </div>
-      <div class="admin-sidebar-foot">
-        <button class="btn-sair" onclick="sair()" style="width:100%">Sair</button>
-      </div>
+<header class="site-nav">
+  <div class="wrap nav-inner">
+    <div class="nav-logo">
+      <div class="nav-logo-mark">AE</div>
+      <div class="nav-logo-text">ADV <em>Easy</em></div>
     </div>
-    <div class="admin-main">
-      <div class="container">
+    <nav class="nav-links">
+      <a href="#modulos">Recursos</a>
+      <a href="#portal">Portal do Cliente</a>
+      <a href="#como-funciona">Como funciona</a>
+      <a href="#faq">Dúvidas</a>
+    </nav>
+    <a class="nav-cta" href="#contato">Solicitar demonstração</a>
+    <button class="nav-burger" id="nav-burger" onclick="toggleMenuMobile()" aria-label="Abrir menu">☰</button>
+  </div>
+  <div class="nav-mobile-panel" id="nav-mobile-panel">
+    <a href="#modulos" onclick="fecharMenuMobile()">Recursos</a>
+    <a href="#portal" onclick="fecharMenuMobile()">Portal do Cliente</a>
+    <a href="#como-funciona" onclick="fecharMenuMobile()">Como funciona</a>
+    <a href="#faq" onclick="fecharMenuMobile()">Dúvidas</a>
+    <a href="#contato" class="nav-cta" style="text-align:center; margin-top:6px" onclick="fecharMenuMobile()">Solicitar demonstração</a>
+  </div>
+</header>
 
-    <div class="card admin-window active" id="win-criar">
-      <h2>➕ Criar novo escritório</h2>
-      <div class="form-row">
-        <div class="form-group">
-          <label>Nome do escritório</label>
-          <input type="text" id="novo-nome" placeholder="Ex: Almeida Advocacia">
-        </div>
-        <div class="form-group">
-          <label>OAB (opcional)</label>
-          <input type="text" id="novo-oab" placeholder="OAB/PE 12.345">
-        </div>
+<section class="hero">
+  <div class="wrap hero-grid">
+    <div>
+      <div class="eyebrow hero-eyebrow">gestão jurídica, do primeiro contato ao último prazo</div>
+      <h1>Tudo em ordem — <em>inclusive</em> o seu escritório.</h1>
+      <p class="hero-sub">O ADV Easy reúne clientes, processos, agenda, financeiro, faturamento e a comunicação com quem você representa em um único sistema — para que nada dependa da sua memória, de um post-it ou de uma planilha aberta em três computadores diferentes.</p>
+      <div class="hero-ctas">
+        <a class="btn-primary" href="#contato">Solicitar demonstração →</a>
+        <a class="btn-ghost" href="#" onclick="abrirTour(event)">Ver como funciona</a>
       </div>
-      <div class="form-row">
-        <div class="form-group">
-          <label>Nome do responsável (admin)</label>
-          <input type="text" id="novo-nome-admin" placeholder="Ex: Dr. João Almeida">
-        </div>
-        <div class="form-group">
-          <label>Telefone (opcional)</label>
-          <input type="text" id="novo-telefone" placeholder="(81) 9 9999-9999">
-        </div>
-      </div>
-      <div class="form-row">
-        <div class="form-group">
-          <label>E-mail de login do responsável</label>
-          <input type="email" id="novo-email" placeholder="contato@escritorio.com.br">
-        </div>
-        <div class="form-group">
-          <label>Senha provisória (mín. 8 caracteres)</label>
-          <input type="text" id="novo-senha" placeholder="Defina uma senha para entregar ao cliente">
-        </div>
-      </div>
-      <button class="btn-primary" id="btn-criar" onclick="criarEscritorio()">Criar Escritório</button>
-      <div class="credenciais-box" id="credenciais-resultado" style="display:none"></div>
+      <p class="hero-fineprint">Sem instalação. Sem planilha paralela. Sem surpresa na mensalidade.</p>
     </div>
 
-    <div class="card admin-window" id="win-escritorios">
-      <h2>📋 Escritórios cadastrados</h2>
-      <div class="table-wrap" style="overflow-x:auto">
-        <table>
-          <thead><tr>
-            <th>Nome</th><th>Status</th><th>Próx. vencimento</th><th>Criado em</th><th>Recursos</th><th>Ações</th>
-          </tr></thead>
-          <tbody id="tbody-escritorios">
-            <tr><td colspan="5" style="text-align:center;color:#9DB5D0;padding:20px">Carregando...</td></tr>
-          </tbody>
-        </table>
+    <div class="device" id="device-mockup">
+      <div class="device-bar">
+        <span class="device-dot"></span><span class="device-dot"></span><span class="device-dot"></span>
+        <span class="mono">app.adveasy.com.br</span>
       </div>
-    </div>
-
-    <!-- ===== CONTATOS DO SITE (landing page) ===== -->
-    <div class="card admin-window" id="win-contatos">
-      <h2>📩 Contatos do Site</h2>
-      <p style="font-size:12.5px;color:#9DB5D0;margin-bottom:14px">
-        Pessoas que preencheram o formulário de "Solicitar demonstração" na landing page do ADV Easy.
-      </p>
-      <div class="table-wrap" style="overflow-x:auto">
-        <table>
-          <thead><tr>
-            <th>Nome</th><th>Escritório</th><th>WhatsApp</th><th>Mensagem</th><th>Recebido em</th><th>Status</th><th>Ações</th>
-          </tr></thead>
-          <tbody id="tbody-landing-leads">
-            <tr><td colspan="7" style="text-align:center;color:#9DB5D0;padding:20px">Carregando...</td></tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-
-    <!-- ===== PORTAL DO CLIENTE ===== -->
-    <div class="card admin-window" id="win-portal">
-      <h2>🔑 Portal do Cliente</h2>
-      <p style="font-size:12.5px;color:#9DB5D0;margin-bottom:14px">
-        Crie credenciais de acesso para clientes acessarem o portal. A Service Role Key fica salva só neste navegador e nunca é enviada a ninguém além do Supabase.
-      </p>
-      <div id="portal-srk-bloco">
-        <div class="form-group">
-          <label>Supabase Service Role Key</label>
-          <input type="password" id="srk-input" placeholder="eyJhbGciOiJIUzI1...">
+      <div class="device-body">
+        <div class="device-side">
+          <div class="d-mark"></div>
+          <i class="active"></i><i></i><i></i><i></i><i></i><i></i>
         </div>
-        <button class="btn-primary" onclick="salvarSRK()">Salvar Chave</button>
-        <span id="srk-status" style="font-size:12px;margin-left:10px;color:#9DB5D0"></span>
-        <div style="margin-top:10px;padding:10px 14px;background:rgba(255,180,0,0.08);border:1px solid rgba(255,180,0,0.2);border-radius:8px;font-size:12px;color:#C8A736">
-          ⚠️ Onde encontrar: Supabase → Settings → API → "service_role" → Reveal. Nunca compartilhe essa chave.
-        </div>
-      </div>
-
-      <!-- Busca de cliente para criar acesso -->
-      <div style="margin-top:20px;padding-top:16px;border-top:1px solid rgba(255,255,255,0.08)">
-        <h4 style="font-size:13px;color:#9DB5D0;margin-bottom:10px;text-transform:uppercase;letter-spacing:0.5px">Criar acesso para cliente</h4>
-        <div class="form-row">
-          <div class="form-group" style="flex:1;position:relative">
-            <label>Buscar cliente</label>
-            <input type="text" id="portal-busca-cliente" placeholder="Nome ou CPF/CNPJ..." autocomplete="off"
-              oninput="filtrarClientesPortal(this.value)" onfocus="filtrarClientesPortal(this.value)">
-            <input type="hidden" id="portal-cliente-id">
-            <input type="hidden" id="portal-cliente-nome-sel">
-            <div id="portal-sugestoes-cliente" style="display:none;position:absolute;top:100%;left:0;right:0;background:#1A3050;border:1px solid rgba(255,255,255,0.1);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,0.4);max-height:220px;overflow-y:auto;z-index:20;margin-top:4px"></div>
+        <div class="device-main">
+          <div class="device-title">Dashboard</div>
+          <div class="device-stats">
+            <div class="device-stat"><div class="dl">Processos ativos</div><div class="dv" data-count="47">0</div></div>
+            <div class="device-stat"><div class="dl">Clientes</div><div class="dv" data-count="128">0</div></div>
+            <div class="device-stat"><div class="dl">Taxa de êxito</div><div class="dv gold" data-count="86" data-suffix="%">0</div></div>
           </div>
-          <div class="form-group">
-            <label>E-mail de acesso</label>
-            <input type="email" id="portal-email" placeholder="email@cliente.com">
+          <div class="device-chart">
+            <b style="height:38%"></b><b style="height:58%"></b><b style="height:44%"></b>
+            <b style="height:72%"></b><b style="height:63%"></b><b style="height:91%"></b><b style="height:80%"></b>
+          </div>
+          <div class="device-row">
+            <span class="device-badge"><span class="device-pulse"></span> Nova mensagem no Portal do Cliente</span>
           </div>
         </div>
-        <div class="form-row">
-          <div class="form-group">
-            <label>Senha inicial</label>
-            <input type="text" id="portal-senha" placeholder="Mínimo 6 caracteres">
-          </div>
-          <div class="form-group" style="align-self:flex-end">
-            <button class="btn-primary" onclick="criarAcessoPortal()">+ Criar Acesso</button>
-          </div>
-        </div>
-        <div id="portal-resultado" style="display:none;margin-top:10px;padding:10px 14px;border-radius:8px;font-size:13px"></div>
-      </div>
-    </div>
-
-    <div class="card admin-window" id="win-versoes">
-      <h2>🗂️ Versões do Sistema (erp_advocaticio)</h2>
-      <div id="github-token-bloco">
-        <p style="font-size:12.5px;color:#9DB5D0;margin-bottom:10px">
-          Cole seu token de acesso do GitHub para gerenciar versões do sistema direto por aqui.
-          O token fica salvo só neste navegador, nunca é enviado a nenhum outro lugar além do GitHub.
-        </p>
-        <div class="form-row">
-          <div class="form-group">
-            <label>Token do GitHub</label>
-            <input type="password" id="github-token-input" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx">
-          </div>
-          <div class="form-group">
-            <label>Repositório (usuário/nome)</label>
-            <input type="text" id="github-repo-input" placeholder="renansoares-dotcom/erp_advocaticio" value="renansoares-dotcom/erp_advocaticio">
-          </div>
-        </div>
-        <button class="btn-primary" onclick="salvarTokenGithub()">Salvar Token</button>
-        <span id="github-token-status" style="font-size:12px;margin-left:10px;color:#9DB5D0"></span>
-      </div>
-
-      <div id="github-versoes-bloco" style="display:none;margin-top:18px">
-        <h4 style="font-size:13px;color:#9DB5D0;margin-bottom:10px;text-transform:uppercase;letter-spacing:0.5px">Publicar nova versão</h4>
-        <p style="font-size:12.5px;color:#9DB5D0;margin-bottom:10px">
-          Selecione o novo arquivo erp_advocaticio.html e descreva o que mudou — isso fica registrado no histórico.
-        </p>
-        <div class="form-group">
-          <label>Arquivo (.html)</label>
-          <input type="file" id="github-arquivo-input" accept=".html">
-        </div>
-        <div class="form-group">
-          <label>Observação desta versão</label>
-          <input type="text" id="github-observacao-input" placeholder="Ex: adicionei busca por tags">
-        </div>
-        <button class="btn-primary" id="btn-publicar-versao" onclick="publicarNovaVersao()">Publicar Nova Versão</button>
-
-        <h4 style="font-size:13px;color:#9DB5D0;margin:22px 0 10px;text-transform:uppercase;letter-spacing:0.5px">Histórico de versões</h4>
-        <div id="github-historico-lista">
-          <p style="font-size:12.5px;color:#9DB5D0">Carregando...</p>
-        </div>
-      </div>
-    </div>
-
-    <div class="card admin-window" id="win-informativos">
-      <h2>📢 Informativos</h2>
-      <p style="font-size:12.5px;color:#9DB5D0;margin-bottom:14px">Avisos que aparecem dentro do sistema, para todos os escritórios ou para um específico.</p>
-
-      <div class="form-row">
-        <div class="form-group">
-          <label>Título</label>
-          <input type="text" id="info-titulo" placeholder="Ex: Manutenção programada">
-        </div>
-        <div class="form-group">
-          <label>Tipo</label>
-          <select id="info-tipo" onchange="atualizarCampoDataEvento()">
-            <option value="normal">📢 Aviso</option>
-            <option value="urgente">⚠️ Urgente</option>
-            <option value="atualizacao">🆕 Atualização</option>
-            <option value="evento">📅 Evento</option>
-          </select>
-        </div>
-      </div>
-      <div class="form-group">
-        <label>Mensagem</label>
-        <textarea id="info-corpo" placeholder="Descreva o aviso..." style="width:100%;min-height:80px;padding:9px 12px;border-radius:8px;border:1.5px solid #2A4D6E;background:#0F1E2E;color:#E8F0F8;font-size:13.5px;outline:none;font-family:inherit;resize:vertical"></textarea>
-      </div>
-      <div class="form-row" id="wrap-data-evento" style="display:none">
-        <div class="form-group">
-          <label>Data/Hora do Evento</label>
-          <input type="datetime-local" id="info-data-evento" onchange="sugerirValidadeIgualEvento()">
-        </div>
-        <div class="form-group"></div>
-      </div>
-      <div class="form-row">
-        <div class="form-group">
-          <label>Destinatário</label>
-          <select id="info-destinatario">
-            <option value="">Todos os escritórios</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label>Válido até (opcional)</label>
-          <input type="datetime-local" id="info-valido-até">
-        </div>
-      </div>
-      <div class="form-group">
-        <label>Link externo (opcional)</label>
-        <input type="url" id="info-link-url" placeholder="https://...">
-      </div>
-      <div class="form-group">
-        <label>Anexo (opcional — imagem, vídeo ou PDF)</label>
-        <input type="file" id="info-anexo" accept="image/*,video/*,.pdf">
-      </div>
-      <button class="btn-primary" id="btn-publicar-informativo" onclick="publicarInformativo()">Publicar Informativo</button>
-
-      <h4 style="font-size:13px;color:#9DB5D0;margin:22px 0 10px;text-transform:uppercase;letter-spacing:0.5px">Informativos publicados</h4>
-      <div id="lista-informativos-admin">
-        <p style="font-size:12.5px;color:#9DB5D0">Carregando...</p>
-      </div>
-    </div>
-
       </div>
     </div>
   </div>
+</section>
+
+<div class="trust">
+  <div class="wrap trust-row">
+    <div class="trust-item"><b>9</b>&nbsp;módulos integrados, um só sistema</div>
+    <div class="trust-item"><b>1</b>&nbsp;portal exclusivo para seus clientes</div>
+    <div class="trust-item"><b>100%</b>&nbsp;na nuvem, acesso de qualquer lugar</div>
+    <div class="trust-item"><b>0</b>&nbsp;planilha paralela necessária</div>
+  </div>
 </div>
 
-<div class="modal-overlay" id="modal-financeiro">
-  <div class="modal-financeiro">
-    <button class="btn-fechar-financeiro" onclick="fecharModalFinanceiro()">Fechar ✕</button>
-    <h3>💰 Financeiro — <span id="financeiro-nome-escritorio"></span></h3>
-
-    <h4>Plano atual</h4>
-    <div class="plano-resumo" id="financeiro-plano-resumo">Carregando...</div>
-
-    <h4>Definir / alterar plano</h4>
-    <div class="form-row">
-      <div class="form-group">
-        <label>Valor (R$)</label>
-        <input type="number" id="financeiro-valor" step="0.01" placeholder="200.00">
+<section class="section" id="antes-depois">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <div class="eyebrow">a rotina como ela é</div>
+      <h2>Você conhece esse escritório.</h2>
+      <p>Talvez seja o seu. A diferença entre um escritório que parece profissional e um que realmente é raramente está no diploma — está no que acontece nos bastidores, entre um prazo e outro.</p>
+    </div>
+    <div class="depara">
+      <div class="depara-col antes reveal">
+        <div class="depara-tag">Sem o ADV Easy</div>
+        <ul>
+          <li><span class="ico">✕</span> Prazo importante anotado num post-it, ou na memória de alguém.</li>
+          <li><span class="ico">✕</span> Cliente liga perguntando "como está meu processo?" e alguém precisa procurar.</li>
+          <li><span class="ico">✕</span> Recibo de pagamento feito na mão, quando dá tempo.</li>
+          <li><span class="ico">✕</span> Planilha de honorários que só uma pessoa sabe mexer.</li>
+          <li><span class="ico">✕</span> Conversa com cliente espalhada entre WhatsApp, e-mail e ligação perdida.</li>
+        </ul>
       </div>
-      <div class="form-group">
-        <label>Periodicidade</label>
-        <select id="financeiro-periodicidade">
-          <option value="mensal">Mensal</option>
-          <option value="trimestral">Trimestral</option>
-          <option value="semestral">Semestral</option>
-          <option value="anual">Anual</option>
-        </select>
+      <div class="depara-col depois reveal">
+        <div class="depara-tag">Com o ADV Easy</div>
+        <ul>
+          <li><span class="ico">✓</span> A Agenda avisa antes do prazo vencer — e mostra o que é urgente assim que você abre o sistema.</li>
+          <li><span class="ico">✓</span> O cliente acompanha o próprio processo pelo Portal, sem precisar te ligar.</li>
+          <li><span class="ico">✓</span> Recibo gerado em um clique, com o histórico de pagamentos sempre à mão.</li>
+          <li><span class="ico">✓</span> Financeiro atualizado parcela por parcela, visível pra quem precisar ver.</li>
+          <li><span class="ico">✓</span> Toda conversa registrada num só histórico, ligado ao cliente certo.</li>
+        </ul>
       </div>
     </div>
-    <div class="form-group">
-      <label>Primeiro vencimento</label>
-      <input type="date" id="financeiro-primeiro-vencimento">
-    </div>
-    <p style="font-size:12px;color:#9DB5D0;margin-bottom:10px">Isso gera automaticamente as próximas cobranças (12 parcelas mensais, 8 trimestrais, 4 semestrais ou 3 anuais) a partir da data escolhida.</p>
-    <button class="btn-primary" id="btn-gerar-plano" onclick="definirPlano()">Gerar Cobranças</button>
+  </div>
+</section>
 
-    <h4>Histórico de cobranças</h4>
-    <div style="overflow-x:auto">
-      <table class="tabela-cobrancas">
-        <thead><tr>
-          <th>Vencimento</th><th>Valor</th><th>Status</th><th>Pago em</th><th>Forma</th><th>Ações</th>
-        </tr></thead>
-        <tbody id="tbody-cobrancas">
-          <tr><td colspan="6" style="text-align:center;color:#9DB5D0;padding:16px">Carregando...</td></tr>
-        </tbody>
-      </table>
+<section class="section dossie" id="modulos">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <div class="eyebrow">o escritório, organizado por dossiê</div>
+      <h2>Cada módulo no seu devido lugar.</h2>
+      <p>O ADV Easy é organizado do mesmo jeito que um escritório bem instruído organiza um processo: por assunto, sem misturar. Clique em cada pasta.</p>
+    </div>
+
+    <div class="folder-tabs reveal" id="folder-tabs">
+      <div class="folder-tab active" data-tab="cadastro">Cadastro</div>
+      <div class="folder-tab" data-tab="operacional">Operacional</div>
+      <div class="folder-tab" data-tab="financeiro">Financeiro</div>
+      <div class="folder-tab" data-tab="faturamento">Faturamento</div>
+      <div class="folder-tab" data-tab="comunicacao">Comunicação</div>
+      <div class="folder-tab" data-tab="relatorio">Relatório</div>
+    </div>
+    <div class="folder-panel reveal">
+
+      <div class="folder-content active" data-panel="cadastro">
+        <h3>Cadastro</h3>
+        <p>A base de tudo: quem é seu cliente, e que tipo de causa o escritório atende. Sem isso bem feito, o resto do sistema não tem em que se apoiar.</p>
+        <div class="feat-grid">
+          <div class="feat"><span class="fico">👤</span><div><div class="ft">Clientes</div><div class="fd">Histórico completo, origem (indicação, campanha), estado civil, credenciais e um sinal de atenção especial pra quem precisa de acompanhamento mais de perto.</div></div></div>
+          <div class="feat"><span class="fico">📋</span><div><div class="ft">Tipos de Processo</div><div class="fd">Configure as áreas do seu escritório — previdenciário, trabalhista, cível, o que fizer sentido pra sua prática.</div></div></div>
+        </div>
+      </div>
+
+      <div class="folder-content" data-panel="operacional">
+        <h3>Operacional</h3>
+        <p>O dia a dia de quem advoga: os processos em si, a agenda, e o fluxo de quem ainda não é cliente mas pode vir a ser.</p>
+        <div class="feat-grid">
+          <div class="feat"><span class="fico">⚖️</span><div><div class="ft">Processos</div><div class="fd">Vara, juiz, andamentos, partes, documentos e prazos — tudo debaixo de um só número, sem precisar caçar informação em três lugares.</div></div></div>
+          <div class="feat"><span class="fico">📅</span><div><div class="ft">Agenda</div><div class="fd">Audiências, prazos e compromissos financeiros no mesmo calendário, com aviso antes do vencimento — não depois.</div></div></div>
+          <div class="feat"><span class="fico">🗂️</span><div><div class="ft">Kanban</div><div class="fd">Acompanhe o andamento de qualquer fluxo de trabalho visualmente, arrastando cartões entre etapas.</div></div></div>
+          <div class="feat"><span class="fico">🎯</span><div><div class="ft">Leads</div><div class="fd">Funil comercial pra quem ainda está decidindo contratar — sem perder o rastro de quem te procurou.</div></div></div>
+          <div class="feat"><span class="fico">📰</span><div><div class="ft">Diário Oficial</div><div class="fd">Registre publicações e marque o que já foi providenciado, com vínculo direto ao processo.</div></div></div>
+          <div class="feat"><span class="fico">📄</span><div><div class="ft">Modelos de Documentos</div><div class="fd">Procurações, contratos e petições com variáveis que se preenchem sozinhas — e histórico de versões.</div></div></div>
+        </div>
+      </div>
+
+      <div class="folder-content" data-panel="financeiro">
+        <h3>Financeiro</h3>
+        <p>Honorários, parcelas e despesas do escritório, sempre visíveis — sem depender de planilha ou memória de quem cobra.</p>
+        <div class="feat-grid">
+          <div class="feat"><span class="fico">💰</span><div><div class="ft">Recebimentos</div><div class="fd">Parcelas por cliente, com confirmação de pagamento, recibo em PDF e cobrança direta por WhatsApp.</div></div></div>
+          <div class="feat"><span class="fico">📤</span><div><div class="ft">Despesas</div><div class="fd">Custos fixos e recorrentes do escritório, categorizados, pra você saber exatamente pra onde vai o dinheiro.</div></div></div>
+        </div>
+      </div>
+
+      <div class="folder-content" data-panel="faturamento">
+        <h3>Faturamento</h3>
+        <p>Formalize o que já está sendo cobrado, sem sair do sistema.</p>
+        <div class="feat-grid">
+          <div class="feat"><span class="fico">🧾</span><div><div class="ft">Emissão de Nota Fiscal</div><div class="fd">Integração com a Focus NFe pra emitir nota de serviço direto a partir dos dados do cliente já cadastrados.</div></div></div>
+        </div>
+      </div>
+
+      <div class="folder-content" data-panel="comunicacao">
+        <h3>Comunicação</h3>
+        <p>Tudo que é dito — pro escritório inteiro e pra cada cliente — registrado num só lugar, não espalhado entre aplicativos.</p>
+        <div class="feat-grid">
+          <div class="feat"><span class="fico">💬</span><div><div class="ft">Portal do Cliente</div><div class="fd">Mensagens em tempo real entre você e quem você representa — sem precisar dar seu WhatsApp pessoal.</div></div></div>
+          <div class="feat"><span class="fico">📢</span><div><div class="ft">Informativos</div><div class="fd">Avisos e novidades para a equipe, com destaque visual pros mais importantes.</div></div></div>
+          <div class="feat"><span class="fico">📞</span><div><div class="ft">Histórico de Contatos</div><div class="fd">Toda ligação, e-mail ou visita registrada — pra ninguém do escritório perder o fio da conversa.</div></div></div>
+        </div>
+      </div>
+
+      <div class="folder-content" data-panel="relatorio">
+        <h3>Relatório</h3>
+        <p>Números que mostram como o escritório está indo de verdade, não só a sensação.</p>
+        <div class="feat-grid">
+          <div class="feat"><span class="fico">📈</span><div><div class="ft">Fluxo de Caixa &amp; Inadimplência</div><div class="fd">O que entrou, o que está pra vencer, e quem está atrasado — sem precisar somar nada na mão.</div></div></div>
+          <div class="feat"><span class="fico">🏆</span><div><div class="ft">Êxito &amp; Duração</div><div class="fd">Taxa de sucesso e tempo médio de cada tipo de causa, pra saber onde o escritório realmente performa bem.</div></div></div>
+          <div class="feat"><span class="fico">⚙️</span><div><div class="ft">Carga de Trabalho &amp; Conversão</div><div class="fd">Quantos processos cada advogado carrega, e quantos leads viram cliente de fato.</div></div></div>
+        </div>
+      </div>
+
     </div>
   </div>
-</div>
+</section>
 
-<div class="modal-overlay" id="modal-excluir">
-  <div class="modal-confirma">
-    <h3>⚠️ Excluir escritório definitivamente</h3>
-    <p>Esta ação <strong>não pode ser desfeita</strong>. Todos os clientes, processos, documentos e demais dados de <strong id="nome-escritorio-excluir"></strong> serão apagados para sempre.</p>
-    <p>Para confirmar, digite o nome exato do escritório abaixo:</p>
-    <input type="text" id="confirma-nome-input" placeholder="Digite o nome do escritório" oninput="validarConfirmacaoExclusao()">
-    <div class="modal-confirma-botoes">
-      <button class="btn-cancelar-modal" onclick="fecharModalExcluir()">Cancelar</button>
-      <button class="btn-confirmar-exclusao" id="btn-confirmar-exclusao" disabled onclick="confirmarExclusao()">Excluir definitivamente</button>
+<section class="section" id="portal">
+  <div class="wrap portal-grid">
+    <div class="portal-mock reveal">
+      <div class="pm-head">
+        <div class="pm-avatar">MC</div>
+        <div>
+          <div class="pm-name">Maria Aparecida Souza</div>
+          <div class="pm-sub">Portal do Cliente — Processo Previdenciário</div>
+        </div>
+      </div>
+      <div class="pm-bubble">Boa tarde! Recebi a intimação da perícia. Preciso levar algum documento além do CNIS?</div>
+      <div class="pm-bubble me">Boa tarde, Maria! Sim, leve também um documento com foto e os laudos médicos mais recentes. Qualquer coisa me avise. 😊</div>
+      <div class="pm-status">
+        <div class="pm-status-item"><div class="n">2/4</div><div class="l">Parcelas Pagas</div></div>
+        <div class="pm-status-item"><div class="n">Ativo</div><div class="l">Status</div></div>
+        <div class="pm-status-item"><div class="n">15/07</div><div class="l">Próx. Prazo</div></div>
+      </div>
+    </div>
+    <div class="portal-copy">
+      <div class="section-head reveal" style="margin-bottom:0">
+        <div class="eyebrow">o diferencial que seu cliente sente</div>
+        <h2>Seu cliente não precisa mais te ligar pra saber "como está".</h2>
+      </div>
+      <ul class="portal-list reveal-stagger">
+        <li><span class="ico">💬</span><div><b>Mensagens em tempo real</b>Conversa direta com o escritório, sem precisar do seu número pessoal de WhatsApp.</div></li>
+        <li><span class="ico">📁</span><div><b>Acompanhamento do processo</b>Status, andamentos e financeiro visíveis a qualquer hora, sem ligar.</div></li>
+        <li><span class="ico">🔔</span><div><b>Notificações automáticas</b>O cliente é avisado quando há novidade — você não precisa lembrar de avisar.</div></li>
+        <li><span class="ico">🏢</span><div><b>Sua marca, não a nossa</b>O portal leva a identidade do seu escritório, não do ADV Easy.</div></li>
+      </ul>
     </div>
   </div>
-</div>
+</section>
 
-<div class="modal-overlay" id="modal-leitores">
-  <div class="modal-confirma" style="width:520px;max-height:75vh;overflow-y:auto;border-color:#2A4D6E">
-    <h3 style="color:#E8F0F8">👁 Quem leu — <span id="leitores-titulo-informativo"></span></h3>
-    <div id="leitores-lista" style="margin:14px 0">
-      <p style="font-size:12.5px;color:#9DB5D0">Carregando...</p>
+<section class="section" id="como-funciona" style="padding-top:0">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <div class="eyebrow">do primeiro contato ao primeiro login</div>
+      <h2>Como começa.</h2>
+      <p>Sem burocracia de implantação de software corporativo. Em poucos dias sua equipe já está usando.</p>
     </div>
-    <div class="modal-confirma-botoes">
-      <button class="btn-cancelar-modal" onclick="fecharModalLeitores()">Fechar</button>
+    <div class="steps reveal-stagger">
+      <div class="step">
+        <div class="step-line"></div>
+        <div class="step-num mono">01</div>
+        <h4>Conversamos</h4>
+        <p>Mostramos o sistema funcionando de verdade — com um cenário parecido com a rotina do seu escritório, não um slide genérico.</p>
+      </div>
+      <div class="step">
+        <div class="step-line"></div>
+        <div class="step-num mono">02</div>
+        <h4>Configuramos</h4>
+        <p>Tipos de processo, usuários da equipe e dados fiscais prontos antes do seu primeiro cliente entrar no sistema.</p>
+      </div>
+      <div class="step">
+        <div class="step-num mono">03</div>
+        <h4>Sua equipe usa</h4>
+        <p>Suporte direto com quem construiu o sistema — não um call center genérico lendo roteiro.</p>
+      </div>
     </div>
   </div>
-</div>
+</section>
 
-<div class="toast" id="toast"></div>
+<section class="section seguranca" id="seguranca">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <div class="eyebrow">sigilo profissional, também no sistema</div>
+      <h2>Você exige sigilo dos seus clientes. Exigimos o mesmo dos seus dados.</h2>
+    </div>
+    <div class="sec-grid reveal-stagger">
+      <div class="sec-card">
+        <div class="sico">🔒</div>
+        <h4>Isolamento por escritório</h4>
+        <p>Cada escritório enxerga só os próprios dados — políticas de acesso aplicadas no nível de cada linha do banco, não só na tela.</p>
+      </div>
+      <div class="sec-card">
+        <div class="sico">🗝️</div>
+        <h4>Sessão sempre validada</h4>
+        <p>O sistema confere sua sessão periodicamente contra o servidor — se algo expirar, você é avisado, não fica com uma tela desatualizada.</p>
+      </div>
+      <div class="sec-card">
+        <div class="sico">☁️</div>
+        <h4>Infraestrutura na nuvem</h4>
+        <p>Seus dados ficam num banco de dados profissional, com backup automático — não num computador que pode travar ou ser roubado.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="faq">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <div class="eyebrow">antes de perguntar, já respondemos</div>
+      <h2>Perguntas frequentes.</h2>
+    </div>
+    <div class="faq-list reveal">
+      <div class="faq-item">
+        <div class="faq-q" onclick="toggleFaq(this)">Preciso migrar tudo de uma vez?<span class="faq-q-icon">+</span></div>
+        <div class="faq-a"><div class="faq-a-inner">Não. Você pode começar com os processos ativos e ir cadastrando o histórico aos poucos, no seu ritmo. A gente te ajuda a priorizar o que faz mais diferença primeiro.</div></div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q" onclick="toggleFaq(this)">Meus dados e os dos meus clientes ficam seguros?<span class="faq-q-icon">+</span></div>
+        <div class="faq-a"><div class="faq-a-inner">Sim. Cada escritório só enxerga os próprios dados — isso é garantido no nível do banco de dados, não só na tela. Tudo fica numa infraestrutura profissional, com backup automático.</div></div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q" onclick="toggleFaq(this)">Dá pra usar pelo celular?<span class="faq-q-icon">+</span></div>
+        <div class="faq-a"><div class="faq-a-inner">Dá. O sistema roda direto no navegador, sem precisar instalar nada — funciona em computador, tablet ou celular.</div></div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q" onclick="toggleFaq(this)">Preciso ser bom com tecnologia pra usar?<span class="faq-q-icon">+</span></div>
+        <div class="faq-a"><div class="faq-a-inner">Não. Foi pensado pra rotina de um escritório de advocacia, não pra quem entende de sistema. E no começo você tem suporte direto pra tirar qualquer dúvida.</div></div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q" onclick="toggleFaq(this)">Meu cliente precisa pagar pra usar o Portal?<span class="faq-q-icon">+</span></div>
+        <div class="faq-a"><div class="faq-a-inner">Não, o acesso do seu cliente ao Portal já está incluído na sua assinatura. Ele só recebe um login pra acompanhar o processo dele.</div></div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q" onclick="toggleFaq(this)">Posso cancelar quando quiser?<span class="faq-q-icon">+</span></div>
+        <div class="faq-a"><div class="faq-a-inner">Pode. Sem contrato de fidelidade nem multa. A gente prefere te manter porque o sistema realmente ajuda, não porque você ficou preso.</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="cta-final section" id="contato">
+  <div class="wrap cta-grid">
+    <div>
+      <div class="section-head reveal" style="margin-bottom:0">
+        <div class="eyebrow" style="color:var(--gold-bright)">vamos organizar seu escritório</div>
+        <h2>Peça uma demonstração — sem compromisso.</h2>
+        <p>Conversamos por WhatsApp ou chamada, no seu horário. Sem formulário de 20 campos, sem e-mail automático genérico.</p>
+      </div>
+      <ul class="cta-bullets reveal-stagger">
+        <li>✓ Demonstração com dados parecidos com a sua rotina</li>
+        <li>✓ Sem cartão de crédito pra testar</li>
+        <li>✓ Suporte direto durante a implantação</li>
+      </ul>
+    </div>
+    <form class="form-card reveal" id="lead-form">
+      <div class="form-row2">
+        <div class="f-group"><label>Seu nome</label><input type="text" id="lf-nome" placeholder="Como podemos te chamar" required></div>
+        <div class="f-group"><label>Escritório</label><input type="text" id="lf-escritorio" placeholder="Nome do escritório" required></div>
+      </div>
+      <div class="f-group"><label>WhatsApp</label><input type="tel" id="lf-whats" placeholder="(00) 00000-0000" required></div>
+      <div class="f-group"><label>Alguma coisa que devemos saber? (opcional)</label><textarea id="lf-msg" rows="3" placeholder="Ex: quantos advogados, principal área de atuação..."></textarea></div>
+      <button type="submit" class="f-submit">Solicitar demonstração →</button>
+      <p class="f-note">Ao enviar, vamos te chamar no WhatsApp informado.</p>
+    </form>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div class="foot-row">
+      <div class="foot-logo">
+        <div class="nav-logo-mark">AE</div>
+        <div class="foot-logo-text">ADV Easy</div>
+      </div>
+      <div class="foot-links">
+        <a href="#modulos">Recursos</a>
+        <a href="#portal">Portal do Cliente</a>
+        <a href="#como-funciona">Como funciona</a>
+        <a href="#seguranca">Segurança</a>
+        <a href="#contato">Contato</a>
+      </div>
+    </div>
+    <div class="foot-copy">© <span id="foot-year"></span> ADV Easy — Sistema de gestão para escritórios de advocacia.</div>
+  </div>
+</footer>
 
 <script>
-const SB_URL  = 'https://voufezlvxnihfazimjqe.supabase.co';
+// Cada bloco abaixo é independente — funciona sem depender dos outros.
+// Por isso cada um roda dentro do seu próprio try/catch: se algum falhar
+// por um motivo imprevisto, os outros continuam funcionando normalmente
+// em vez de travar a página inteira.
+
+// ---------- Reveal on scroll ----------
+try {
+  const revealEls = document.querySelectorAll('.reveal, .reveal-stagger');
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach(e => { if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target); } });
+  }, { threshold: 0.15 });
+  revealEls.forEach(el => io.observe(el));
+} catch(e){ console.warn('Falha no reveal-on-scroll:', e); }
+
+// ---------- Hero device: contadores + gráfico ao entrar na tela ----------
+try {
+  const device = document.getElementById('device-mockup');
+  if(device){
+    const deviceIo = new IntersectionObserver((entries) => {
+      entries.forEach(e => {
+        if(e.isIntersecting){
+          device.classList.add('play');
+          device.querySelectorAll('[data-count]').forEach(el => {
+            const alvo = parseInt(el.dataset.count, 10);
+            const sufixo = el.dataset.suffix || '';
+            const dur = 1400; const t0 = performance.now();
+            function passo(t){
+              const p = Math.min(1, (t - t0) / dur);
+              const ease = 1 - Math.pow(1 - p, 3);
+              el.textContent = Math.round(ease * alvo) + sufixo;
+              if(p < 1) requestAnimationFrame(passo);
+            }
+            requestAnimationFrame(passo);
+          });
+          deviceIo.unobserve(device);
+        }
+      });
+    }, { threshold: 0.4 });
+    deviceIo.observe(device);
+  }
+} catch(e){ console.warn('Falha no contador do hero:', e); }
+
+// ---------- Barra de carregamento do topo ----------
+try {
+  const fill = document.getElementById('page-loader-fill');
+  if(fill){
+    requestAnimationFrame(() => { fill.style.width = '100%'; });
+    setTimeout(() => {
+      fill.style.opacity = '0';
+      setTimeout(() => { const l = document.getElementById('page-loader'); if(l) l.style.display = 'none'; }, 500);
+    }, 700);
+  }
+} catch(e){ console.warn('Falha na barra de carregamento:', e); }
+
+// ---------- FAQ (acordeão) ----------
+function toggleFaq(el){
+  try {
+    const item = el.closest('.faq-item');
+    if(!item) return;
+    const resposta = item.querySelector('.faq-a');
+    const abrindo = !item.classList.contains('open');
+    // fecha os outros, um de cada vez aberto fica mais limpo de ler
+    document.querySelectorAll('.faq-item.open').forEach(o => {
+      if(o !== item){ o.classList.remove('open'); o.querySelector('.faq-a').style.maxHeight = '0'; }
+    });
+    item.classList.toggle('open', abrindo);
+    resposta.style.maxHeight = abrindo ? '300px' : '0';
+  } catch(e){ console.warn('Falha no FAQ:', e); }
+}
+
+// ---------- Menu mobile ----------
+function toggleMenuMobile(){
+  try {
+    const painel = document.getElementById('nav-mobile-panel');
+    const btn = document.getElementById('nav-burger');
+    if(!painel) return;
+    const abrindo = !painel.classList.contains('open');
+    painel.classList.toggle('open', abrindo);
+    if(btn) btn.textContent = abrindo ? '✕' : '☰';
+  } catch(e){ console.warn('Falha no menu mobile:', e); }
+}
+function fecharMenuMobile(){
+  try {
+    const painel = document.getElementById('nav-mobile-panel');
+    const btn = document.getElementById('nav-burger');
+    if(painel) painel.classList.remove('open');
+    if(btn) btn.textContent = '☰';
+  } catch(e){ console.warn('Falha ao fechar o menu mobile:', e); }
+}
+
+// ---------- Abas de módulos (dossiê) ----------
+try {
+  document.querySelectorAll('.folder-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.folder-tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.folder-content').forEach(p => p.classList.remove('active'));
+      tab.classList.add('active');
+      const alvo = document.querySelector(`.folder-content[data-panel="${tab.dataset.tab}"]`);
+      if(alvo) alvo.classList.add('active');
+    });
+  });
+} catch(e){ console.warn('Falha nas abas de módulos:', e); }
+
+// ---------- Abas internas (Cadastro de Clientes, dentro do tour) ----------
+// Usa onclick direto no HTML (mesmo padrão das setas/bolinhas do tour, que
+// já são confiáveis) em vez de registrar o clique via JS à parte — assim
+// não depende de nenhum timing de carregamento de script.
+function trocarAbaCliente(el, nome){
+  try {
+    const grupo = el.closest('.tour-slide');
+    if(!grupo) return;
+    grupo.querySelectorAll('.t-mini-tab').forEach(t => t.classList.remove('active'));
+    grupo.querySelectorAll('.t-mini-panel').forEach(p => p.classList.remove('active'));
+    el.classList.add('active');
+    const painel = grupo.querySelector('.t-mini-panel[data-cpanel="' + nome + '"]');
+    if(painel) painel.classList.add('active');
+  } catch(e){ console.warn('Falha ao trocar aba interna:', e); }
+}
+
+// ---------- Formulário de contato -> salva no banco + abre WhatsApp ----------
+// IMPORTANTE: troque SEUNUMERO pelo número de WhatsApp do escritório, com
+// código do país e DDD, só dígitos (ex: 5511999999999).
+const WHATSAPP_NUMERO = '5581986040412';
+
+// Credenciais públicas do Supabase (a chave "anon" é segura de expor no
+// navegador — o que protege os dados é a política de RLS da tabela, que só
+// permite INSERIR, nunca ler/editar/apagar a partir daqui).
+const SB_URL = 'https://voufezlvxnihfazimjqe.supabase.co';
 const SB_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZvdWZlemx2eG5paGZhemltanFlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE4MDAwOTcsImV4cCI6MjA5NzM3NjA5N30.AWWNngX-7nK0I9ZgbcJWiC6zNY2dfsBBxC1zaqMWH7s';
-let sb = null;
 
-function getSB() {
-  if(!sb) sb = window.supabase.createClient(SB_URL, SB_ANON);
-  return sb;
+// Se o script do Supabase não carregar por qualquer motivo (bloqueador de
+// anúncios, extensão de privacidade, falha de rede momentânea), isso NÃO
+// pode travar o resto da página — o tour, as animações e o site inteiro
+// têm que continuar funcionando normalmente mesmo sem o banco disponível.
+let sbLanding = null;
+try {
+  if(window.supabase) sbLanding = window.supabase.createClient(SB_URL, SB_ANON);
+} catch(e){
+  console.warn('Supabase indisponível — o formulário ainda funciona, só não salva no banco:', e);
 }
 
-function showToast(msg, tipo) {
-  const t = document.getElementById('toast');
-  t.textContent = msg;
-  t.className = 'toast' + (tipo ? ' ' + tipo : '');
-  t.style.display = 'block';
-  setTimeout(() => t.style.display = 'none', 4000);
-}
+try {
+  const leadForm = document.getElementById('lead-form');
+  if(leadForm) leadForm.addEventListener('submit', async function(ev){
+    ev.preventDefault();
+    const nome = document.getElementById('lf-nome').value.trim();
+    const escritorio = document.getElementById('lf-escritorio').value.trim();
+    const whats = document.getElementById('lf-whats').value.trim();
+    const msg = document.getElementById('lf-msg').value.trim();
 
-async function fazerLogin() {
-  const email = document.getElementById('login-email').value.trim();
-  const senha = document.getElementById('login-senha').value;
-  const erroEl = document.getElementById('erro-login');
-  erroEl.style.display = 'none';
-  if(!email || !senha) { erroEl.textContent = 'Preencha e-mail e senha.'; erroEl.style.display = 'block'; return; }
+    const btn = document.querySelector('.f-submit');
+    const textoOriginal = btn.textContent;
+    btn.disabled = true; btn.textContent = 'Enviando...';
 
-  const btn = document.getElementById('btn-login');
-  btn.disabled = true; btn.textContent = 'Entrando...';
-
-  const supabase = getSB();
-  const { data, error } = await supabase.auth.signInWithPassword({ email, password: senha });
-  if(error || !data.user) {
-    erroEl.textContent = 'E-mail ou senha incorretos.';
-    erroEl.style.display = 'block';
-    btn.disabled = false; btn.textContent = 'Entrar';
-    return;
-  }
-
-  const { data: ehSuperAdmin, error: errCheck } = await supabase.rpc('eh_super_admin');
-  if(errCheck || !ehSuperAdmin) {
-    await supabase.auth.signOut();
-    erroEl.textContent = '🔒 Este painel é restrito ao administrador do sistema.';
-    erroEl.style.display = 'block';
-    btn.disabled = false; btn.textContent = 'Entrar';
-    return;
-  }
-
-  entrarNoPainel(email);
-}
-
-// Mostra o painel e carrega os dados iniciais — usada tanto depois de um
-// login novo quanto quando já existe uma sessão válida ao abrir a página.
-function entrarNoPainel(email) {
-  document.getElementById('info-usuario').textContent = email;
-  document.getElementById('tela-login').style.display = 'none';
-  document.getElementById('tela-painel').style.display = 'block';
-  carregarEscritorios();
-  iniciarBlocoGithub();
-  carregarListaInformativosAdmin();
-  carregarLandingLeads();
-}
-
-// Ao carregar a página, checa se já existe uma sessão válida (login feito
-// antes, sessão do Supabase ainda não expirou) — se tiver, pula a tela de
-// login direto pro painel, em vez de sempre pedir login de novo a cada
-// atualização de página.
-async function verificarSessaoExistente() {
-  try {
-    const supabase = getSB();
-    const { data: { session } } = await supabase.auth.getSession();
-    if(!session || !session.user) return; // sem sessão, fica na tela de login mesmo
-
-    const { data: ehSuperAdmin, error: errCheck } = await supabase.rpc('eh_super_admin');
-    if(errCheck || !ehSuperAdmin) { await supabase.auth.signOut(); return; }
-
-    entrarNoPainel(session.user.email);
-  } catch(e) {
-    console.warn('Falha ao verificar sessão existente:', e);
-  }
-}
-verificarSessaoExistente();
-
-async function sair() {
-  const supabase = getSB();
-  await supabase.auth.signOut();
-  location.reload();
-}
-
-// Navega entre as "janelas" do painel administrativo (menu lateral).
-function navigateAdmin(winId, btn) {
-  document.querySelectorAll('.admin-window').forEach(w => w.classList.remove('active'));
-  document.querySelectorAll('.admin-nav-item').forEach(n => n.classList.remove('active'));
-  const alvo = document.getElementById(winId);
-  if(alvo) alvo.classList.add('active');
-  if(btn) btn.classList.add('active');
-  // fecha o menu no mobile depois de escolher uma janela
-  const nav = document.getElementById('admin-sidebar-nav');
-  if(nav && window.innerWidth <= 860) nav.classList.remove('open');
-}
-
-async function criarEscritorio() {
-  const nomeEscritorio = document.getElementById('novo-nome').value.trim();
-  const oab = document.getElementById('novo-oab').value.trim();
-  const nomeAdmin = document.getElementById('novo-nome-admin').value.trim();
-  const telefone = document.getElementById('novo-telefone').value.trim();
-  const email = document.getElementById('novo-email').value.trim();
-  const senha = document.getElementById('novo-senha').value;
-
-  if(!nomeEscritorio || !email || !senha) {
-    showToast('Preencha ao menos nome do escritório, e-mail e senha.', 'error');
-    return;
-  }
-  if(senha.length < 8) {
-    showToast('A senha provisória precisa ter ao menos 8 caracteres.', 'error');
-    return;
-  }
-
-  const btn = document.getElementById('btn-criar');
-  btn.disabled = true; btn.textContent = 'Criando...';
-  document.getElementById('credenciais-resultado').style.display = 'none';
-
-  try {
-    const supabase = getSB();
-    const sessao = await supabase.auth.getSession();
-    const token = sessao.data.session?.access_token;
-    if(!token) { showToast('Sessão expirada. Faça login novamente.', 'error'); return; }
-
-    const resp = await fetch(SB_URL + '/functions/v1/onboarding-escritorio', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-      body: JSON.stringify({ nomeEscritorio, oab, nomeAdmin, telefone, email, senha })
-    });
-    const resultado = await resp.json();
-
-    if(!resp.ok) {
-      showToast(resultado.erro || 'Erro ao criar escritório.', 'error');
-      return;
+    // Salva no banco primeiro — isso garante que o contato chega até você
+    // mesmo que a pessoa feche a aba do WhatsApp sem confirmar o envio.
+    // Se o Supabase não estiver disponível, só pula essa parte e segue
+    // direto pro WhatsApp — o formulário nunca trava por causa disso.
+    if(sbLanding){
+      try {
+        const { error } = await sbLanding.from('landing_leads').insert({
+          nome, escritorio_nome: escritorio, whatsapp: whats, mensagem: msg || null
+        });
+        if(error) console.error('Erro ao salvar contato:', error.message);
+      } catch(e){
+        console.error('Erro ao salvar contato:', e);
+      }
     }
 
-    showToast('✅ Escritório criado com sucesso!', 'success');
-    const box = document.getElementById('credenciais-resultado');
-    box.innerHTML = '<strong>Escritório criado!</strong><br>' +
-      'Passe estas credenciais ao cliente:<br>' +
-      'E-mail: <code>' + email + '</code><br>' +
-      'Senha provisória: <code>' + senha + '</code><br>' +
-      'Link do sistema: <code>https://renansoares-dotcom.github.io/erp_advocaticio/</code>';
-    box.style.display = 'block';
+    btn.disabled = false; btn.textContent = textoOriginal;
 
-    ['novo-nome','novo-oab','novo-nome-admin','novo-telefone','novo-email','novo-senha'].forEach(function(id) {
-      document.getElementById(id).value = '';
-    });
-    setTimeout(carregarEscritorios, 500);
-  } catch(e) {
-    showToast('Erro de conexão: ' + e.message, 'error');
-  } finally {
-    btn.disabled = false; btn.textContent = 'Criar Escritório';
+    const texto = `Olá! Meu nome é ${nome}, do escritório ${escritorio}. Meu WhatsApp: ${whats}. Gostaria de solicitar uma demonstração do ADV Easy.` + (msg ? ` Observação: ${msg}` : '');
+    window.open(`https://wa.me/${WHATSAPP_NUMERO}?text=${encodeURIComponent(texto)}`, '_blank');
+
+    leadForm.reset();
+  });
+} catch(e){ console.warn('Falha no formulário de contato:', e); }
+
+try {
+  const footYear = document.getElementById('foot-year');
+  if(footYear) footYear.textContent = new Date().getFullYear();
+} catch(e){ console.warn('Falha ao preencher o ano do rodapé:', e); }
+
+// ---------- Tour do produto (8 telas) ----------
+let tourIdx = 0;
+const TOUR_TOTAL = 8;
+
+function abrirTour(ev){
+  if(ev) ev.preventDefault();
+  document.getElementById('tour-overlay').classList.add('open');
+  document.body.style.overflow = 'hidden';
+  irParaSlide(0);
+}
+function fecharTour(){
+  document.getElementById('tour-overlay').classList.remove('open');
+  document.body.style.overflow = '';
+}
+function irParaSlide(i){
+  tourIdx = Math.max(0, Math.min(TOUR_TOTAL - 1, i));
+  document.querySelectorAll('.tour-slide').forEach((el, n) => el.classList.toggle('active', n === tourIdx));
+  document.querySelectorAll('.tour-side i').forEach((el, n) => el.classList.toggle('active', n === tourIdx));
+  document.querySelectorAll('.tour-dot').forEach((el, n) => el.classList.toggle('active', n === tourIdx));
+  document.getElementById('tour-count').textContent = 'tela ' + (tourIdx + 1) + ' de ' + TOUR_TOTAL;
+  document.getElementById('tour-progress-fill').style.width = (((tourIdx + 1) / TOUR_TOTAL) * 100) + '%';
+  document.getElementById('tour-prev').disabled = tourIdx === 0;
+  document.getElementById('tour-next').disabled = tourIdx === TOUR_TOTAL - 1;
+  animarSlideAtual();
+}
+
+// Anima o conteúdo (contadores, gráfico, funil, listas em sequência) toda
+// vez que uma tela do tour se torna a atual — dá vida ao conteúdo em vez
+// de só aparecer estático, e "reseta" pra poder rodar de novo se a pessoa
+// voltar numa tela que já tinha visto.
+function animarSlideAtual(){
+ try {
+  const slide = document.querySelectorAll('.tour-slide')[tourIdx];
+  if(!slide) return;
+  const meuIdx = tourIdx; // pra checar depois se a pessoa não navegou pra outra tela
+
+  // Reset
+  slide.classList.remove('played');
+  slide.querySelectorAll('[data-stagger]').forEach(el => el.classList.remove('played'));
+  slide.querySelectorAll('[data-count]').forEach(el => {
+    el.textContent = (el.dataset.prefix||'') + '0' + (el.dataset.suffix||'');
+  });
+  slide.querySelectorAll('.t-funnel-bar').forEach(el => { el.style.width = '0'; });
+  slide.querySelectorAll('.t-progress-fill').forEach(el => { el.style.width = '0'; });
+  // Reseta as abas internas (Cadastro de Clientes) pra "Dados Pessoais"
+  // sempre que a tela é (re)aberta, mesmo que a pessoa tenha deixado numa
+  // outra aba da última vez que passou por aqui.
+  const miniTabs = slide.querySelectorAll('.t-mini-tab');
+  if(miniTabs.length){
+    miniTabs.forEach((t, n) => t.classList.toggle('active', n === 0));
+    slide.querySelectorAll('.t-mini-panel').forEach((p, n) => p.classList.toggle('active', n === 0));
   }
-}
+  const fatStatus = slide.querySelector('#fat-status');
+  if(fatStatus) fatStatus.style.opacity = '0';
+  const wppReply = slide.querySelector('#wpp-reply');
+  if(wppReply) wppReply.style.opacity = '0';
+  const fatCursor = slide.querySelector('#fat-cursor');
+  const fatBtn = slide.querySelector('#fat-btn');
+  if(fatCursor){ fatCursor.classList.remove('move','clicking'); }
+  if(fatBtn){ fatBtn.classList.remove('clicked'); }
+  const wppTyping = slide.querySelector('#wpp-typing');
+  if(wppTyping) wppTyping.style.opacity = '0';
 
-// Liga/desliga uma feature específica de um escritório, sem sobrescrever
-// outras chaves que possam existir em `features` (busca o valor atual,
-// mescla, e só então grava de volta).
-async function toggleFeatureEscritorio(id, chave, ativo) {
-  const supabase = getSB();
-  const { data: atual, error: erroFetch } = await supabase.from('escritorios').select('features').eq('id', id).single();
-  if(erroFetch) { showToast('Erro ao buscar recursos: ' + erroFetch.message, 'error'); carregarEscritorios(); return; }
-  const features = Object.assign({}, atual.features || {});
-  features[chave] = ativo;
-  const { error } = await supabase.from('escritorios').update({ features: features }).eq('id', id);
-  if(error) { showToast('Erro ao atualizar: ' + error.message, 'error'); carregarEscritorios(); return; }
-  showToast('✅ Atualizado.', 'success');
-}
+  // Força o navegador a "esquecer" o estado anterior antes de religar as
+  // transições — sem isso, reanimar a mesma tela duas vezes seguidas não
+  // dispara transição CSS nenhuma.
+  void slide.offsetWidth;
 
-// Contatos vindos do formulário da landing page — usa a Service Role Key
-// porque a tabela landing_leads não tem política de RLS pra usuário comum
-// autenticado (só INSERT público), de propósito: ninguém além de quem tem
-// a Service Role Key deve conseguir ver esse funil comercial.
-const LL_STATUS = {
-  novo:       { label: '🆕 Novo',        cor: '#93C5FD' },
-  contatado:  { label: '📞 Contatado',   cor: '#FCD34D' },
-  convertido: { label: '✅ Convertido',  cor: '#86EFAC' },
-  descartado: { label: '✕ Descartado',   cor: '#9DB5D0' }
-};
-
-async function carregarLandingLeads() {
-  const tb = document.getElementById('tbody-landing-leads');
-  if(!tb) return;
-  const sbAdmin = getSBAdmin();
-  if(!sbAdmin) {
-    tb.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#9DB5D0;padding:20px">Salve a Service Role Key acima pra ver os contatos do site.</td></tr>';
-    return;
-  }
-  const { data, error } = await sbAdmin.from('landing_leads').select('*').order('criado_em', { ascending: false });
-  if(error) {
-    tb.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#FCA5A5;padding:20px">Erro ao carregar: ' + error.message + '</td></tr>';
-    return;
-  }
-  if(!data || !data.length) {
-    tb.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#9DB5D0;padding:20px">Nenhum contato recebido ainda.</td></tr>';
-    return;
-  }
-  tb.innerHTML = data.map(function(l) {
-    const dt = new Date(l.criado_em).toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
-    const whatsLimpo = (l.whatsapp || '').replace(/\D/g, '');
-    const opcoes = Object.keys(LL_STATUS).map(function(k) {
-      return '<option value="' + k + '"' + (l.status === k ? ' selected' : '') + '>' + LL_STATUS[k].label + '</option>';
-    }).join('');
-    return '<tr>' +
-      '<td><strong>' + (l.nome || '—') + '</strong></td>' +
-      '<td>' + (l.escritorio_nome || '—') + '</td>' +
-      '<td><a href="https://wa.me/' + whatsLimpo + '" target="_blank" style="color:#93C5FD">' + (l.whatsapp || '—') + '</a></td>' +
-      '<td style="max-width:220px;font-size:12px;color:#9DB5D0">' + (l.mensagem || '—') + '</td>' +
-      '<td style="font-size:12px;white-space:nowrap">' + dt + '</td>' +
-      '<td><select class="status-select" onchange="atualizarStatusLandingLead(\'' + l.id + '\', this.value)">' + opcoes + '</select></td>' +
-      '<td><button class="btn-excluir" onclick="excluirLandingLead(\'' + l.id + '\')">🗑 Excluir</button></td>' +
-    '</tr>';
-  }).join('');
-}
-
-async function atualizarStatusLandingLead(id, status) {
-  const sbAdmin = getSBAdmin();
-  if(!sbAdmin) return;
-  const { error } = await sbAdmin.from('landing_leads').update({ status }).eq('id', id);
-  if(error) { showToast('Erro ao atualizar: ' + error.message, 'error'); return; }
-  showToast('✅ Status atualizado.', 'success');
-}
-
-async function excluirLandingLead(id) {
-  if(!confirm('Excluir este contato?')) return;
-  const sbAdmin = getSBAdmin();
-  if(!sbAdmin) return;
-  const { error } = await sbAdmin.from('landing_leads').delete().eq('id', id);
-  if(error) { showToast('Erro ao excluir: ' + error.message, 'error'); return; }
-  showToast('Contato excluído.', 'success');
-  carregarLandingLeads();
-}
-
-async function carregarEscritorios() {
-  const supabase = getSB();
-  const { data, error } = await supabase
-    .from('escritorios')
-    .select('id, nome, status_pagamento, proximo_vencimento, criado_em, features')
-    .order('criado_em', { ascending: false });
-
-  const tb = document.getElementById('tbody-escritorios');
-  if(error) {
-    tb.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#FCA5A5;padding:20px">Erro ao carregar: ' + error.message + '</td></tr>';
-    return;
-  }
-  if(!data || !data.length) {
-    tb.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#9DB5D0;padding:20px">Nenhum escritório cadastrado ainda.</td></tr>';
-    return;
-  }
-
-  tb.innerHTML = data.map(function(e) {
-    const criado = e.criado_em ? new Date(e.criado_em).toLocaleDateString('pt-BR') : '—';
-    const venc = e.proximo_vencimento ? new Date(e.proximo_vencimento + 'T12:00:00').toLocaleDateString('pt-BR') : '—';
-    const nomeEscapado = e.nome.replace(/'/g, "\\'");
-    const carouselAtivo = !e.features || e.features.carousel_dashboard !== false; // default = ligado
-    return '<tr>' +
-      '<td><strong>' + e.nome + '</strong></td>' +
-      '<td><select class="status-select" onchange="alterarStatus(\'' + e.id + '\', this.value)">' +
-        '<option value="trial"' + (e.status_pagamento==='trial'?' selected':'') + '>Trial</option>' +
-        '<option value="em_dia"' + (e.status_pagamento==='em_dia'?' selected':'') + '>Em dia</option>' +
-        '<option value="inadimplente"' + (e.status_pagamento==='inadimplente'?' selected':'') + '>Inadimplente</option>' +
-        '<option value="cancelado"' + (e.status_pagamento==='cancelado'?' selected':'') + '>Cancelado</option>' +
-      '</select></td>' +
-      '<td>' + venc + '</td>' +
-      '<td>' + criado + '</td>' +
-      '<td style="font-size:12px;white-space:nowrap"><label style="display:flex;align-items:center;gap:6px;cursor:pointer">' +
-        '<input type="checkbox" ' + (carouselAtivo?'checked':'') + ' onchange="toggleFeatureEscritorio(\'' + e.id + '\', \'carousel_dashboard\', this.checked)"> Carousel Dashboard' +
-      '</label></td>' +
-      '<td><button class="btn-financeiro" onclick="abrirModalFinanceiro(\'' + e.id + '\', \'' + nomeEscapado + '\')">💰 Financeiro</button><button class="btn-excluir" onclick="abrirModalExcluir(\'' + e.id + '\', \'' + nomeEscapado + '\')">🗑 Excluir</button></td>' +
-    '</tr>';
-  }).join('');
-
-  // Popula o select de destinatário do formulário de Informativos, mantendo
-  // a seleção atual (se houver) para não perder o que o usuário já escolheu.
-  const selectDest = document.getElementById('info-destinatario');
-  if(selectDest) {
-    const valorAtual = selectDest.value;
-    selectDest.innerHTML = '<option value="">Todos os escritórios</option>' +
-      data.map(function(e) { return '<option value="' + e.id + '">' + e.nome + '</option>'; }).join('');
-    selectDest.value = valorAtual;
-  }
-}
-
-let _escritorioParaExcluir = null;
-
-function abrirModalExcluir(id, nome) {
-  _escritorioParaExcluir = { id, nome };
-  document.getElementById('nome-escritorio-excluir').textContent = nome;
-  document.getElementById('confirma-nome-input').value = '';
-  document.getElementById('btn-confirmar-exclusao').disabled = true;
-  document.getElementById('modal-excluir').classList.add('aberto');
-}
-
-function fecharModalExcluir() {
-  document.getElementById('modal-excluir').classList.remove('aberto');
-  _escritorioParaExcluir = null;
-}
-
-function validarConfirmacaoExclusao() {
-  const digitado = document.getElementById('confirma-nome-input').value.trim();
-  const correto = _escritorioParaExcluir && digitado === _escritorioParaExcluir.nome;
-  document.getElementById('btn-confirmar-exclusao').disabled = !correto;
-}
-
-async function confirmarExclusao() {
-  if(!_escritorioParaExcluir) return;
-  const btn = document.getElementById('btn-confirmar-exclusao');
-  btn.disabled = true; btn.textContent = 'Excluindo...';
-
-  const supabase = getSB();
-  const { error } = await supabase.from('escritorios').delete().eq('id', _escritorioParaExcluir.id);
-
-  btn.textContent = 'Excluir definitivamente';
-  if(error) {
-    showToast('Erro ao excluir: ' + error.message, 'error');
-    return;
-  }
-  showToast('Escritório excluído definitivamente.', 'success');
-  fecharModalExcluir();
-  carregarEscritorios();
-}
-
-let _escritorioFinanceiroAtual = null;
-
-function abrirModalFinanceiro(id, nome) {
-  _escritorioFinanceiroAtual = id;
-  document.getElementById('financeiro-nome-escritorio').textContent = nome;
-  document.getElementById('financeiro-valor').value = '';
-  document.getElementById('financeiro-primeiro-vencimento').value = '';
-  document.getElementById('modal-financeiro').classList.add('aberto');
-  carregarFinanceiroEscritorio();
-}
-
-function fecharModalFinanceiro() {
-  document.getElementById('modal-financeiro').classList.remove('aberto');
-  _escritorioFinanceiroAtual = null;
-}
-
-const NOMES_PERIODICIDADE = { mensal: 'Mensal', trimestral: 'Trimestral', semestral: 'Semestral', anual: 'Anual' };
-
-async function carregarFinanceiroEscritorio() {
-  if(!_escritorioFinanceiroAtual) return;
-  const supabase = getSB();
-
-  const { data: esc } = await supabase.from('escritorios').select('plano_valor, plano_periodicidade').eq('id', _escritorioFinanceiroAtual).single();
-  const resumoEl = document.getElementById('financeiro-plano-resumo');
-  if(esc && esc.plano_valor) {
-    resumoEl.innerHTML = 'R$ <strong>' + Number(esc.plano_valor).toFixed(2).replace('.', ',') + '</strong> · ' + (NOMES_PERIODICIDADE[esc.plano_periodicidade] || esc.plano_periodicidade);
-  } else {
-    resumoEl.textContent = 'Nenhum plano definido ainda.';
-  }
-
-  const { data: cobrancas, error } = await supabase
-    .from('cobrancas_escritorio')
-    .select('id, valor, vencimento, status, data_pagamento, forma_pagamento')
-    .eq('escritorio_id', _escritorioFinanceiroAtual)
-    .order('vencimento');
-
-  const tb = document.getElementById('tbody-cobrancas');
-  if(error) {
-    tb.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#FCA5A5;padding:16px">Erro: ' + error.message + '</td></tr>';
-    return;
-  }
-  if(!cobrancas || !cobrancas.length) {
-    tb.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#9DB5D0;padding:16px">Nenhuma cobrança registrada ainda.</td></tr>';
-    return;
-  }
-
-  const hoje = new Date().toISOString().split('T')[0];
-  tb.innerHTML = cobrancas.map(function(c) {
-    const venc = new Date(c.vencimento + 'T12:00:00').toLocaleDateString('pt-BR');
-    const pago = c.data_pagamento ? new Date(c.data_pagamento + 'T12:00:00').toLocaleDateString('pt-BR') : '—';
-    const statusReal = (c.status === 'pendente' && c.vencimento < hoje) ? 'atrasado' : c.status;
-    const statusLabel = { pendente: 'Pendente', pago: 'Pago', atrasado: 'Atrasado', cancelado: 'Cancelado' }[statusReal] || statusReal;
-    const acao = statusReal !== 'pago' && statusReal !== 'cancelado'
-      ? '<button class="btn-marcar-pago" onclick="marcarCobrancaPaga(\'' + c.id + '\')">Marcar pago</button>'
-      : '';
-    return '<tr>' +
-      '<td>' + venc + '</td>' +
-      '<td>R$ ' + Number(c.valor).toFixed(2).replace('.', ',') + '</td>' +
-      '<td><span class="cobranca-status ' + statusReal + '">' + statusLabel + '</span></td>' +
-      '<td>' + pago + '</td>' +
-      '<td>' + (c.forma_pagamento || '—') + '</td>' +
-      '<td>' + acao + '</td>' +
-    '</tr>';
-  }).join('');
-}
-
-async function definirPlano() {
-  if(!_escritorioFinanceiroAtual) return;
-  const valor = parseFloat(document.getElementById('financeiro-valor').value);
-  const periodicidade = document.getElementById('financeiro-periodicidade').value;
-  const primeiroVencimento = document.getElementById('financeiro-primeiro-vencimento').value;
-
-  if(!valor || valor <= 0) { showToast('Informe um valor válido.', 'error'); return; }
-  if(!primeiroVencimento) { showToast('Informe a data do primeiro vencimento.', 'error'); return; }
-
-  const btn = document.getElementById('btn-gerar-plano');
-  btn.disabled = true; btn.textContent = 'Gerando...';
-
-  const supabase = getSB();
-  const { data, error } = await supabase.rpc('gerar_cobrancas_plano', {
-    p_escritorio_id: _escritorioFinanceiroAtual,
-    p_valor: valor,
-    p_periodicidade: periodicidade,
-    p_primeiro_vencimento: primeiroVencimento
+  requestAnimationFrame(() => {
+   try {
+    slide.classList.add('played');
+    slide.querySelectorAll('[data-stagger]').forEach(el => el.classList.add('played'));
+    slide.querySelectorAll('[data-count]').forEach(el => animarContador(el));
+    slide.querySelectorAll('.t-funnel-bar').forEach(el => { el.style.width = (el.dataset.width||0) + '%'; });
+    slide.querySelectorAll('.t-progress-fill').forEach(el => { el.style.width = (el.dataset.width||0) + '%'; });
+   } catch(e){ console.warn('Falha ao animar conteúdo do slide:', e); }
   });
 
-  btn.disabled = false; btn.textContent = 'Gerar Cobranças';
-
-  if(error) {
-    showToast('Erro ao gerar cobranças: ' + error.message, 'error');
-    return;
+  // Faturamento: o cursor "anda" até o botão, "clica", e só então a
+  // confirmação de nota emitida aparece — em vez de só surgir sozinha.
+  if(fatCursor && fatBtn){
+    setTimeout(() => { if(tourIdx === meuIdx) fatCursor.classList.add('move'); }, 350);
+    setTimeout(() => { if(tourIdx === meuIdx){ fatCursor.classList.add('clicking'); fatBtn.classList.add('clicked'); } }, 780);
+    setTimeout(() => { if(tourIdx === meuIdx){ fatCursor.classList.remove('clicking'); fatBtn.classList.remove('clicked'); } }, 940);
   }
-  showToast(data + ' cobrança(s) gerada(s) com sucesso!', 'success');
-  carregarFinanceiroEscritorio();
-}
-
-async function marcarCobrancaPaga(cobrancaId) {
-  const supabase = getSB();
-  const { error } = await supabase.from('cobrancas_escritorio')
-    .update({ status: 'pago', data_pagamento: new Date().toISOString().split('T')[0] })
-    .eq('id', cobrancaId);
-  if(error) { showToast('Erro ao marcar pagamento: ' + error.message, 'error'); return; }
-  showToast('Cobrança marcada como paga.', 'success');
-  carregarFinanceiroEscritorio();
-}
-
-async function alterarStatus(escritorioId, novoStatus) {
-  const supabase = getSB();
-  const { error } = await supabase.from('escritorios').update({ status_pagamento: novoStatus }).eq('id', escritorioId);
-  if(error) { showToast('Erro ao atualizar status: ' + error.message, 'error'); return; }
-  showToast('Status atualizado.', 'success');
-}
-
-// ==================== VERSÕES DO SISTEMA (integração com GitHub) ====================
-// O token de acesso pessoal do GitHub fica salvo só no localStorage deste
-// navegador — nunca é enviado a nenhum servidor além da própria API do
-// GitHub. Usado para: 1) listar o histórico de commits do arquivo
-// index.html, 2) publicar uma nova versão, 3) restaurar uma versão antiga.
-const GH_TOKEN_KEY = 'admin_gh_token';
-const GH_REPO_KEY = 'admin_gh_repo';
-const GH_ARQUIVO = 'index.html'; // arquivo do sistema principal no repositório
-
-function getGithubToken() { return localStorage.getItem(GH_TOKEN_KEY) || ''; }
-function getGithubRepo() { return localStorage.getItem(GH_REPO_KEY) || ''; }
-
-// ==================== PORTAL DO CLIENTE ====================
-
-function salvarSRK() {
-  const key = document.getElementById('srk-input').value.trim();
-  if(!key) { document.getElementById('srk-status').textContent = '⚠️ Cole a chave antes de salvar.'; return; }
-  localStorage.setItem('adv_service_role_key', key);
-  document.getElementById('srk-input').value = '';
-  document.getElementById('srk-status').textContent = '✅ Chave salva neste navegador.';
-  setTimeout(() => { document.getElementById('srk-status').textContent = ''; }, 4000);
-}
-
-function getSRK() { return localStorage.getItem('adv_service_role_key') || null; }
-
-function filtrarClientesPortal(termo) {
-  const caixa = document.getElementById('portal-sugestoes-cliente');
-  const termoLimpo = termo.trim().toLowerCase();
-  if(termoLimpo.length < 2) { caixa.style.display = 'none'; return; }
-  buscarClientesParaPortal(termoLimpo);
-}
-
-async function buscarClientesParaPortal(termoLimpo) {
-  const caixa = document.getElementById('portal-sugestoes-cliente');
-  const sbAdmin = getSBAdmin();
-  if(!sbAdmin) {
-    caixa.innerHTML = '<div style="padding:10px 14px;font-size:12.5px;color:#C8A736">⚠️ Configure a Service Role Key primeiro.</div>';
-    caixa.style.display = 'block';
-    return;
+  if(fatStatus){
+    setTimeout(() => { if(tourIdx === meuIdx) fatStatus.style.opacity = '1'; }, 1000);
   }
 
-  caixa.innerHTML = '<div style="padding:10px 14px;font-size:12.5px;color:#9DB5D0">Buscando...</div>';
-  caixa.style.display = 'block';
-
-  const { data, error } = await sbAdmin
-    .from('clientes')
-    .select('id, nome, cpf, escritorio_id, escritorios(nome)')
-    .ilike('nome', `%${termoLimpo}%`)
-    .is('usuario_id', null)  // só clientes sem acesso ao portal ainda
-    .limit(20);
-
-  if(error || !data?.length) {
-    caixa.innerHTML = '<div style="padding:10px 14px;font-size:12.5px;color:#9DB5D0">Nenhum cliente encontrado.</div>';
-    return;
+  // WhatsApp: enviado -> lido -> "digitando..." -> resposta do cliente,
+  // simulando uma conversa acontecendo de verdade, não só texto surgindo.
+  if(wppReply){
+    setTimeout(() => { if(tourIdx === meuIdx && wppTyping) wppTyping.style.opacity = '0'; }, 2500);
+    setTimeout(() => { if(tourIdx === meuIdx) wppReply.style.opacity = '1'; }, 2550);
   }
-
-  caixa.innerHTML = data.map(c => `
-    <div onclick="selecionarClientePortal('${c.id}','${(c.nome||'').replace(/'/g,"\\'")}','${(c.escritorios?.nome||'').replace(/'/g,"\\'")}')"
-      style="padding:9px 14px;cursor:pointer;font-size:13px;border-bottom:1px solid rgba(255,255,255,0.06);color:#E0EAF6"
-      onmouseover="this.style.background='rgba(255,255,255,0.06)'" onmouseout="this.style.background='none'">
-      <strong>${c.nome}</strong>${c.cpf ? ` <span style="color:#9DB5D0;font-size:11.5px">${c.cpf}</span>` : ''}
-      ${c.escritorios?.nome ? `<div style="font-size:11px;color:#9DB5D0">${c.escritorios.nome}</div>` : ''}
-    </div>`).join('');
+  if(wppTyping){
+    setTimeout(() => { if(tourIdx === meuIdx) wppTyping.style.opacity = '1'; }, 1450);
+  }
+  const wppStatus = slide.querySelector('#wpp-status');
+  if(wppStatus){
+    wppStatus.textContent = '✓ Enviado às 14:32';
+    wppStatus.style.color = '';
+    setTimeout(() => {
+      if(tourIdx === meuIdx){ wppStatus.textContent = '✓✓ Lido às 14:34'; wppStatus.style.color = '#60A5FA'; }
+    }, 1100);
+  }
+ } catch(e){
+  console.warn('Falha ao animar o slide do tour (não afeta o resto da página):', e);
+ }
 }
 
-function selecionarClientePortal(id, nome, escritorioNome) {
-  document.getElementById('portal-busca-cliente').value = nome + (escritorioNome ? ' · ' + escritorioNome : '');
-  document.getElementById('portal-cliente-id').value = id;
-  document.getElementById('portal-cliente-nome-sel').value = nome;
-  document.getElementById('portal-sugestoes-cliente').style.display = 'none';
+function animarContador(el){
+  const alvo = parseInt(el.dataset.count, 10);
+  const prefixo = el.dataset.prefix || '';
+  const sufixo = el.dataset.suffix || '';
+  const dur = 1100; const t0 = performance.now();
+  function passo(t){
+    const p = Math.min(1, (t - t0) / dur);
+    const ease = 1 - Math.pow(1 - p, 3);
+    const valor = Math.round(ease * alvo);
+    el.textContent = prefixo + valor.toLocaleString('pt-BR') + sufixo;
+    if(p < 1) requestAnimationFrame(passo);
+  }
+  requestAnimationFrame(passo);
 }
-
-document.addEventListener('click', function(e) {
-  const caixa = document.getElementById('portal-sugestoes-cliente');
-  const input = document.getElementById('portal-busca-cliente');
-  if(caixa && !caixa.contains(e.target) && e.target !== input) caixa.style.display = 'none';
+document.getElementById('tour-overlay').addEventListener('click', (ev) => {
+  if(ev.target.id === 'tour-overlay') fecharTour();
 });
-
-function getSBAdmin() {
-  const srk = getSRK();
-  if(!srk) return null;
-  return window.supabase.createClient(SB_URL, srk, {
-    auth: { autoRefreshToken: false, persistSession: false }
-  });
-}
-
-async function criarAcessoPortal() {
-  const clienteId = document.getElementById('portal-cliente-id').value;
-  const clienteNome = document.getElementById('portal-cliente-nome-sel').value;
-  const email = document.getElementById('portal-email').value.trim();
-  const senha = document.getElementById('portal-senha').value.trim();
-  const resultado = document.getElementById('portal-resultado');
-
-  if(!clienteId) { mostrarResultadoPortal('⚠️ Selecione um cliente.', false); return; }
-  if(!email) { mostrarResultadoPortal('⚠️ Informe o e-mail de acesso.', false); return; }
-  if(!senha || senha.length < 6) { mostrarResultadoPortal('⚠️ Senha deve ter no mínimo 6 caracteres.', false); return; }
-
-  const sbAdmin = getSBAdmin();
-  if(!sbAdmin) { mostrarResultadoPortal('⚠️ Configure a Service Role Key antes de criar acessos.', false); return; }
-
-  resultado.style.display = 'block';
-  resultado.style.background = 'rgba(255,255,255,0.05)';
-  resultado.style.color = '#9DB5D0';
-  resultado.textContent = 'Criando acesso...';
-
-  // 1. Criar usuário no Supabase Auth
-  const { data: novoUser, error: errUser } = await sbAdmin.auth.admin.createUser({
-    email, password: senha, email_confirm: true
-  });
-
-  if(errUser) {
-    mostrarResultadoPortal('❌ Erro ao criar usuário: ' + errUser.message, false);
-    return;
-  }
-
-  const userId = novoUser.user.id;
-
-  // 2. Vincular usuário ao cliente
-  const { error: errCliente } = await sbAdmin.from('clientes')
-    .update({ usuario_id: userId })
-    .eq('id', clienteId);
-
-  if(errCliente) {
-    mostrarResultadoPortal('❌ Erro ao vincular ao cliente: ' + errCliente.message, false);
-    return;
-  }
-
-  // 3. Criar registro em usuarios_escritorios com papel 'cliente'
-  const { data: clienteData } = await sbAdmin.from('clientes').select('escritorio_id').eq('id', clienteId).single();
-  if(clienteData) {
-    await sbAdmin.from('usuarios_escritorios').insert({
-      usuario_id: userId, escritorio_id: clienteData.escritorio_id, papel: 'cliente', ativo: true
-    });
-  }
-
-  mostrarResultadoPortal(`✅ Acesso criado para ${clienteNome}!\nE-mail: ${email}\nSenha: ${senha}\n\nCompartilhe essas credenciais com o cliente pelo canal seguro de sua preferência.`, true);
-
-  // Limpar formulário
-  document.getElementById('portal-busca-cliente').value = '';
-  document.getElementById('portal-cliente-id').value = '';
-  document.getElementById('portal-email').value = '';
-  document.getElementById('portal-senha').value = '';
-}
-
-function mostrarResultadoPortal(msg, sucesso) {
-  const el = document.getElementById('portal-resultado');
-  el.style.display = 'block';
-  el.style.background = sucesso ? 'rgba(11,123,69,0.15)' : 'rgba(192,57,43,0.15)';
-  el.style.color = sucesso ? '#6FCF97' : '#E07070';
-  el.style.border = `1px solid ${sucesso ? 'rgba(11,123,69,0.3)' : 'rgba(192,57,43,0.3)'}`;
-  el.style.borderRadius = '8px';
-  el.style.padding = '12px 14px';
-  el.style.whiteSpace = 'pre-line';
-  el.textContent = msg;
-}
-
-// Inicializar campo com status da SRK
-(function() {
-  const srk = getSRK();
-  if(srk) {
-    const status = document.getElementById('srk-status');
-    if(status) status.textContent = '✅ Chave configurada neste navegador.';
-  }
-})();
-
-function salvarTokenGithub() {
-  const token = document.getElementById('github-token-input').value.trim();
-  const repo = document.getElementById('github-repo-input').value.trim();
-  if(!token || !repo) { showToast('Preencha o token e o repositório.', 'error'); return; }
-  if(!/^[^\/]+\/[^\/]+$/.test(repo)) { showToast('Repositório deve estar no formato usuario/nome-do-repo.', 'error'); return; }
-  localStorage.setItem(GH_TOKEN_KEY, token);
-  localStorage.setItem(GH_REPO_KEY, repo);
-  document.getElementById('github-token-status').textContent = '✅ Token salvo neste navegador.';
-  mostrarBlocoVersoes();
-}
-
-function mostrarBlocoVersoes() {
-  if(!getGithubToken() || !getGithubRepo()) return;
-  document.getElementById('github-versoes-bloco').style.display = 'block';
-  carregarHistoricoVersoes();
-}
-
-// Chamado ao logar — se já houver token salvo de uma sessão anterior,
-// mostra o bloco de versões direto, sem precisar colar o token de novo.
-function iniciarBlocoGithub() {
-  const token = getGithubToken();
-  const repo = getGithubRepo();
-  if(token) document.getElementById('github-token-input').value = token;
-  if(repo) document.getElementById('github-repo-input').value = repo;
-  if(token && repo) mostrarBlocoVersoes();
-}
-
-async function githubFetch(path, opts) {
-  const token = getGithubToken();
-  const repo = getGithubRepo();
-  const resp = await fetch('https://api.github.com/repos/' + repo + path, Object.assign({
-    headers: {
-      'Authorization': 'Bearer ' + token,
-      'Accept': 'application/vnd.github+json'
-    }
-  }, opts || {}));
-  return resp;
-}
-
-async function carregarHistoricoVersoes() {
-  const lista = document.getElementById('github-historico-lista');
-  lista.innerHTML = '<p style="font-size:12.5px;color:#9DB5D0">Carregando...</p>';
-
+document.addEventListener('keydown', (ev) => {
   try {
-    const resp = await githubFetch('/commits?path=' + GH_ARQUIVO + '&per_page=15');
-    if(!resp.ok) {
-      const erro = await resp.json().catch(function(){ return {}; });
-      lista.innerHTML = '<p style="font-size:12.5px;color:#FCA5A5">Erro ao carregar histórico: ' + (erro.message || resp.statusText) + '</p>';
-      return;
-    }
-    const commits = await resp.json();
-    if(!commits.length) {
-      lista.innerHTML = '<p style="font-size:12.5px;color:#9DB5D0">Nenhum histórico encontrado para este arquivo.</p>';
-      return;
-    }
-
-    lista.innerHTML = commits.map(function(c, idx) {
-      const data = new Date(c.commit.author.date).toLocaleString('pt-BR');
-      const msg = c.commit.message.split('\n')[0]; // só a primeira linha (a observação)
-      const autor = c.commit.author.name || '';
-      const ehAtual = idx === 0;
-      return '<div class="versao-item' + (ehAtual ? ' atual' : '') + '">' +
-        '<div class="versao-info">' +
-          '<div class="versao-msg">' + msg + (ehAtual ? '<span class="badge-atual">Versão atual</span>' : '') + '</div>' +
-          '<div class="versao-meta">' + data + ' · ' + autor + ' · ' + c.sha.slice(0,7) + '</div>' +
-        '</div>' +
-        (ehAtual ? '' : '<button class="btn-restaurar" onclick="restaurarVersao(\'' + c.sha + '\', \'' + msg.replace(/'/g, "\\'") + '\')">↩ Restaurar esta versão</button>') +
-      '</div>';
-    }).join('');
-  } catch(e) {
-    lista.innerHTML = '<p style="font-size:12.5px;color:#FCA5A5">Erro de conexão: ' + e.message + '</p>';
-  }
-}
-
-async function publicarNovaVersao() {
-  const arquivoInput = document.getElementById('github-arquivo-input');
-  const observacao = document.getElementById('github-observacao-input').value.trim();
-  if(!arquivoInput.files.length) { showToast('Selecione o arquivo .html primeiro.', 'error'); return; }
-  if(!observacao) { showToast('Descreva o que mudou nesta versão.', 'error'); return; }
-
-  const btn = document.getElementById('btn-publicar-versao');
-  btn.disabled = true; btn.textContent = 'Publicando...';
-
-  try {
-    const arquivo = arquivoInput.files[0];
-    const conteudoTexto = await arquivo.text();
-    // GitHub exige o conteúdo em base64. TextEncoder lida corretamente com
-    // acentos/emojis (btoa puro quebra com caracteres fora do ASCII).
-    const bytes = new TextEncoder().encode(conteudoTexto);
-    let binario = '';
-    bytes.forEach(function(b) { binario += String.fromCharCode(b); });
-    const conteudoBase64 = btoa(binario);
-
-    // Precisa do SHA do arquivo atual para o GitHub aceitar a atualização
-    const respAtual = await githubFetch('/contents/' + GH_ARQUIVO);
-    if(!respAtual.ok) { showToast('Erro ao obter versão atual do arquivo.', 'error'); return; }
-    const atual = await respAtual.json();
-
-    const respPublicar = await githubFetch('/contents/' + GH_ARQUIVO, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        message: observacao,
-        content: conteudoBase64,
-        sha: atual.sha
-      })
-    });
-
-    if(!respPublicar.ok) {
-      const erro = await respPublicar.json().catch(function(){ return {}; });
-      showToast('Erro ao publicar: ' + (erro.message || respPublicar.statusText), 'error');
-      return;
-    }
-
-    showToast('✅ Nova versão publicada com sucesso!', 'success');
-    arquivoInput.value = '';
-    document.getElementById('github-observacao-input').value = '';
-    carregarHistoricoVersoes();
-  } catch(e) {
-    showToast('Erro: ' + e.message, 'error');
-  } finally {
-    btn.disabled = false; btn.textContent = 'Publicar Nova Versão';
-  }
-}
-
-async function restaurarVersao(sha, descricaoVersao) {
-  if(!confirm('Restaurar a versão "' + descricaoVersao + '"?\n\nIsso vai sobrescrever o sistema atual com este conteúdo antigo. A versão atual continuará no histórico, então isso também pode ser desfeito depois.')) return;
-
-  try {
-    showToast('Restaurando versão...', '');
-    // Busca o conteúdo do arquivo exatamente como estava naquele commit
-    const respConteudo = await githubFetch('/contents/' + GH_ARQUIVO + '?ref=' + sha);
-    if(!respConteudo.ok) { showToast('Erro ao buscar conteúdo da versão antiga.', 'error'); return; }
-    const dadosAntigos = await respConteudo.json();
-    // dadosAntigos.content já vem em base64 (com quebras de linha) — decodifica corretamente
-    const conteudoDecodificado = decodeURIComponent(escape(atob(dadosAntigos.content.replace(/\n/g, ''))));
-    const bytes = new TextEncoder().encode(conteudoDecodificado);
-    let binario = '';
-    bytes.forEach(function(b) { binario += String.fromCharCode(b); });
-    const conteudoBase64 = btoa(binario);
-
-    // SHA atual (do HEAD), necessário para o PUT aceitar a sobrescrita
-    const respAtual = await githubFetch('/contents/' + GH_ARQUIVO);
-    const atual = await respAtual.json();
-
-    const respPublicar = await githubFetch('/contents/' + GH_ARQUIVO, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        message: 'Restaurado: ' + descricaoVersao,
-        content: conteudoBase64,
-        sha: atual.sha
-      })
-    });
-
-    if(!respPublicar.ok) {
-      const erro = await respPublicar.json().catch(function(){ return {}; });
-      showToast('Erro ao restaurar: ' + (erro.message || respPublicar.statusText), 'error');
-      return;
-    }
-
-    showToast('✅ Versão restaurada com sucesso!', 'success');
-    carregarHistoricoVersoes();
-  } catch(e) {
-    showToast('Erro: ' + e.message, 'error');
-  }
-}
-
-// ==================== INFORMATIVOS ====================
-
-const INFO_TIPO_LABEL = { normal: '📢 Aviso', urgente: '⚠️ Urgente', atualizacao: '🆕 Atualização' };
-
-async function publicarInformativo() {
-  const titulo = document.getElementById('info-titulo').value.trim();
-  const tipo = document.getElementById('info-tipo').value;
-  const corpo = document.getElementById('info-corpo').value.trim();
-  const escritorioId = document.getElementById('info-destinatario').value || null;
-  const validoAteRaw = document.getElementById('info-valido-até').value || null;
-  const dataEventoRaw = document.getElementById('info-data-evento').value || null;
-  const linkUrl = document.getElementById('info-link-url').value.trim() || null;
-  const arquivoInput = document.getElementById('info-anexo');
-
-  if(!titulo) { showToast('Informe um título.', 'error'); return; }
-
-  // datetime-local vem sem timezone (ex: "2026-08-15T14:00") — new Date()
-  // interpreta como horário local do navegador, e toISOString() converte
-  // certo pra UTC antes de mandar pro banco.
-  const validoAte = validoAteRaw ? new Date(validoAteRaw).toISOString() : null;
-  const dataEvento = dataEventoRaw ? new Date(dataEventoRaw).toISOString() : null;
-
-  const btn = document.getElementById('btn-publicar-informativo');
-  btn.disabled = true; btn.textContent = 'Publicando...';
-
-  try {
-    const supabase = getSB();
-    let anexoPath = null;
-    let anexoNome = null;
-
-    if(arquivoInput.files.length) {
-      const arquivo = arquivoInput.files[0];
-      const nomeSeguro = arquivo.name.replace(/[^a-zA-Z0-9.\-_]/g, '_');
-      const path = Date.now() + '_' + nomeSeguro;
-      const { error: erroUpload } = await supabase.storage.from('informativos').upload(path, arquivo);
-      if(erroUpload) { showToast('Erro ao enviar anexo: ' + erroUpload.message, 'error'); return; }
-      anexoPath = path;
-      anexoNome = arquivo.name;
-    }
-
-    const { error } = await supabase.from('informativos').insert({
-      titulo, corpo: corpo || null, tipo,
-      escritorio_id: escritorioId,
-      anexo_path: anexoPath, anexo_nome: anexoNome,
-      "valido_até": validoAte,
-      data_evento: dataEvento,
-      link_url: linkUrl
-    });
-
-    if(error) { showToast('Erro ao publicar: ' + error.message, 'error'); return; }
-
-    showToast('✅ Informativo publicado!', 'success');
-    document.getElementById('info-titulo').value = '';
-    document.getElementById('info-corpo').value = '';
-    document.getElementById('info-destinatario').value = '';
-    document.getElementById('info-valido-até').value = '';
-    document.getElementById('info-data-evento').value = '';
-    document.getElementById('info-link-url').value = '';
-    document.getElementById('info-tipo').value = 'normal';
-    atualizarCampoDataEvento();
-    arquivoInput.value = '';
-    carregarListaInformativosAdmin();
-  } catch(e) {
-    showToast('Erro: ' + e.message, 'error');
-  } finally {
-    btn.disabled = false; btn.textContent = 'Publicar Informativo';
-  }
-}
-
-// Mostra o campo de Data/Hora do Evento só quando o tipo "Evento" está
-// selecionado.
-function atualizarCampoDataEvento() {
-  const tipo = document.getElementById('info-tipo').value;
-  document.getElementById('wrap-data-evento').style.display = tipo === 'evento' ? '' : 'none';
-}
-
-// Ao preencher a data do evento, sugere a mesma data/hora como "válido
-// até" (editável depois, caso queira manter visível por mais tempo).
-function sugerirValidadeIgualEvento() {
-  const dataEvento = document.getElementById('info-data-evento').value;
-  const validoAte = document.getElementById('info-valido-até');
-  if(dataEvento && !validoAte.value) validoAte.value = dataEvento;
-}
-
-
-async function carregarListaInformativosAdmin() {
-  const lista = document.getElementById('lista-informativos-admin');
-  if(!lista) return;
-  lista.innerHTML = '<p style="font-size:12.5px;color:#9DB5D0">Carregando...</p>';
-
-  const supabase = getSB();
-  const { data, error } = await supabase
-    .from('informativos')
-    .select('id, titulo, tipo, escritorio_id, valido_até, criado_em, escritorios(nome)')
-    .order('criado_em', { ascending: false });
-
-  if(error) {
-    lista.innerHTML = '<p style="font-size:12.5px;color:#FCA5A5">Erro: ' + error.message + '</p>';
-    return;
-  }
-  if(!data || !data.length) {
-    lista.innerHTML = '<p style="font-size:12.5px;color:#9DB5D0">Nenhum informativo publicado ainda.</p>';
-    return;
-  }
-
-  lista.innerHTML = data.map(function(i) {
-    const data_ = new Date(i.criado_em).toLocaleDateString('pt-BR');
-    const destino = i.escritorio_id ? (i.escritorios ? i.escritorios.nome : 'escritório específico') : 'Todos os escritórios';
-    const validade = i.valido_até ? ' · válido até ' + new Date(i.valido_até + 'T12:00:00').toLocaleDateString('pt-BR') : '';
-    const tituloEscapado = i.titulo.replace(/'/g, "\\'");
-    return '<div class="versao-item">' +
-      '<div class="versao-info">' +
-        '<div class="versao-msg">' + (INFO_TIPO_LABEL[i.tipo] || i.tipo) + ' — ' + i.titulo + '</div>' +
-        '<div class="versao-meta">' + data_ + ' · ' + destino + validade + '</div>' +
-      '</div>' +
-      '<button class="btn-financeiro" onclick="abrirModalLeitores(\'' + i.id + '\', \'' + tituloEscapado + '\')">👁 Ver leitores</button>' +
-      '<button class="btn-excluir" onclick="excluirInformativoAdmin(\'' + i.id + '\')">🗑 Excluir</button>' +
-    '</div>';
-  }).join('');
-}
-
-async function excluirInformativoAdmin(id) {
-  if(!confirm('Excluir este informativo? Ele deixará de aparecer para os escritórios.')) return;
-  const supabase = getSB();
-  const { error } = await supabase.from('informativos').delete().eq('id', id);
-  if(error) { showToast('Erro ao excluir: ' + error.message, 'error'); return; }
-  showToast('Informativo excluído.', 'success');
-  carregarListaInformativosAdmin();
-}
-
-function abrirModalLeitores(informativoId, titulo) {
-  document.getElementById('leitores-titulo-informativo').textContent = titulo;
-  document.getElementById('modal-leitores').classList.add('aberto');
-  carregarLeitoresInformativo(informativoId);
-}
-
-function fecharModalLeitores() {
-  document.getElementById('modal-leitores').classList.remove('aberto');
-}
-
-async function carregarLeitoresInformativo(informativoId) {
-  const lista = document.getElementById('leitores-lista');
-  lista.innerHTML = '<p style="font-size:12.5px;color:#9DB5D0">Carregando...</p>';
-
-  const supabase = getSB();
-  const { data, error } = await supabase.rpc('listar_leitores_informativo', { p_informativo_id: informativoId });
-
-  if(error) {
-    lista.innerHTML = '<p style="font-size:12.5px;color:#FCA5A5">Erro: ' + error.message + '</p>';
-    return;
-  }
-  if(!data || !data.length) {
-    lista.innerHTML = '<p style="font-size:12.5px;color:#9DB5D0">Ainda ninguém leu este informativo.</p>';
-    return;
-  }
-
-  lista.innerHTML = '<table style="width:100%;border-collapse:collapse;font-size:13px">' +
-    '<thead><tr>' +
-      '<th style="text-align:left;padding:6px;color:#9DB5D0;font-size:11px;text-transform:uppercase">Escritório</th>' +
-      '<th style="text-align:left;padding:6px;color:#9DB5D0;font-size:11px;text-transform:uppercase">Pessoa</th>' +
-      '<th style="text-align:left;padding:6px;color:#9DB5D0;font-size:11px;text-transform:uppercase">Lido em</th>' +
-    '</tr></thead><tbody>' +
-    data.map(function(l) {
-      const lidoEm = new Date(l.lido_em).toLocaleString('pt-BR');
-      return '<tr style="border-top:1px solid #16243a">' +
-        '<td style="padding:7px 6px">' + l.escritorio_nome + '</td>' +
-        '<td style="padding:7px 6px"><strong>' + l.usuario_nome + '</strong><br><span style="font-size:11px;color:#9DB5D0">' + l.usuario_email + '</span></td>' +
-        '<td style="padding:7px 6px;font-size:12px;color:#9DB5D0">' + lidoEm + '</td>' +
-      '</tr>';
-    }).join('') +
-    '</tbody></table>';
-}
-
-
+    const overlay = document.getElementById('tour-overlay');
+    if(!overlay || !overlay.classList.contains('open')) return;
+    if(ev.key === 'Escape') fecharTour();
+    if(ev.key === 'ArrowRight') irParaSlide(tourIdx + 1);
+    if(ev.key === 'ArrowLeft') irParaSlide(tourIdx - 1);
+  } catch(e){ console.warn('Falha no atalho de teclado do tour:', e); }
+});
 </script>
+
+<div class="tour-overlay" id="tour-overlay">
+  <button class="tour-close" onclick="fecharTour()" aria-label="Fechar">✕</button>
+  <div class="tour-window">
+    <div class="tour-bar">
+      <span class="device-dot"></span><span class="device-dot"></span><span class="device-dot"></span>
+      <span class="mono">app.adveasy.com.br</span>
+      <span class="tb-count mono" id="tour-count">tela 1 de 8</span>
+    </div>
+    <div class="tour-progress"><div class="tour-progress-fill" id="tour-progress-fill"></div></div>
+    <div class="tour-body">
+      <div class="tour-side">
+        <div class="d-mark"></div>
+        <i class="active"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+      </div>
+      <div class="tour-main">
+        <div class="tour-slides">
+
+          <div class="tour-slide active">
+            <div class="tour-slide-title">Dashboard</div>
+            <p class="tour-slide-caption">Assim que você entra, já vê o que importa: processos ativos, clientes, taxa de êxito e os prazos mais urgentes da semana.</p>
+            <div class="t-stats">
+              <div class="t-stat"><div class="dl">Processos ativos</div><div class="dv" data-count="47">0</div></div>
+              <div class="t-stat"><div class="dl">Clientes</div><div class="dv" data-count="128">0</div></div>
+              <div class="t-stat"><div class="dl">Taxa de êxito</div><div class="dv gold" data-count="86" data-suffix="%">0</div></div>
+            </div>
+            <div class="t-chart"><b style="height:38%"></b><b style="height:58%"></b><b style="height:44%"></b><b style="height:72%"></b><b style="height:63%"></b><b style="height:91%"></b><b style="height:80%"></b></div>
+            <div class="t-list-label">Próximos prazos</div>
+            <div class="t-mini-list" data-stagger>
+              <div class="t-list-item"><span class="t-list-dot red"></span><div><div class="t-list-title">Audiência — Carlos E. Lima</div><div class="t-list-sub">Amanhã, 14h00</div></div></div>
+              <div class="t-list-item"><span class="t-list-dot amber"></span><div><div class="t-list-title">Prazo recursal — Fernanda Costa</div><div class="t-list-sub">Em 3 dias</div></div></div>
+            </div>
+          </div>
+
+          <div class="tour-slide">
+            <div class="tour-slide-title">Processos</div>
+            <p class="tour-slide-caption">Cada processo com vara, status e cliente visíveis de cara — sem abrir pasta por pasta pra saber onde as coisas estão.</p>
+            <div style="display:flex; gap:8px; margin-bottom:12px; flex-wrap:wrap">
+              <span class="t-badge blue">28 em andamento</span>
+              <span class="t-badge amber">12 aguardando</span>
+              <span class="t-badge green">19 encerrados</span>
+            </div>
+            <div style="background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08); border-radius:8px; padding:8px 12px; font-size:11.5px; color:rgba(255,255,255,0.32); margin-bottom:12px; font-family:'IBM Plex Mono',monospace">🔍 Buscar por cliente, número ou vara...</div>
+            <table class="t-table">
+              <thead><tr><th>Processo</th><th>Cliente</th><th>Status</th></tr></thead>
+              <tbody data-stagger>
+                <tr><td class="mono">5001234-56...053</td><td>Maria A. Souza</td><td><span class="t-badge blue">Em andamento</span></td></tr>
+                <tr><td class="mono">1002345-67...031</td><td>Carlos E. Lima</td><td><span class="t-badge amber">Aguardando</span></td></tr>
+                <tr><td class="mono">1003456-78...100</td><td>Fernanda Costa</td><td><span class="t-badge green">Encerrado</span></td></tr>
+                <tr><td class="mono">0004567-89...050</td><td>José R. Almeida</td><td><span class="t-badge blue">Em andamento</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="tour-slide">
+            <div class="tour-slide-title">Cadastro de Clientes</div>
+            <p class="tour-slide-caption">O cadastro mais completo do sistema: histórico pessoal, financeiro, origem e sinalizações — tudo debaixo de um só cliente.</p>
+
+            <div class="t-client-head">
+              <div class="t-client-avatar">PH</div>
+              <div style="min-width:0">
+                <div class="t-client-name">Pedro Henrique Oliveira</div>
+                <div class="t-client-sub">Cliente desde jan/2026 · Previdenciário</div>
+              </div>
+              <span class="t-badge red" style="margin-left:auto; flex-shrink:0">🔴 Super Atenção</span>
+            </div>
+
+            <div class="t-mini-tabs" id="cli-tabs">
+              <div class="t-mini-tab active" onclick="trocarAbaCliente(this,'dados')">Dados Pessoais</div>
+              <div class="t-mini-tab" onclick="trocarAbaCliente(this,'financeiro')">Financeiro</div>
+              <div class="t-mini-tab" onclick="trocarAbaCliente(this,'origem')">Origem &amp; Tags</div>
+            </div>
+
+            <div class="t-mini-panel active" data-cpanel="dados">
+              <div class="t-form-row">
+                <div class="t-field"><div class="fl">CPF</div><div class="fv">890.123.456-78</div></div>
+                <div class="t-field"><div class="fl">Nascimento</div><div class="fv">25/04/1965</div></div>
+              </div>
+              <div class="t-form-row">
+                <div class="t-field"><div class="fl">Telefone</div><div class="fv">(11) 92222-8877</div></div>
+                <div class="t-field"><div class="fl">Telefone 2</div><div class="fv">(11) 5566-7788</div></div>
+              </div>
+              <div class="t-form-row">
+                <div class="t-field"><div class="fl">E-mail</div><div class="fv" style="font-size:11.5px">pedro.oliveira@email.com</div></div>
+                <div class="t-field"><div class="fl">Estado Civil</div><div class="fv">Casado</div></div>
+              </div>
+            </div>
+
+            <div class="t-mini-panel" data-cpanel="financeiro">
+              <div class="t-stats">
+                <div class="t-stat"><div class="dl">Valor total</div><div class="dv gold" data-count="7200" data-prefix="R$ ">0</div></div>
+                <div class="t-stat"><div class="dl">Parcelas</div><div class="dv">4/6</div></div>
+                <div class="t-stat"><div class="dl">Próx. vencimento</div><div class="dv" style="font-size:15px">15/07</div></div>
+              </div>
+              <div class="t-progress-wrap"><div class="t-progress-fill" data-width="66"></div></div>
+              <div class="t-progress-label mono">66% do valor já pago</div>
+            </div>
+
+            <div class="t-mini-panel" data-cpanel="origem">
+              <div class="t-form-row">
+                <div class="t-field"><div class="fl">Origem</div><div class="fv">Indicação Interna</div></div>
+                <div class="t-field"><div class="fl">Indicado por</div><div class="fv" style="font-size:11.5px">Ex-cliente do escritório</div></div>
+              </div>
+              <div style="display:flex; gap:8px; margin-top:12px; flex-wrap:wrap" data-stagger>
+                <span class="t-badge red">🔴 Super Atenção</span>
+                <span class="t-badge amber">VIP</span>
+                <span class="t-badge gray">🔑 3 credenciais salvas</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="tour-slide">
+            <div class="tour-slide-title">Faturamento</div>
+            <p class="tour-slide-caption">Emita a nota fiscal de serviço direto dos dados do cliente já cadastrado — sem digitar tudo de novo em outro sistema.</p>
+            <div class="t-form-row">
+              <div class="t-field"><div class="fl">CNPJ do escritório</div><div class="fv">12.345.678/0001-90</div></div>
+              <div class="t-field"><div class="fl">Tomador</div><div class="fv">Fernanda Ribeiro Costa</div></div>
+            </div>
+            <div style="position:relative; display:inline-block">
+              <div class="t-btn-mini" id="fat-btn">🧾 Emitir Nota Fiscal</div>
+              <div class="t-cursor" id="fat-cursor">👆</div>
+            </div>
+            <div id="fat-status" style="margin-top:12px; opacity:0; transition:opacity .4s var(--ease)">
+              <span class="t-badge green">✓ Nota nº 00187 emitida com sucesso</span>
+            </div>
+            <div class="t-list-label">Notas emitidas recentemente</div>
+            <div class="t-mini-list" data-stagger>
+              <div class="t-list-item"><span class="t-list-dot green"></span><div><div class="t-list-title">Nº 00186 — Pedro H. Oliveira</div><div class="t-list-sub">03/07/2026</div></div><div class="t-list-value">R$ 1.200</div></div>
+              <div class="t-list-item"><span class="t-list-dot green"></span><div><div class="t-list-title">Nº 00185 — Ana P. Martins</div><div class="t-list-sub">28/06/2026</div></div><div class="t-list-value">R$ 900</div></div>
+            </div>
+          </div>
+
+          <div class="tour-slide">
+            <div class="tour-slide-title">Fluxo de Caixa</div>
+            <p class="tour-slide-caption">Entradas e saídas de julho, lado a lado — pra você saber se o mês fechou no azul antes de chegar o extrato do banco.</p>
+            <div class="t-stats">
+              <div class="t-stat"><div class="dl">Entradas</div><div class="dv" style="color:#86EFAC" data-count="18400" data-prefix="R$ ">0</div><div class="t-compare up">↑ 12% vs. junho</div></div>
+              <div class="t-stat"><div class="dl">Saídas</div><div class="dv" style="color:#FCA5A5" data-count="7230" data-prefix="R$ ">0</div><div class="t-compare down">↑ 5% vs. junho</div></div>
+              <div class="t-stat"><div class="dl">Saldo</div><div class="dv gold" data-count="11170" data-prefix="R$ ">0</div><div class="t-compare up">↑ 34% vs. junho</div></div>
+            </div>
+            <div class="t-chart"><b style="height:50%"></b><b style="height:70%"></b><b style="height:35%"></b><b style="height:85%"></b><b style="height:60%"></b><b style="height:95%"></b><b style="height:45%"></b></div>
+            <div class="t-list-label">Despesas por categoria</div>
+            <div class="t-mini-list" data-stagger>
+              <div class="t-list-item"><span class="t-list-dot amber"></span><div><div class="t-list-title">Estrutura (aluguel, contas)</div></div><div class="t-list-value">R$ 4.330</div></div>
+              <div class="t-list-item"><span class="t-list-dot amber"></span><div><div class="t-list-title">Pessoal</div></div><div class="t-list-value">R$ 2.800</div></div>
+            </div>
+          </div>
+
+          <div class="tour-slide">
+            <div class="tour-slide-title">Conversão de Leads</div>
+            <p class="tour-slide-caption">Do primeiro contato até virar cliente — veja em que etapa do funil as oportunidades estão travando.</p>
+            <div class="t-funnel">
+              <div class="t-funnel-row"><div class="t-funnel-label">Novo Lead</div><div class="t-funnel-bar-wrap"><div class="t-funnel-bar" data-width="100" style="width:0"><span data-count="40">0</span></div></div></div>
+              <div class="t-funnel-row"><div class="t-funnel-label">Contato feito</div><div class="t-funnel-bar-wrap"><div class="t-funnel-bar" data-width="70" style="width:0"><span data-count="28">0</span></div></div></div>
+              <div class="t-funnel-row"><div class="t-funnel-label">Proposta</div><div class="t-funnel-bar-wrap"><div class="t-funnel-bar" data-width="38" style="width:0"><span data-count="15">0</span></div></div></div>
+              <div class="t-funnel-row"><div class="t-funnel-label">Convertido</div><div class="t-funnel-bar-wrap"><div class="t-funnel-bar" data-width="23" style="width:0"><span data-count="9">0</span></div></div></div>
+            </div>
+            <div style="margin-top:12px"><span class="t-badge amber">Taxa geral: 22,5% (↑ 4pp vs. junho)</span></div>
+            <div class="t-list-label">Origem dos leads</div>
+            <div class="t-mini-list" data-stagger>
+              <div class="t-list-item"><span class="t-list-dot blue"></span><div><div class="t-list-title">Google Ads</div></div><div class="t-list-value">42%</div></div>
+              <div class="t-list-item"><span class="t-list-dot green"></span><div><div class="t-list-title">Indicação</div></div><div class="t-list-value">35%</div></div>
+            </div>
+          </div>
+
+          <div class="tour-slide">
+            <div class="tour-slide-title">Usuários</div>
+            <p class="tour-slide-caption">Cada pessoa da equipe com seu próprio acesso e permissão — o financeiro não precisa ver o que é só do advogado, por exemplo.</p>
+            <div style="margin-bottom:12px"><span class="t-badge gray">4 usuários · 3 perfis diferentes</span></div>
+            <div class="t-users" data-stagger>
+              <div class="t-user"><div class="t-user-av">RS</div><div style="flex:1"><div class="t-user-name">Renan Soares</div><div class="t-user-role">Administrador · acesso total</div></div><span class="t-badge green" style="flex-shrink:0">● Online</span></div>
+              <div class="t-user"><div class="t-user-av">JC</div><div style="flex:1"><div class="t-user-name">Juliana Campos</div><div class="t-user-role">Advogada · processos e agenda</div></div><span class="t-badge green" style="flex-shrink:0">● Online</span></div>
+              <div class="t-user"><div class="t-user-av">MF</div><div style="flex:1"><div class="t-user-name">Marcos Ferreira</div><div class="t-user-role">Financeiro · recebimentos e despesas</div></div><span class="t-badge gray" style="flex-shrink:0">há 2h</span></div>
+            </div>
+          </div>
+
+          <div class="tour-slide">
+            <div class="tour-slide-title">Cobrança por WhatsApp</div>
+            <p class="tour-slide-caption">Envie lembretes de pagamento e recibos direto pelo WhatsApp do cliente, com um clique — sem sair do sistema.</p>
+            <div style="margin-bottom:14px"><span class="t-badge green">32 mensagens essa semana · 78% de resposta</span></div>
+            <div class="t-wpp-bubble">Olá, Carlos! Passando pra lembrar que a parcela 3/6 do seu processo vence amanhã (01/08). Qualquer dúvida, é só chamar por aqui. 😊</div>
+            <div class="t-wpp-sent" id="wpp-status">✓ Enviado às 14:32</div>
+            <div class="t-wpp-typing" id="wpp-typing"><span></span><span></span><span></span></div>
+            <div class="t-wpp-bubble" id="wpp-reply" style="background:rgba(255,255,255,0.04); border-color:rgba(255,255,255,0.1); opacity:0; transition:opacity .4s var(--ease); margin-top:10px; margin-bottom:0">Ah, obrigado por avisar! Já vou providenciar o pagamento. 🙏</div>
+          </div>
+
+        </div>
+        <div class="tour-foot">
+          <div class="tour-dots" id="tour-dots">
+            <span class="tour-dot active" onclick="irParaSlide(0)"></span>
+            <span class="tour-dot" onclick="irParaSlide(1)"></span>
+            <span class="tour-dot" onclick="irParaSlide(2)"></span>
+            <span class="tour-dot" onclick="irParaSlide(3)"></span>
+            <span class="tour-dot" onclick="irParaSlide(4)"></span>
+            <span class="tour-dot" onclick="irParaSlide(5)"></span>
+            <span class="tour-dot" onclick="irParaSlide(6)"></span>
+            <span class="tour-dot" onclick="irParaSlide(7)"></span>
+          </div>
+          <div class="tour-nav-btns">
+            <button class="tour-nav-btn" id="tour-prev" onclick="irParaSlide(tourIdx-1)" aria-label="Anterior">←</button>
+            <button class="tour-nav-btn" id="tour-next" onclick="irParaSlide(tourIdx+1)" aria-label="Próxima">→</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
