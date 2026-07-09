@@ -4931,7 +4931,7 @@ body.topbar-escura .notif-btn:hover { background: rgba(255,255,255,0.2); border-
 <div class="modal-overlay" id="modal-portal-acesso">
   <div class="modal" style="width:440px">
     <div class="modal-header">
-      <span class="modal-title">🔑 Criar Acesso ao Portal</span>
+      <span class="modal-title" id="portal-acesso-titulo">🔑 Criar Acesso ao Portal</span>
       <button class="btn btn-ghost btn-icon" onclick="closeModal('modal-portal-acesso')">✕</button>
     </div>
     <div class="modal-body">
@@ -13144,7 +13144,7 @@ function editarCliente(id) {
 function abrirModalPortalAcesso(clienteId) {
   const c = store.clientes.find(c => c.id === clienteId);
   if(!c) return;
-  if(c.usuarioId) { showToast('Esse cliente já tem acesso ao Portal.', 'error'); return; }
+  const jaTemAcesso = !!c.usuarioId;
   document.getElementById('portal-acesso-cliente-id').value = clienteId;
   document.getElementById('portal-acesso-cliente-nome').textContent = c.nome;
   document.getElementById('portal-acesso-email').value = c.email || '';
@@ -13153,8 +13153,19 @@ function abrirModalPortalAcesso(clienteId) {
   document.getElementById('portal-acesso-resultado').innerHTML = '';
   document.getElementById('btn-criar-acesso-portal').style.display = '';
   document.getElementById('btn-criar-acesso-portal').disabled = false;
-  document.getElementById('btn-criar-acesso-portal').textContent = 'Criar Acesso';
   document.getElementById('btn-portal-acesso-cancelar').textContent = 'Cancelar';
+
+  if(jaTemAcesso) {
+    document.getElementById('portal-acesso-titulo').textContent = '🔄 Gerar Nova Senha do Portal';
+    document.getElementById('portal-acesso-email').disabled = true;
+    document.querySelector('#portal-acesso-campo-email span').textContent = 'Esse cliente já tem acesso — o e-mail de login não muda, só a senha.';
+    document.getElementById('btn-criar-acesso-portal').textContent = 'Gerar Nova Senha';
+  } else {
+    document.getElementById('portal-acesso-titulo').textContent = '🔑 Criar Acesso ao Portal';
+    document.getElementById('portal-acesso-email').disabled = false;
+    document.querySelector('#portal-acesso-campo-email span').textContent = 'É com esse e-mail que o cliente vai entrar no Portal. A senha (8 dígitos) é gerada automaticamente.';
+    document.getElementById('btn-criar-acesso-portal').textContent = 'Criar Acesso';
+  }
   openModal('modal-portal-acesso', false);
 }
 
@@ -13163,11 +13174,12 @@ async function criarAcessoPortalCliente() {
   const email = document.getElementById('portal-acesso-email').value.trim();
   if(!email) { showToast('Informe o e-mail de acesso.', 'error'); return; }
 
+  const textoOriginalBtn = document.getElementById('btn-criar-acesso-portal').textContent;
   const btn = document.getElementById('btn-criar-acesso-portal');
-  btn.disabled = true; btn.textContent = 'Criando...';
+  btn.disabled = true; btn.textContent = 'Aguarde...';
 
   const sb = await getSB();
-  if(!sb) { btn.disabled = false; btn.textContent = 'Criar Acesso'; showToast('Sem conexão com o banco.', 'error'); return; }
+  if(!sb) { btn.disabled = false; btn.textContent = textoOriginalBtn; showToast('Sem conexão com o banco.', 'error'); return; }
 
   const { data, error } = await sb.functions.invoke('criar-acesso-portal', {
     body: { cliente_id: clienteId, email }
@@ -13185,8 +13197,8 @@ async function criarAcessoPortalCliente() {
         if(corpo?.error) msg = corpo.error;
       } catch(e) { /* corpo não era JSON, mantém a mensagem genérica */ }
     }
-    showToast('Erro ao criar acesso: ' + msg, 'error');
-    btn.disabled = false; btn.textContent = 'Criar Acesso';
+    showToast('Erro: ' + msg, 'error');
+    btn.disabled = false; btn.textContent = textoOriginalBtn;
     return;
   }
 
@@ -13198,9 +13210,10 @@ async function criarAcessoPortalCliente() {
   document.getElementById('portal-acesso-campo-email').style.display = 'none';
   const resultado = document.getElementById('portal-acesso-resultado');
   resultado.style.display = 'block';
+  const mensagem = data.redefinida ? '✅ Senha redefinida!' : '✅ Acesso criado!';
   resultado.innerHTML = `
     <div style="background:var(--surface);border:1px solid var(--blue-200);border-radius:var(--radius);padding:16px">
-      <div style="font-size:13px;color:var(--text-secondary);margin-bottom:10px">✅ Acesso criado! Copie e envie pro cliente — essa senha <strong>não aparece de novo</strong>.</div>
+      <div style="font-size:13px;color:var(--text-secondary);margin-bottom:10px">${mensagem} Copie e envie pro cliente — essa senha <strong>não aparece de novo</strong>.</div>
       <div style="font-family:'IBM Plex Mono',monospace;font-size:13.5px;margin-bottom:4px"><strong>E-mail:</strong> ${data.email}</div>
       <div style="font-family:'IBM Plex Mono',monospace;font-size:20px;font-weight:700;color:var(--blue-700);letter-spacing:1px">${data.senha}</div>
     </div>`;
@@ -13484,7 +13497,7 @@ function renderClientes(q = '') {
           <button onclick="fecharMenusAcoes();abrirDocumentosCliente('${c.id}')">📁 Documentos do Cliente</button>
           <button onclick="fecharMenusAcoes();abrirModalWpp('${c.id}',null)">📱 Enviar WhatsApp</button>
           ${c.usuarioId
-            ? `<button disabled style="opacity:0.55;cursor:default">🔑 Já tem acesso ao Portal</button>`
+            ? `<button onclick="fecharMenusAcoes();abrirModalPortalAcesso('${c.id}')">🔄 Gerar nova senha do Portal</button>`
             : `<button onclick="fecharMenusAcoes();abrirModalPortalAcesso('${c.id}')">🔑 Criar acesso ao Portal</button>`}
           <button class="item-perigo" onclick="fecharMenusAcoes();excluirCliente('${c.id}')">🗑 Excluir</button>
         </div>
