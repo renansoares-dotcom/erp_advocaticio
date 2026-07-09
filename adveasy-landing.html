@@ -306,6 +306,19 @@ header.site-nav{
 .sec-card h4{font-size:16.5px; margin-bottom:8px; font-family:'Inter',sans-serif; font-weight:600}
 .sec-card p{font-size:13.5px; color:var(--text-muted); line-height:1.55}
 
+/* ================= FAQ ================= */
+.faq-list{max-width:760px}
+.faq-item{border-bottom:1px solid rgba(18,32,46,0.1)}
+.faq-item:first-child{border-top:1px solid rgba(18,32,46,0.1)}
+.faq-q{
+  display:flex; align-items:center; justify-content:space-between; gap:16px;
+  padding:20px 4px; cursor:pointer; font-size:15.5px; font-weight:500; color:var(--ink);
+}
+.faq-q-icon{flex-shrink:0; font-size:18px; color:var(--gold-deep); transition:transform .3s var(--ease); font-family:'IBM Plex Mono',monospace}
+.faq-item.open .faq-q-icon{transform:rotate(45deg)}
+.faq-a{max-height:0; overflow:hidden; transition:max-height .35s var(--ease)}
+.faq-a-inner{padding:0 4px 20px; font-size:14px; color:var(--text-muted); line-height:1.65; max-width:64ch}
+
 /* ================= CTA FINAL ================= */
 .cta-final{background:var(--navy-deep); color:#fff; position:relative; overflow:hidden}
 .cta-final::before{content:''; position:absolute; inset:0; background:radial-gradient(ellipse 700px 500px at 50% -10%, rgba(196,169,107,0.16), transparent 60%)}
@@ -512,6 +525,9 @@ footer{background:var(--navy-deep); border-top:1px solid var(--line-dark); paddi
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 </head>
 <body>
+<div id="page-loader" style="position:fixed; top:0; left:0; right:0; height:2.5px; z-index:2000; background:transparent">
+  <div id="page-loader-fill" style="height:100%; width:0; background:linear-gradient(90deg,var(--gold-deep),var(--gold-bright)); transition:width 1.1s var(--ease), opacity .4s ease .3s"></div>
+</div>
 
 <header class="site-nav">
   <div class="wrap nav-inner">
@@ -523,7 +539,7 @@ footer{background:var(--navy-deep); border-top:1px solid var(--line-dark); paddi
       <a href="#modulos">Recursos</a>
       <a href="#portal">Portal do Cliente</a>
       <a href="#como-funciona">Como funciona</a>
-      <a href="#seguranca">Segurança</a>
+      <a href="#faq">Dúvidas</a>
     </nav>
     <a class="nav-cta" href="#contato">Solicitar demonstração</a>
     <button class="nav-burger" id="nav-burger" onclick="toggleMenuMobile()" aria-label="Abrir menu">☰</button>
@@ -532,7 +548,7 @@ footer{background:var(--navy-deep); border-top:1px solid var(--line-dark); paddi
     <a href="#modulos" onclick="fecharMenuMobile()">Recursos</a>
     <a href="#portal" onclick="fecharMenuMobile()">Portal do Cliente</a>
     <a href="#como-funciona" onclick="fecharMenuMobile()">Como funciona</a>
-    <a href="#seguranca" onclick="fecharMenuMobile()">Segurança</a>
+    <a href="#faq" onclick="fecharMenuMobile()">Dúvidas</a>
     <a href="#contato" class="nav-cta" style="text-align:center; margin-top:6px" onclick="fecharMenuMobile()">Solicitar demonstração</a>
   </div>
 </header>
@@ -790,6 +806,41 @@ footer{background:var(--navy-deep); border-top:1px solid var(--line-dark); paddi
   </div>
 </section>
 
+<section class="section" id="faq">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <div class="eyebrow">antes de perguntar, já respondemos</div>
+      <h2>Perguntas frequentes.</h2>
+    </div>
+    <div class="faq-list reveal">
+      <div class="faq-item">
+        <div class="faq-q" onclick="toggleFaq(this)">Preciso migrar tudo de uma vez?<span class="faq-q-icon">+</span></div>
+        <div class="faq-a"><div class="faq-a-inner">Não. Você pode começar com os processos ativos e ir cadastrando o histórico aos poucos, no seu ritmo. A gente te ajuda a priorizar o que faz mais diferença primeiro.</div></div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q" onclick="toggleFaq(this)">Meus dados e os dos meus clientes ficam seguros?<span class="faq-q-icon">+</span></div>
+        <div class="faq-a"><div class="faq-a-inner">Sim. Cada escritório só enxerga os próprios dados — isso é garantido no nível do banco de dados, não só na tela. Tudo fica numa infraestrutura profissional, com backup automático.</div></div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q" onclick="toggleFaq(this)">Dá pra usar pelo celular?<span class="faq-q-icon">+</span></div>
+        <div class="faq-a"><div class="faq-a-inner">Dá. O sistema roda direto no navegador, sem precisar instalar nada — funciona em computador, tablet ou celular.</div></div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q" onclick="toggleFaq(this)">Preciso ser bom com tecnologia pra usar?<span class="faq-q-icon">+</span></div>
+        <div class="faq-a"><div class="faq-a-inner">Não. Foi pensado pra rotina de um escritório de advocacia, não pra quem entende de sistema. E no começo você tem suporte direto pra tirar qualquer dúvida.</div></div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q" onclick="toggleFaq(this)">Meu cliente precisa pagar pra usar o Portal?<span class="faq-q-icon">+</span></div>
+        <div class="faq-a"><div class="faq-a-inner">Não, o acesso do seu cliente ao Portal já está incluído na sua assinatura. Ele só recebe um login pra acompanhar o processo dele.</div></div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q" onclick="toggleFaq(this)">Posso cancelar quando quiser?<span class="faq-q-icon">+</span></div>
+        <div class="faq-a"><div class="faq-a-inner">Pode. Sem contrato de fidelidade nem multa. A gente prefere te manter porque o sistema realmente ajuda, não porque você ficou preso.</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
 <section class="cta-final section" id="contato">
   <div class="wrap cta-grid">
     <div>
@@ -878,6 +929,34 @@ try {
     deviceIo.observe(device);
   }
 } catch(e){ console.warn('Falha no contador do hero:', e); }
+
+// ---------- Barra de carregamento do topo ----------
+try {
+  const fill = document.getElementById('page-loader-fill');
+  if(fill){
+    requestAnimationFrame(() => { fill.style.width = '100%'; });
+    setTimeout(() => {
+      fill.style.opacity = '0';
+      setTimeout(() => { const l = document.getElementById('page-loader'); if(l) l.style.display = 'none'; }, 500);
+    }, 700);
+  }
+} catch(e){ console.warn('Falha na barra de carregamento:', e); }
+
+// ---------- FAQ (acordeão) ----------
+function toggleFaq(el){
+  try {
+    const item = el.closest('.faq-item');
+    if(!item) return;
+    const resposta = item.querySelector('.faq-a');
+    const abrindo = !item.classList.contains('open');
+    // fecha os outros, um de cada vez aberto fica mais limpo de ler
+    document.querySelectorAll('.faq-item.open').forEach(o => {
+      if(o !== item){ o.classList.remove('open'); o.querySelector('.faq-a').style.maxHeight = '0'; }
+    });
+    item.classList.toggle('open', abrindo);
+    resposta.style.maxHeight = abrindo ? '300px' : '0';
+  } catch(e){ console.warn('Falha no FAQ:', e); }
+}
 
 // ---------- Menu mobile ----------
 function toggleMenuMobile(){
@@ -1161,18 +1240,16 @@ document.addEventListener('keydown', (ev) => {
             <div class="t-mini-list" data-stagger>
               <div class="t-list-item"><span class="t-list-dot red"></span><div><div class="t-list-title">Audiência — Carlos E. Lima</div><div class="t-list-sub">Amanhã, 14h00</div></div></div>
               <div class="t-list-item"><span class="t-list-dot amber"></span><div><div class="t-list-title">Prazo recursal — Fernanda Costa</div><div class="t-list-sub">Em 3 dias</div></div></div>
-              <div class="t-list-item"><span class="t-list-dot blue"></span><div><div class="t-list-title">Perícia médica — Maria A. Souza</div><div class="t-list-sub">Em 6 dias</div></div></div>
             </div>
           </div>
 
           <div class="tour-slide">
             <div class="tour-slide-title">Processos</div>
             <p class="tour-slide-caption">Cada processo com vara, status e cliente visíveis de cara — sem abrir pasta por pasta pra saber onde as coisas estão.</p>
-            <div class="t-stats" style="grid-template-columns:repeat(4,1fr)">
-              <div class="t-stat"><div class="dl">Andamento</div><div class="dv" style="font-size:16px" data-count="28">0</div></div>
-              <div class="t-stat"><div class="dl">Aguardando</div><div class="dv" style="font-size:16px" data-count="12">0</div></div>
-              <div class="t-stat"><div class="dl">Encerrados</div><div class="dv" style="font-size:16px" data-count="19">0</div></div>
-              <div class="t-stat"><div class="dl">Suspensos</div><div class="dv" style="font-size:16px" data-count="3">0</div></div>
+            <div style="display:flex; gap:8px; margin-bottom:12px; flex-wrap:wrap">
+              <span class="t-badge blue">28 em andamento</span>
+              <span class="t-badge amber">12 aguardando</span>
+              <span class="t-badge green">19 encerrados</span>
             </div>
             <div style="background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08); border-radius:8px; padding:8px 12px; font-size:11.5px; color:rgba(255,255,255,0.32); margin-bottom:12px; font-family:'IBM Plex Mono',monospace">🔍 Buscar por cliente, número ou vara...</div>
             <table class="t-table">
@@ -1182,7 +1259,6 @@ document.addEventListener('keydown', (ev) => {
                 <tr><td class="mono">1002345-67...031</td><td>Carlos E. Lima</td><td><span class="t-badge amber">Aguardando</span></td></tr>
                 <tr><td class="mono">1003456-78...100</td><td>Fernanda Costa</td><td><span class="t-badge green">Encerrado</span></td></tr>
                 <tr><td class="mono">0004567-89...050</td><td>José R. Almeida</td><td><span class="t-badge blue">Em andamento</span></td></tr>
-                <tr><td class="mono">1006789-01...045</td><td>Roberto C. Nunes</td><td><span class="t-badge gray">Suspenso</span></td></tr>
               </tbody>
             </table>
           </div>
@@ -1262,14 +1338,12 @@ document.addEventListener('keydown', (ev) => {
             <div class="t-mini-list" data-stagger>
               <div class="t-list-item"><span class="t-list-dot green"></span><div><div class="t-list-title">Nº 00186 — Pedro H. Oliveira</div><div class="t-list-sub">03/07/2026</div></div><div class="t-list-value">R$ 1.200</div></div>
               <div class="t-list-item"><span class="t-list-dot green"></span><div><div class="t-list-title">Nº 00185 — Ana P. Martins</div><div class="t-list-sub">28/06/2026</div></div><div class="t-list-value">R$ 900</div></div>
-              <div class="t-list-item"><span class="t-list-dot green"></span><div><div class="t-list-title">Nº 00184 — José R. Almeida</div><div class="t-list-sub">25/06/2026</div></div><div class="t-list-value">R$ 2.000</div></div>
             </div>
           </div>
 
           <div class="tour-slide">
             <div class="tour-slide-title">Fluxo de Caixa</div>
-            <p class="tour-slide-caption">Entradas e saídas do período, lado a lado — pra você saber se o mês fechou no azul antes de chegar o extrato do banco.</p>
-            <div style="margin-bottom:10px"><span class="t-badge gray mono">📅 Julho 2026</span></div>
+            <p class="tour-slide-caption">Entradas e saídas de julho, lado a lado — pra você saber se o mês fechou no azul antes de chegar o extrato do banco.</p>
             <div class="t-stats">
               <div class="t-stat"><div class="dl">Entradas</div><div class="dv" style="color:#86EFAC" data-count="18400" data-prefix="R$ ">0</div><div class="t-compare up">↑ 12% vs. junho</div></div>
               <div class="t-stat"><div class="dl">Saídas</div><div class="dv" style="color:#FCA5A5" data-count="7230" data-prefix="R$ ">0</div><div class="t-compare down">↑ 5% vs. junho</div></div>
@@ -1280,7 +1354,6 @@ document.addEventListener('keydown', (ev) => {
             <div class="t-mini-list" data-stagger>
               <div class="t-list-item"><span class="t-list-dot amber"></span><div><div class="t-list-title">Estrutura (aluguel, contas)</div></div><div class="t-list-value">R$ 4.330</div></div>
               <div class="t-list-item"><span class="t-list-dot amber"></span><div><div class="t-list-title">Pessoal</div></div><div class="t-list-value">R$ 2.800</div></div>
-              <div class="t-list-item"><span class="t-list-dot amber"></span><div><div class="t-list-title">Marketing</div></div><div class="t-list-value">R$ 900</div></div>
             </div>
           </div>
 
@@ -1293,42 +1366,29 @@ document.addEventListener('keydown', (ev) => {
               <div class="t-funnel-row"><div class="t-funnel-label">Proposta</div><div class="t-funnel-bar-wrap"><div class="t-funnel-bar" data-width="38" style="width:0"><span data-count="15">0</span></div></div></div>
               <div class="t-funnel-row"><div class="t-funnel-label">Convertido</div><div class="t-funnel-bar-wrap"><div class="t-funnel-bar" data-width="23" style="width:0"><span data-count="9">0</span></div></div></div>
             </div>
-            <div style="margin-top:14px; display:flex; gap:8px; flex-wrap:wrap">
-              <span class="t-badge amber">Taxa de conversão geral: 22,5%</span>
-              <span class="t-compare up" style="opacity:1; margin-top:0; display:flex; align-items:center">↑ 4 pontos vs. junho</span>
-            </div>
+            <div style="margin-top:12px"><span class="t-badge amber">Taxa geral: 22,5% (↑ 4pp vs. junho)</span></div>
             <div class="t-list-label">Origem dos leads</div>
             <div class="t-mini-list" data-stagger>
               <div class="t-list-item"><span class="t-list-dot blue"></span><div><div class="t-list-title">Google Ads</div></div><div class="t-list-value">42%</div></div>
               <div class="t-list-item"><span class="t-list-dot green"></span><div><div class="t-list-title">Indicação</div></div><div class="t-list-value">35%</div></div>
-              <div class="t-list-item"><span class="t-list-dot amber"></span><div><div class="t-list-title">Instagram</div></div><div class="t-list-value">23%</div></div>
             </div>
           </div>
 
           <div class="tour-slide">
             <div class="tour-slide-title">Usuários</div>
             <p class="tour-slide-caption">Cada pessoa da equipe com seu próprio acesso e permissão — o financeiro não precisa ver o que é só do advogado, por exemplo.</p>
-            <div class="t-stats" style="grid-template-columns:repeat(3,1fr)">
-              <div class="t-stat"><div class="dl">Usuários ativos</div><div class="dv" data-count="4">0</div></div>
-              <div class="t-stat"><div class="dl">Perfis diferentes</div><div class="dv" data-count="3">0</div></div>
-              <div class="t-stat"><div class="dl">Online agora</div><div class="dv gold" data-count="2">0</div></div>
-            </div>
+            <div style="margin-bottom:12px"><span class="t-badge gray">4 usuários · 3 perfis diferentes</span></div>
             <div class="t-users" data-stagger>
               <div class="t-user"><div class="t-user-av">RS</div><div style="flex:1"><div class="t-user-name">Renan Soares</div><div class="t-user-role">Administrador · acesso total</div></div><span class="t-badge green" style="flex-shrink:0">● Online</span></div>
               <div class="t-user"><div class="t-user-av">JC</div><div style="flex:1"><div class="t-user-name">Juliana Campos</div><div class="t-user-role">Advogada · processos e agenda</div></div><span class="t-badge green" style="flex-shrink:0">● Online</span></div>
               <div class="t-user"><div class="t-user-av">MF</div><div style="flex:1"><div class="t-user-name">Marcos Ferreira</div><div class="t-user-role">Financeiro · recebimentos e despesas</div></div><span class="t-badge gray" style="flex-shrink:0">há 2h</span></div>
-              <div class="t-user"><div class="t-user-av">LT</div><div style="flex:1"><div class="t-user-name">Larissa Tavares</div><div class="t-user-role">Secretária · agenda e clientes</div></div><span class="t-badge gray" style="flex-shrink:0">ontem</span></div>
             </div>
           </div>
 
           <div class="tour-slide">
             <div class="tour-slide-title">Cobrança por WhatsApp</div>
             <p class="tour-slide-caption">Envie lembretes de pagamento e recibos direto pelo WhatsApp do cliente, com um clique — sem sair do sistema.</p>
-            <div class="t-stats" style="grid-template-columns:repeat(3,1fr); margin-bottom:16px">
-              <div class="t-stat"><div class="dl">Enviadas essa semana</div><div class="dv" data-count="32">0</div></div>
-              <div class="t-stat"><div class="dl">Taxa de resposta</div><div class="dv gold" data-count="78" data-suffix="%">0</div></div>
-              <div class="t-stat"><div class="dl">Recibos enviados</div><div class="dv" data-count="14">0</div></div>
-            </div>
+            <div style="margin-bottom:14px"><span class="t-badge green">32 mensagens essa semana · 78% de resposta</span></div>
             <div class="t-wpp-bubble">Olá, Carlos! Passando pra lembrar que a parcela 3/6 do seu processo vence amanhã (01/08). Qualquer dúvida, é só chamar por aqui. 😊</div>
             <div class="t-wpp-sent" id="wpp-status">✓ Enviado às 14:32</div>
             <div class="t-wpp-typing" id="wpp-typing"><span></span><span></span><span></span></div>
