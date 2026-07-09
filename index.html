@@ -4928,6 +4928,32 @@ body.topbar-escura .notif-btn:hover { background: rgba(255,255,255,0.2); border-
   </div>
 </div>
 
+<div class="modal-overlay" id="modal-portal-acesso">
+  <div class="modal" style="width:440px">
+    <div class="modal-header">
+      <span class="modal-title">🔑 Criar Acesso ao Portal</span>
+      <button class="btn btn-ghost btn-icon" onclick="closeModal('modal-portal-acesso')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="portal-acesso-cliente-id">
+      <div class="form-group">
+        <label class="form-label">Cliente</label>
+        <div id="portal-acesso-cliente-nome" style="font-weight:600;font-size:14.5px"></div>
+      </div>
+      <div class="form-group" id="portal-acesso-campo-email">
+        <label class="form-label">E-mail de acesso</label>
+        <input type="email" class="form-control" id="portal-acesso-email" placeholder="email@cliente.com">
+        <span style="font-size:11.5px;color:var(--text-muted)">É com esse e-mail que o cliente vai entrar no Portal. A senha (8 dígitos) é gerada automaticamente.</span>
+      </div>
+      <div id="portal-acesso-resultado" style="display:none;margin-top:6px"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal-portal-acesso')" id="btn-portal-acesso-cancelar">Cancelar</button>
+      <button class="btn btn-primary" id="btn-criar-acesso-portal" onclick="criarAcessoPortalCliente()">Criar Acesso</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="modal-confirmar-pagamento">
   <div class="modal" style="width:420px">
     <div class="modal-header">
@@ -5085,6 +5111,7 @@ function clienteDoBanco(row) {
     obs: row.observacoes || '',
     valor: Number(row.valor) || 0,
     nParcelas: row.n_parcelas || 1,
+    usuarioId: row.usuario_id || null, // se preenchido, já tem acesso ao Portal do Cliente
     datasParcelas: [],
     dipEntradas: [] // carregado separadamente, ver carregarDipDoCliente()
   };
@@ -5183,7 +5210,7 @@ async function carregarClientes() {
   // client em listagens; a leitura real só acontece via clientes_get_senha_inss().
   const { data, error } = await sb
     .from('clientes')
-    .select('id, escritorio_id, nome, cpf, telefone, telefone2, email, endereco, cidade, data_nascimento, estado_civil, natureza, beneficio, indicacao, origem_tipo, origem_pessoa_nome, origem_campanha_id, credenciais, super_atencao, responsavel, tipo_processo_id, status, observacoes, valor, n_parcelas, criado_em, atualizado_em, senha_inss')
+    .select('id, escritorio_id, nome, cpf, telefone, telefone2, email, endereco, cidade, data_nascimento, estado_civil, natureza, beneficio, indicacao, origem_tipo, origem_pessoa_nome, origem_campanha_id, credenciais, super_atencao, responsavel, tipo_processo_id, status, observacoes, valor, n_parcelas, criado_em, atualizado_em, senha_inss, usuario_id')
     .eq('escritorio_id', escritorioId)
     .order('criado_em', { ascending: false });
   if(error) { console.warn('Erro ao carregar clientes:', error.message); return []; }
@@ -13109,6 +13136,68 @@ function editarCliente(id) {
   openModal('modal-cliente', false);
 }
 
+// ==================== ACESSO AO PORTAL DO CLIENTE (self-service) ====================
+// Cria o login do Portal pro cliente direto daqui, sem precisar pedir pro
+// administrador da plataforma. Quem faz o trabalho pesado (criar o usuário
+// de autenticação com privilégio elevado) é uma Edge Function no Supabase
+// — o ERP só chama ela, nunca tem acesso a esse privilégio diretamente.
+function abrirModalPortalAcesso(clienteId) {
+  const c = store.clientes.find(c => c.id === clienteId);
+  if(!c) return;
+  if(c.usuarioId) { showToast('Esse cliente já tem acesso ao Portal.', 'error'); return; }
+  document.getElementById('portal-acesso-cliente-id').value = clienteId;
+  document.getElementById('portal-acesso-cliente-nome').textContent = c.nome;
+  document.getElementById('portal-acesso-email').value = c.email || '';
+  document.getElementById('portal-acesso-campo-email').style.display = '';
+  document.getElementById('portal-acesso-resultado').style.display = 'none';
+  document.getElementById('portal-acesso-resultado').innerHTML = '';
+  document.getElementById('btn-criar-acesso-portal').style.display = '';
+  document.getElementById('btn-criar-acesso-portal').disabled = false;
+  document.getElementById('btn-criar-acesso-portal').textContent = 'Criar Acesso';
+  document.getElementById('btn-portal-acesso-cancelar').textContent = 'Cancelar';
+  openModal('modal-portal-acesso', false);
+}
+
+async function criarAcessoPortalCliente() {
+  const clienteId = document.getElementById('portal-acesso-cliente-id').value;
+  const email = document.getElementById('portal-acesso-email').value.trim();
+  if(!email) { showToast('Informe o e-mail de acesso.', 'error'); return; }
+
+  const btn = document.getElementById('btn-criar-acesso-portal');
+  btn.disabled = true; btn.textContent = 'Criando...';
+
+  const sb = await getSB();
+  if(!sb) { btn.disabled = false; btn.textContent = 'Criar Acesso'; showToast('Sem conexão com o banco.', 'error'); return; }
+
+  const { data, error } = await sb.functions.invoke('criar-acesso-portal', {
+    body: { cliente_id: clienteId, email }
+  });
+
+  if(error || data?.error) {
+    const msg = (data && data.error) || error?.message || 'Erro desconhecido.';
+    showToast('Erro ao criar acesso: ' + msg, 'error');
+    btn.disabled = false; btn.textContent = 'Criar Acesso';
+    return;
+  }
+
+  // Atualiza localmente pra já refletir "tem acesso" sem precisar recarregar
+  const c = store.clientes.find(c => c.id === clienteId);
+  if(c) c.usuarioId = data.usuario_id || true;
+  renderClientes();
+
+  document.getElementById('portal-acesso-campo-email').style.display = 'none';
+  const resultado = document.getElementById('portal-acesso-resultado');
+  resultado.style.display = 'block';
+  resultado.innerHTML = `
+    <div style="background:var(--surface);border:1px solid var(--blue-200);border-radius:var(--radius);padding:16px">
+      <div style="font-size:13px;color:var(--text-secondary);margin-bottom:10px">✅ Acesso criado! Copie e envie pro cliente — essa senha <strong>não aparece de novo</strong>.</div>
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:13.5px;margin-bottom:4px"><strong>E-mail:</strong> ${data.email}</div>
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:20px;font-weight:700;color:var(--blue-700);letter-spacing:1px">${data.senha}</div>
+    </div>`;
+  btn.style.display = 'none';
+  document.getElementById('btn-portal-acesso-cancelar').textContent = 'Fechar';
+}
+
 async function excluirCliente(id) {
   if(!confirm('Excluir este cliente?')) return;
   const _c = store.clientes.find(c=>c.id===id);
@@ -13384,6 +13473,9 @@ function renderClientes(q = '') {
           <button onclick="fecharMenusAcoes();gerarFichaPDF('${c.id}')">📄 Gerar Ficha PDF</button>
           <button onclick="fecharMenusAcoes();abrirDocumentosCliente('${c.id}')">📁 Documentos do Cliente</button>
           <button onclick="fecharMenusAcoes();abrirModalWpp('${c.id}',null)">📱 Enviar WhatsApp</button>
+          ${c.usuarioId
+            ? `<button disabled style="opacity:0.55;cursor:default">🔑 Já tem acesso ao Portal</button>`
+            : `<button onclick="fecharMenusAcoes();abrirModalPortalAcesso('${c.id}')">🔑 Criar acesso ao Portal</button>`}
           <button class="item-perigo" onclick="fecharMenusAcoes();excluirCliente('${c.id}')">🗑 Excluir</button>
         </div>
       </td>
