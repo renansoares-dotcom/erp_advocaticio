@@ -16508,6 +16508,19 @@ document.addEventListener('visibilitychange', async () => {
     if(sb) await sb.auth.getSession();
   }
 });
+
+// O listener acima só cobre o caso de trocar de aba e voltar. Mas em
+// telas como "Mensagens Portal", a pessoa costuma ficar parada na MESMA
+// aba por bastante tempo esperando mensagem chegar — nesse caso a aba
+// nunca "muda de visibilidade", então o token pode expirar em silêncio
+// sem nenhum aviso, e só aparece na hora de tentar enviar algo. Por isso
+// essa checagem roda sozinha, de tempos em tempos, independente de
+// qualquer ação da pessoa.
+setInterval(async () => {
+  const sb = await getSB();
+  if(sb) await sb.auth.getSession(); // getSession() já renova o token internamente se estiver perto de expirar
+}, 2 * 60 * 1000);
 </script>
+
 </body>
 </html>
