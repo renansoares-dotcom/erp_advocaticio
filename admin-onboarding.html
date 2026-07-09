@@ -16,6 +16,33 @@
   }
   .container { max-width: 980px; margin: 0 auto; padding: 32px 20px; }
 
+  /* PAINEL EM JANELAS COM MENU LATERAL */
+  .admin-shell { display:flex; min-height:100vh; }
+  .admin-sidebar {
+    width: 232px; flex-shrink:0; background:#0B1622; border-right:1px solid rgba(255,255,255,0.08);
+    padding: 22px 0; display:flex; flex-direction:column; position:sticky; top:0; height:100vh; overflow-y:auto;
+  }
+  .admin-sidebar-brand { padding: 0 20px 20px; font-size:15px; font-weight:600; color:#fff; border-bottom:1px solid rgba(255,255,255,0.08); margin-bottom:14px; }
+  .admin-sidebar-brand small { display:block; font-size:11px; color:#9DB5D0; font-weight:400; margin-top:2px; }
+  .admin-nav-item {
+    display:flex; align-items:center; gap:10px; padding:11px 20px; font-size:13.5px; color:#9DB5D0;
+    cursor:pointer; border-left:3px solid transparent; transition:all .15s;
+  }
+  .admin-nav-item:hover { background:rgba(255,255,255,0.04); color:#E8F0F8; }
+  .admin-nav-item.active { background:rgba(196,169,107,0.1); color:#DCC48E; border-left-color:#C4A96B; }
+  .admin-sidebar-foot { margin-top:auto; padding:16px 20px 0; border-top:1px solid rgba(255,255,255,0.08); }
+  .admin-main { flex:1; min-width:0; }
+  .admin-window { display:none; }
+  .admin-window.active { display:block; }
+  .admin-burger { display:none; }
+  @media (max-width:860px) {
+    .admin-shell { flex-direction:column; }
+    .admin-sidebar { position:relative; height:auto; width:100%; padding:14px 0; }
+    .admin-sidebar-nav { display:none; flex-direction:column; }
+    .admin-sidebar-nav.open { display:flex; }
+    .admin-burger { display:block; background:none; border:none; color:#fff; font-size:20px; cursor:pointer; padding:0 20px; }
+  }
+
   /* LOGIN */
   #tela-login { display:flex; align-items:center; justify-content:center; min-height:100vh; }
   .login-box { background:#1A2E45; border-radius:16px; padding:36px; width:380px; box-shadow:0 12px 40px rgba(0,0,0,0.4); }
@@ -118,23 +145,36 @@
     <h1>🔐 Painel Administrativo</h1>
     <p>Acesso restrito — gestão de escritórios clientes.</p>
     <div class="erro" id="erro-login"></div>
-    <input type="email" id="login-email" placeholder="Seu e-mail">
-    <input type="password" id="login-senha" placeholder="Sua senha">
+    <input type="email" id="login-email" placeholder="Seu e-mail" onkeydown="if(event.key==='Enter') fazerLogin()">
+    <input type="password" id="login-senha" placeholder="Sua senha" onkeydown="if(event.key==='Enter') fazerLogin()">
     <button id="btn-login" onclick="fazerLogin()">Entrar</button>
   </div>
 </div>
 
 <div id="tela-painel">
-  <div class="container">
-    <header>
-      <div>
-        <h1>Painel Administrativo</h1>
-        <span id="info-usuario"></span>
+  <div class="admin-shell">
+    <div class="admin-sidebar">
+      <div class="admin-sidebar-brand">
+        Painel Administrativo
+        <small id="info-usuario"></small>
       </div>
-      <button class="btn-sair" onclick="sair()">Sair</button>
-    </header>
+      <button class="admin-burger" onclick="document.getElementById('admin-sidebar-nav').classList.toggle('open')">☰ Menu</button>
+      <div class="admin-sidebar-nav" id="admin-sidebar-nav" style="display:flex;flex-direction:column">
+        <div class="admin-nav-item active" data-win="win-criar" onclick="navigateAdmin('win-criar', this)">➕ Criar Escritório</div>
+        <div class="admin-nav-item" data-win="win-escritorios" onclick="navigateAdmin('win-escritorios', this)">📋 Escritórios</div>
+        <div class="admin-nav-item" data-win="win-contatos" onclick="navigateAdmin('win-contatos', this)">📩 Contatos do Site</div>
+        <div class="admin-nav-item" data-win="win-portal" onclick="navigateAdmin('win-portal', this)">🔑 Portal do Cliente</div>
+        <div class="admin-nav-item" data-win="win-versoes" onclick="navigateAdmin('win-versoes', this)">🗂️ Versões do Sistema</div>
+        <div class="admin-nav-item" data-win="win-informativos" onclick="navigateAdmin('win-informativos', this)">📢 Informativos</div>
+      </div>
+      <div class="admin-sidebar-foot">
+        <button class="btn-sair" onclick="sair()" style="width:100%">Sair</button>
+      </div>
+    </div>
+    <div class="admin-main">
+      <div class="container">
 
-    <div class="card">
+    <div class="card admin-window active" id="win-criar">
       <h2>➕ Criar novo escritório</h2>
       <div class="form-row">
         <div class="form-group">
@@ -170,7 +210,7 @@
       <div class="credenciais-box" id="credenciais-resultado" style="display:none"></div>
     </div>
 
-    <div class="card">
+    <div class="card admin-window" id="win-escritorios">
       <h2>📋 Escritórios cadastrados</h2>
       <div class="table-wrap" style="overflow-x:auto">
         <table>
@@ -185,7 +225,7 @@
     </div>
 
     <!-- ===== CONTATOS DO SITE (landing page) ===== -->
-    <div class="card">
+    <div class="card admin-window" id="win-contatos">
       <h2>📩 Contatos do Site</h2>
       <p style="font-size:12.5px;color:#9DB5D0;margin-bottom:14px">
         Pessoas que preencheram o formulário de "Solicitar demonstração" na landing page do ADV Easy.
@@ -203,7 +243,7 @@
     </div>
 
     <!-- ===== PORTAL DO CLIENTE ===== -->
-    <div class="card">
+    <div class="card admin-window" id="win-portal">
       <h2>🔑 Portal do Cliente</h2>
       <p style="font-size:12.5px;color:#9DB5D0;margin-bottom:14px">
         Crie credenciais de acesso para clientes acessarem o portal. A Service Role Key fica salva só neste navegador e nunca é enviada a ninguém além do Supabase.
@@ -250,7 +290,7 @@
       </div>
     </div>
 
-    <div class="card">
+    <div class="card admin-window" id="win-versoes">
       <h2>🗂️ Versões do Sistema (erp_advocaticio)</h2>
       <div id="github-token-bloco">
         <p style="font-size:12.5px;color:#9DB5D0;margin-bottom:10px">
@@ -293,7 +333,7 @@
       </div>
     </div>
 
-    <div class="card">
+    <div class="card admin-window" id="win-informativos">
       <h2>📢 Informativos</h2>
       <p style="font-size:12.5px;color:#9DB5D0;margin-bottom:14px">Avisos que aparecem dentro do sistema, para todos os escritórios ou para um específico.</p>
 
@@ -348,6 +388,9 @@
       <h4 style="font-size:13px;color:#9DB5D0;margin:22px 0 10px;text-transform:uppercase;letter-spacing:0.5px">Informativos publicados</h4>
       <div id="lista-informativos-admin">
         <p style="font-size:12.5px;color:#9DB5D0">Carregando...</p>
+      </div>
+    </div>
+
       </div>
     </div>
   </div>
@@ -471,6 +514,12 @@ async function fazerLogin() {
     return;
   }
 
+  entrarNoPainel(email);
+}
+
+// Mostra o painel e carrega os dados iniciais — usada tanto depois de um
+// login novo quanto quando já existe uma sessão válida ao abrir a página.
+function entrarNoPainel(email) {
   document.getElementById('info-usuario').textContent = email;
   document.getElementById('tela-login').style.display = 'none';
   document.getElementById('tela-painel').style.display = 'block';
@@ -480,10 +529,42 @@ async function fazerLogin() {
   carregarLandingLeads();
 }
 
+// Ao carregar a página, checa se já existe uma sessão válida (login feito
+// antes, sessão do Supabase ainda não expirou) — se tiver, pula a tela de
+// login direto pro painel, em vez de sempre pedir login de novo a cada
+// atualização de página.
+async function verificarSessaoExistente() {
+  try {
+    const supabase = getSB();
+    const { data: { session } } = await supabase.auth.getSession();
+    if(!session || !session.user) return; // sem sessão, fica na tela de login mesmo
+
+    const { data: ehSuperAdmin, error: errCheck } = await supabase.rpc('eh_super_admin');
+    if(errCheck || !ehSuperAdmin) { await supabase.auth.signOut(); return; }
+
+    entrarNoPainel(session.user.email);
+  } catch(e) {
+    console.warn('Falha ao verificar sessão existente:', e);
+  }
+}
+verificarSessaoExistente();
+
 async function sair() {
   const supabase = getSB();
   await supabase.auth.signOut();
   location.reload();
+}
+
+// Navega entre as "janelas" do painel administrativo (menu lateral).
+function navigateAdmin(winId, btn) {
+  document.querySelectorAll('.admin-window').forEach(w => w.classList.remove('active'));
+  document.querySelectorAll('.admin-nav-item').forEach(n => n.classList.remove('active'));
+  const alvo = document.getElementById(winId);
+  if(alvo) alvo.classList.add('active');
+  if(btn) btn.classList.add('active');
+  // fecha o menu no mobile depois de escolher uma janela
+  const nav = document.getElementById('admin-sidebar-nav');
+  if(nav && window.innerWidth <= 860) nav.classList.remove('open');
 }
 
 async function criarEscritorio() {
@@ -1331,21 +1412,7 @@ async function carregarLeitoresInformativo(informativoId) {
     '</tbody></table>';
 }
 
-(async function() {
-  const supabase = getSB();
-  const { data } = await supabase.auth.getSession();
-  if(data.session) {
-    const check = await supabase.rpc('eh_super_admin');
-    if(check.data) {
-      document.getElementById('info-usuario').textContent = data.session.user.email;
-      document.getElementById('tela-login').style.display = 'none';
-      document.getElementById('tela-painel').style.display = 'block';
-      carregarEscritorios();
-      iniciarBlocoGithub();
-      carregarListaInformativosAdmin();
-    }
-  }
-})();
+
 </script>
 </body>
 </html>
