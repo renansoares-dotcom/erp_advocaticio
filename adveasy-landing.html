@@ -357,13 +357,13 @@ footer{background:var(--navy-deep); border-top:1px solid var(--line-dark); paddi
 .tour-bar .tb-count{margin-left:auto; margin-right:6px; font-size:11px; color:var(--gold-bright); font-family:'IBM Plex Mono',monospace}
 .tour-progress{height:2.5px; background:rgba(255,255,255,0.06); position:relative; overflow:hidden}
 .tour-progress-fill{position:absolute; inset:0 auto 0 0; width:12.5%; background:linear-gradient(90deg,var(--gold-deep),var(--gold-bright)); transition:width .45s var(--ease)}
-.tour-body{display:flex; min-height:500px}
+.tour-body{display:flex; min-height:560px}
 .tour-side{width:78px; background:#0B1622; border-right:1px solid rgba(255,255,255,0.06); padding:20px 0; display:flex; flex-direction:column; align-items:center; gap:16px; flex-shrink:0}
 .tour-side .d-mark{width:26px; height:26px; border-radius:7px; background:linear-gradient(135deg,var(--gold-bright),var(--gold-deep)); margin-bottom:8px}
 .tour-side i{width:30px; height:8px; border-radius:4px; background:rgba(255,255,255,0.08); transition:all .25s}
 .tour-side i.active{background:var(--gold); width:34px}
 .tour-main{flex:1; padding:34px 38px 0; min-width:0; display:flex; flex-direction:column}
-.tour-slides{position:relative; flex:1; min-height:360px}
+.tour-slides{position:relative; flex:1; min-height:420px}
 .tour-slide{overflow-y:auto}
 .tour-slide{position:absolute; inset:0; opacity:0; transform:translateX(14px); transition:opacity .35s var(--ease), transform .35s var(--ease); pointer-events:none}
 .tour-slide.active{opacity:1; transform:none; pointer-events:auto}
@@ -483,7 +483,7 @@ footer{background:var(--navy-deep); border-top:1px solid var(--line-dark); paddi
   .tour-side{width:100%; flex-direction:row; padding:10px 16px}
   .tour-side .d-mark{margin-bottom:0; margin-right:2px}
   .tour-main{padding:22px 20px 0}
-  .tour-slides{min-height:400px}
+  .tour-slides{min-height:440px}
   .t-stats{grid-template-columns:1fr 1fr}
 }
 </style>
@@ -807,57 +807,76 @@ footer{background:var(--navy-deep); border-top:1px solid var(--line-dark); paddi
 </footer>
 
 <script>
+// Cada bloco abaixo é independente — funciona sem depender dos outros.
+// Por isso cada um roda dentro do seu próprio try/catch: se algum falhar
+// por um motivo imprevisto, os outros continuam funcionando normalmente
+// em vez de travar a página inteira.
+
 // ---------- Reveal on scroll ----------
-const revealEls = document.querySelectorAll('.reveal, .reveal-stagger');
-const io = new IntersectionObserver((entries) => {
-  entries.forEach(e => { if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target); } });
-}, { threshold: 0.15 });
-revealEls.forEach(el => io.observe(el));
+try {
+  const revealEls = document.querySelectorAll('.reveal, .reveal-stagger');
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach(e => { if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target); } });
+  }, { threshold: 0.15 });
+  revealEls.forEach(el => io.observe(el));
+} catch(e){ console.warn('Falha no reveal-on-scroll:', e); }
 
 // ---------- Hero device: contadores + gráfico ao entrar na tela ----------
-const device = document.getElementById('device-mockup');
-const deviceIo = new IntersectionObserver((entries) => {
-  entries.forEach(e => {
-    if(e.isIntersecting){
-      device.classList.add('play');
-      device.querySelectorAll('[data-count]').forEach(el => {
-        const alvo = parseInt(el.dataset.count, 10);
-        const sufixo = el.dataset.suffix || '';
-        const dur = 1400; const t0 = performance.now();
-        function passo(t){
-          const p = Math.min(1, (t - t0) / dur);
-          const ease = 1 - Math.pow(1 - p, 3);
-          el.textContent = Math.round(ease * alvo) + sufixo;
-          if(p < 1) requestAnimationFrame(passo);
+try {
+  const device = document.getElementById('device-mockup');
+  if(device){
+    const deviceIo = new IntersectionObserver((entries) => {
+      entries.forEach(e => {
+        if(e.isIntersecting){
+          device.classList.add('play');
+          device.querySelectorAll('[data-count]').forEach(el => {
+            const alvo = parseInt(el.dataset.count, 10);
+            const sufixo = el.dataset.suffix || '';
+            const dur = 1400; const t0 = performance.now();
+            function passo(t){
+              const p = Math.min(1, (t - t0) / dur);
+              const ease = 1 - Math.pow(1 - p, 3);
+              el.textContent = Math.round(ease * alvo) + sufixo;
+              if(p < 1) requestAnimationFrame(passo);
+            }
+            requestAnimationFrame(passo);
+          });
+          deviceIo.unobserve(device);
         }
-        requestAnimationFrame(passo);
       });
-      deviceIo.unobserve(device);
-    }
-  });
-}, { threshold: 0.4 });
-deviceIo.observe(device);
+    }, { threshold: 0.4 });
+    deviceIo.observe(device);
+  }
+} catch(e){ console.warn('Falha no contador do hero:', e); }
 
 // ---------- Abas de módulos (dossiê) ----------
-document.querySelectorAll('.folder-tab').forEach(tab => {
-  tab.addEventListener('click', () => {
-    document.querySelectorAll('.folder-tab').forEach(t => t.classList.remove('active'));
-    document.querySelectorAll('.folder-content').forEach(p => p.classList.remove('active'));
-    tab.classList.add('active');
-    document.querySelector(`.folder-content[data-panel="${tab.dataset.tab}"]`).classList.add('active');
+try {
+  document.querySelectorAll('.folder-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.folder-tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.folder-content').forEach(p => p.classList.remove('active'));
+      tab.classList.add('active');
+      const alvo = document.querySelector(`.folder-content[data-panel="${tab.dataset.tab}"]`);
+      if(alvo) alvo.classList.add('active');
+    });
   });
-});
+} catch(e){ console.warn('Falha nas abas de módulos:', e); }
 
 // ---------- Abas internas (Cadastro de Clientes, dentro do tour) ----------
-document.querySelectorAll('.t-mini-tab').forEach(tab => {
-  tab.addEventListener('click', () => {
-    const grupo = tab.closest('.tour-slide');
+// Usa onclick direto no HTML (mesmo padrão das setas/bolinhas do tour, que
+// já são confiáveis) em vez de registrar o clique via JS à parte — assim
+// não depende de nenhum timing de carregamento de script.
+function trocarAbaCliente(el, nome){
+  try {
+    const grupo = el.closest('.tour-slide');
+    if(!grupo) return;
     grupo.querySelectorAll('.t-mini-tab').forEach(t => t.classList.remove('active'));
     grupo.querySelectorAll('.t-mini-panel').forEach(p => p.classList.remove('active'));
-    tab.classList.add('active');
-    grupo.querySelector(`.t-mini-panel[data-cpanel="${tab.dataset.ctab}"]`).classList.add('active');
-  });
-});
+    el.classList.add('active');
+    const painel = grupo.querySelector('.t-mini-panel[data-cpanel="' + nome + '"]');
+    if(painel) painel.classList.add('active');
+  } catch(e){ console.warn('Falha ao trocar aba interna:', e); }
+}
 
 // ---------- Formulário de contato -> salva no banco + abre WhatsApp ----------
 // IMPORTANTE: troque SEUNUMERO pelo número de WhatsApp do escritório, com
@@ -881,41 +900,47 @@ try {
   console.warn('Supabase indisponível — o formulário ainda funciona, só não salva no banco:', e);
 }
 
-document.getElementById('lead-form').addEventListener('submit', async function(ev){
-  ev.preventDefault();
-  const nome = document.getElementById('lf-nome').value.trim();
-  const escritorio = document.getElementById('lf-escritorio').value.trim();
-  const whats = document.getElementById('lf-whats').value.trim();
-  const msg = document.getElementById('lf-msg').value.trim();
+try {
+  const leadForm = document.getElementById('lead-form');
+  if(leadForm) leadForm.addEventListener('submit', async function(ev){
+    ev.preventDefault();
+    const nome = document.getElementById('lf-nome').value.trim();
+    const escritorio = document.getElementById('lf-escritorio').value.trim();
+    const whats = document.getElementById('lf-whats').value.trim();
+    const msg = document.getElementById('lf-msg').value.trim();
 
-  const btn = document.querySelector('.f-submit');
-  const textoOriginal = btn.textContent;
-  btn.disabled = true; btn.textContent = 'Enviando...';
+    const btn = document.querySelector('.f-submit');
+    const textoOriginal = btn.textContent;
+    btn.disabled = true; btn.textContent = 'Enviando...';
 
-  // Salva no banco primeiro — isso garante que o contato chega até você
-  // mesmo que a pessoa feche a aba do WhatsApp sem confirmar o envio.
-  // Se o Supabase não estiver disponível, só pula essa parte e segue
-  // direto pro WhatsApp — o formulário nunca trava por causa disso.
-  if(sbLanding){
-    try {
-      const { error } = await sbLanding.from('landing_leads').insert({
-        nome, escritorio_nome: escritorio, whatsapp: whats, mensagem: msg || null
-      });
-      if(error) console.error('Erro ao salvar contato:', error.message);
-    } catch(e){
-      console.error('Erro ao salvar contato:', e);
+    // Salva no banco primeiro — isso garante que o contato chega até você
+    // mesmo que a pessoa feche a aba do WhatsApp sem confirmar o envio.
+    // Se o Supabase não estiver disponível, só pula essa parte e segue
+    // direto pro WhatsApp — o formulário nunca trava por causa disso.
+    if(sbLanding){
+      try {
+        const { error } = await sbLanding.from('landing_leads').insert({
+          nome, escritorio_nome: escritorio, whatsapp: whats, mensagem: msg || null
+        });
+        if(error) console.error('Erro ao salvar contato:', error.message);
+      } catch(e){
+        console.error('Erro ao salvar contato:', e);
+      }
     }
-  }
 
-  btn.disabled = false; btn.textContent = textoOriginal;
+    btn.disabled = false; btn.textContent = textoOriginal;
 
-  const texto = `Olá! Meu nome é ${nome}, do escritório ${escritorio}. Meu WhatsApp: ${whats}. Gostaria de solicitar uma demonstração do ADV Easy.` + (msg ? ` Observação: ${msg}` : '');
-  window.open(`https://wa.me/${WHATSAPP_NUMERO}?text=${encodeURIComponent(texto)}`, '_blank');
+    const texto = `Olá! Meu nome é ${nome}, do escritório ${escritorio}. Meu WhatsApp: ${whats}. Gostaria de solicitar uma demonstração do ADV Easy.` + (msg ? ` Observação: ${msg}` : '');
+    window.open(`https://wa.me/${WHATSAPP_NUMERO}?text=${encodeURIComponent(texto)}`, '_blank');
 
-  document.getElementById('lead-form').reset();
-});
+    leadForm.reset();
+  });
+} catch(e){ console.warn('Falha no formulário de contato:', e); }
 
-document.getElementById('foot-year').textContent = new Date().getFullYear();
+try {
+  const footYear = document.getElementById('foot-year');
+  if(footYear) footYear.textContent = new Date().getFullYear();
+} catch(e){ console.warn('Falha ao preencher o ano do rodapé:', e); }
 
 // ---------- Tour do produto (8 telas) ----------
 let tourIdx = 0;
@@ -948,6 +973,7 @@ function irParaSlide(i){
 // de só aparecer estático, e "reseta" pra poder rodar de novo se a pessoa
 // voltar numa tela que já tinha visto.
 function animarSlideAtual(){
+ try {
   const slide = document.querySelectorAll('.tour-slide')[tourIdx];
   if(!slide) return;
   const meuIdx = tourIdx; // pra checar depois se a pessoa não navegou pra outra tela
@@ -985,11 +1011,13 @@ function animarSlideAtual(){
   void slide.offsetWidth;
 
   requestAnimationFrame(() => {
+   try {
     slide.classList.add('played');
     slide.querySelectorAll('[data-stagger]').forEach(el => el.classList.add('played'));
     slide.querySelectorAll('[data-count]').forEach(el => animarContador(el));
     slide.querySelectorAll('.t-funnel-bar').forEach(el => { el.style.width = (el.dataset.width||0) + '%'; });
     slide.querySelectorAll('.t-progress-fill').forEach(el => { el.style.width = (el.dataset.width||0) + '%'; });
+   } catch(e){ console.warn('Falha ao animar conteúdo do slide:', e); }
   });
 
   // Faturamento: o cursor "anda" até o botão, "clica", e só então a
@@ -1020,6 +1048,9 @@ function animarSlideAtual(){
       if(tourIdx === meuIdx){ wppStatus.textContent = '✓✓ Lido às 14:34'; wppStatus.style.color = '#60A5FA'; }
     }, 1100);
   }
+ } catch(e){
+  console.warn('Falha ao animar o slide do tour (não afeta o resto da página):', e);
+ }
 }
 
 function animarContador(el){
@@ -1040,10 +1071,13 @@ document.getElementById('tour-overlay').addEventListener('click', (ev) => {
   if(ev.target.id === 'tour-overlay') fecharTour();
 });
 document.addEventListener('keydown', (ev) => {
-  if(!document.getElementById('tour-overlay').classList.contains('open')) return;
-  if(ev.key === 'Escape') fecharTour();
-  if(ev.key === 'ArrowRight') irParaSlide(tourIdx + 1);
-  if(ev.key === 'ArrowLeft') irParaSlide(tourIdx - 1);
+  try {
+    const overlay = document.getElementById('tour-overlay');
+    if(!overlay || !overlay.classList.contains('open')) return;
+    if(ev.key === 'Escape') fecharTour();
+    if(ev.key === 'ArrowRight') irParaSlide(tourIdx + 1);
+    if(ev.key === 'ArrowLeft') irParaSlide(tourIdx - 1);
+  } catch(e){ console.warn('Falha no atalho de teclado do tour:', e); }
 });
 </script>
 
@@ -1105,9 +1139,9 @@ document.addEventListener('keydown', (ev) => {
             </div>
 
             <div class="t-mini-tabs" id="cli-tabs">
-              <div class="t-mini-tab active" data-ctab="dados">Dados Pessoais</div>
-              <div class="t-mini-tab" data-ctab="financeiro">Financeiro</div>
-              <div class="t-mini-tab" data-ctab="origem">Origem &amp; Tags</div>
+              <div class="t-mini-tab active" onclick="trocarAbaCliente(this,'dados')">Dados Pessoais</div>
+              <div class="t-mini-tab" onclick="trocarAbaCliente(this,'financeiro')">Financeiro</div>
+              <div class="t-mini-tab" onclick="trocarAbaCliente(this,'origem')">Origem &amp; Tags</div>
             </div>
 
             <div class="t-mini-panel active" data-cpanel="dados">
