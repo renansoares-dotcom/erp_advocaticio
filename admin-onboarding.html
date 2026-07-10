@@ -112,6 +112,26 @@
   .btn-financeiro { background:none; border:1px solid #2A4D6E; color:#9DB5D0; padding:5px 12px; border-radius:6px; font-size:11.5px; cursor:pointer; margin-right:6px; }
   .btn-financeiro:hover { background:#0F1E2E; }
 
+  /* menu de ações "⋮" — abre reanexado no body (position:fixed), pra não
+     ficar cortado pelo overflow-x:auto das tabelas */
+  .btn-menu-acoes { background:none; border:1px solid #2A4D6E; color:#9DB5D0; width:28px; height:28px; border-radius:6px; cursor:pointer; font-size:14px; line-height:1; }
+  .btn-menu-acoes:hover { background:#0F1E2E; }
+  .menu-acoes-dropdown {
+    display:none; position:fixed; z-index:1000; min-width:200px;
+    background:#1A2E45; border:1px solid #2A4D6E; border-radius:8px;
+    box-shadow:0 12px 32px rgba(0,0,0,0.45); padding:6px; flex-direction:column; gap:2px;
+  }
+  .menu-acoes-dropdown.aberto { display:flex; }
+  .menu-acoes-dropdown button {
+    background:none; border:none; text-align:left; padding:9px 10px; border-radius:6px;
+    font-size:12.5px; color:#E8F0F8; cursor:pointer; font-family:inherit;
+  }
+  .menu-acoes-dropdown button:hover { background:#0F1E2E; }
+  .menu-acoes-dropdown button.item-perigo { color:#FCA5A5; }
+  .menu-acoes-dropdown button.item-perigo:hover { background:rgba(185,28,28,0.15); }
+  .menu-acoes-dropdown button:disabled { opacity:0.4; cursor:default; }
+  .menu-acoes-dropdown button:disabled:hover { background:none; }
+
   .modal-financeiro { background:#1A2E45; border:1px solid #2A4D6E; border-radius:12px; padding:26px; width:720px; max-height:85vh; overflow-y:auto; }
   .modal-financeiro h3 { font-size:17px; margin-bottom:18px; }
   .modal-financeiro h4 { font-size:13px; color:#9DB5D0; margin:18px 0 10px; text-transform:uppercase; letter-spacing:0.5px; }
@@ -597,6 +617,47 @@ async function sair() {
 }
 
 // Navega entre as "janelas" do painel administrativo (menu lateral).
+// Menu de ações "⋮" — reanexa temporariamente no <body> com
+// position:fixed (calculado pela posição real do botão), pra escapar do
+// overflow-x:auto das tabelas, que cortaria o menu se ele ficasse preso
+// dentro da célula. Mesmo padrão já usado no ERP principal.
+function toggleMenuAcoes(id, event) {
+  event.stopPropagation();
+  const btn = event.currentTarget;
+  const alvo = document.getElementById('menu-acoes-' + id);
+  if(!alvo) return;
+  const jaAberto = alvo.classList.contains('aberto');
+  fecharMenusAcoes();
+  if(jaAberto) return;
+
+  alvo._paiOriginal = alvo.parentElement;
+  alvo._irmaoOriginal = alvo.nextSibling;
+  document.body.appendChild(alvo);
+  alvo.classList.add('aberto');
+
+  const rect = btn.getBoundingClientRect();
+  const larguraMenu = alvo.offsetWidth || 200;
+  let left = rect.right - larguraMenu;
+  if(left < 8) left = Math.max(8, rect.left);
+  let top = rect.bottom + 4;
+  if(top + alvo.offsetHeight > window.innerHeight - 8) top = rect.top - alvo.offsetHeight - 4;
+  alvo.style.top = top + 'px';
+  alvo.style.left = left + 'px';
+}
+function fecharMenusAcoes() {
+  document.querySelectorAll('.menu-acoes-dropdown.aberto').forEach(function(el) {
+    el.classList.remove('aberto');
+    if(el._paiOriginal) {
+      if(el._irmaoOriginal) el._paiOriginal.insertBefore(el, el._irmaoOriginal);
+      else el._paiOriginal.appendChild(el);
+      el.style.top = ''; el.style.left = '';
+      el._paiOriginal = null; el._irmaoOriginal = null;
+    }
+  });
+}
+document.addEventListener('click', fecharMenusAcoes);
+document.addEventListener('scroll', fecharMenusAcoes, true);
+
 function navigateAdmin(winId, btn) {
   document.querySelectorAll('.admin-window').forEach(w => w.classList.remove('active'));
   document.querySelectorAll('.admin-nav-item').forEach(n => n.classList.remove('active'));
@@ -979,7 +1040,14 @@ async function carregarEscritorios() {
       '<td style="font-size:12px;white-space:nowrap"><label style="display:flex;align-items:center;gap:6px;cursor:pointer">' +
         '<input type="checkbox" ' + (carouselAtivo?'checked':'') + ' onchange="toggleFeatureEscritorio(\'' + e.id + '\', \'carousel_dashboard\', this.checked)"> Carousel Dashboard' +
       '</label></td>' +
-      '<td><button class="btn-financeiro" onclick="abrirDetalheEscritorio(\'' + e.id + '\', \'' + nomeEscapado + '\')" style="background:rgba(147,197,253,0.15);border-color:#93C5FD;color:#93C5FD">🔍 Detalhes</button><button class="btn-financeiro" onclick="abrirModalFinanceiro(\'' + e.id + '\', \'' + nomeEscapado + '\')">💰 Financeiro</button><button class="btn-excluir" onclick="abrirModalExcluir(\'' + e.id + '\', \'' + nomeEscapado + '\')">🗑 Excluir</button></td>' +
+      '<td style="position:relative;text-align:center">' +
+        '<button class="btn-menu-acoes" onclick="toggleMenuAcoes(\'esc-' + e.id + '\', event)" title="Ações">⋮</button>' +
+        '<div class="menu-acoes-dropdown" id="menu-acoes-esc-' + e.id + '">' +
+          '<button onclick="fecharMenusAcoes();abrirDetalheEscritorio(\'' + e.id + '\', \'' + nomeEscapado + '\')">🔍 Detalhes</button>' +
+          '<button onclick="fecharMenusAcoes();abrirModalFinanceiro(\'' + e.id + '\', \'' + nomeEscapado + '\')">💰 Financeiro</button>' +
+          '<button class="item-perigo" onclick="fecharMenusAcoes();abrirModalExcluir(\'' + e.id + '\', \'' + nomeEscapado + '\')">🗑 Excluir</button>' +
+        '</div>' +
+      '</td>' +
     '</tr>';
   }).join('');
 
@@ -1034,6 +1102,8 @@ async function confirmarExclusao() {
 }
 
 let _escritorioFinanceiroAtual = null;
+let _escritorioFinanceiroTelefone = '';
+let _escritorioFinanceiroNome = '';
 
 function abrirModalFinanceiro(id, nome) {
   _escritorioFinanceiroAtual = id;
@@ -1055,7 +1125,9 @@ async function carregarFinanceiroEscritorio() {
   if(!_escritorioFinanceiroAtual) return;
   const supabase = getSB();
 
-  const { data: esc } = await supabase.from('escritorios').select('plano_valor, plano_periodicidade').eq('id', _escritorioFinanceiroAtual).single();
+  const { data: esc } = await supabase.from('escritorios').select('nome, telefone, plano_valor, plano_periodicidade').eq('id', _escritorioFinanceiroAtual).single();
+  _escritorioFinanceiroTelefone = esc?.telefone || '';
+  _escritorioFinanceiroNome = esc?.nome || document.getElementById('financeiro-nome-escritorio').textContent;
   const resumoEl = document.getElementById('financeiro-plano-resumo');
   if(esc && esc.plano_valor) {
     resumoEl.innerHTML = 'R$ <strong>' + Number(esc.plano_valor).toFixed(2).replace('.', ',') + '</strong> · ' + (NOMES_PERIODICIDADE[esc.plano_periodicidade] || esc.plano_periodicidade);
@@ -1085,18 +1157,49 @@ async function carregarFinanceiroEscritorio() {
     const pago = c.data_pagamento ? new Date(c.data_pagamento + 'T12:00:00').toLocaleDateString('pt-BR') : '—';
     const statusReal = (c.status === 'pendente' && c.vencimento < hoje) ? 'atrasado' : c.status;
     const statusLabel = { pendente: 'Pendente', pago: 'Pago', atrasado: 'Atrasado', cancelado: 'Cancelado' }[statusReal] || statusReal;
-    const acao = statusReal !== 'pago' && statusReal !== 'cancelado'
-      ? '<button class="btn-marcar-pago" onclick="marcarCobrancaPaga(\'' + c.id + '\')">Marcar pago</button>'
-      : '';
+    const emAberto = statusReal !== 'pago' && statusReal !== 'cancelado';
     return '<tr>' +
       '<td>' + venc + '</td>' +
       '<td>R$ ' + Number(c.valor).toFixed(2).replace('.', ',') + '</td>' +
       '<td><span class="cobranca-status ' + statusReal + '">' + statusLabel + '</span></td>' +
       '<td>' + pago + '</td>' +
       '<td>' + (c.forma_pagamento || '—') + '</td>' +
-      '<td>' + acao + '</td>' +
+      '<td style="position:relative;text-align:center">' +
+        '<button class="btn-menu-acoes" onclick="toggleMenuAcoes(\'cob-' + c.id + '\', event)" title="Ações">⋮</button>' +
+        '<div class="menu-acoes-dropdown" id="menu-acoes-cob-' + c.id + '">' +
+          (emAberto
+            ? '<button onclick="fecharMenusAcoes();marcarCobrancaPaga(\'' + c.id + '\')">✅ Marcar como pago</button>' +
+              '<button onclick="fecharMenusAcoes();cobrarViaWhatsApp(\'' + c.id + '\',\'' + c.vencimento + '\',' + c.valor + ')">📱 Cobrar via WhatsApp</button>' +
+              '<button class="item-perigo" onclick="fecharMenusAcoes();cancelarCobranca(\'' + c.id + '\')">✕ Cancelar cobrança</button>'
+            : '<button disabled>Nenhuma ação disponível</button>') +
+        '</div>' +
+      '</td>' +
     '</tr>';
   }).join('');
+}
+
+// Monta e abre uma mensagem de WhatsApp cobrando o escritório — usa o
+// telefone cadastrado na criação dele.
+function cobrarViaWhatsApp(cobrancaId, vencimento, valor) {
+  if(!_escritorioFinanceiroTelefone) { showToast('Esse escritório não tem telefone cadastrado.', 'error'); return; }
+  const numero = _escritorioFinanceiroTelefone.replace(/\D/g, '');
+  const numeroCompleto = numero.startsWith('55') ? numero : '55' + numero;
+  const vencFmt = new Date(vencimento + 'T12:00:00').toLocaleDateString('pt-BR');
+  const valorFmt = Number(valor).toFixed(2).replace('.', ',');
+  const msg = 'Olá! Passando pra lembrar da mensalidade do ADV Easy referente ao escritório ' + _escritorioFinanceiroNome + ':\n\n' +
+    '💰 Valor: R$ ' + valorFmt + '\n' +
+    '📅 Vencimento: ' + vencFmt + '\n\n' +
+    'Qualquer dúvida, é só chamar por aqui.';
+  window.open('https://wa.me/' + numeroCompleto + '?text=' + encodeURIComponent(msg), '_blank');
+}
+
+async function cancelarCobranca(cobrancaId) {
+  if(!confirm('Cancelar essa cobrança? Ela deixa de contar como pendente/atrasada.')) return;
+  const supabase = getSB();
+  const { error } = await supabase.from('cobrancas_escritorio').update({ status: 'cancelado' }).eq('id', cobrancaId);
+  if(error) { showToast('Erro ao cancelar: ' + error.message, 'error'); return; }
+  showToast('Cobrança cancelada.', 'success');
+  carregarFinanceiroEscritorio();
 }
 
 async function definirPlano() {
