@@ -13169,6 +13169,23 @@ function abrirModalPortalAcesso(clienteId) {
   openModal('modal-portal-acesso', false);
 }
 
+// Link do Portal do Cliente — hoje é o do GitHub Pages, troque aqui
+// quando migrar pra hospedagem própria (é o único lugar que precisa mudar).
+const PORTAL_URL = 'https://renansoares-dotcom.github.io/erp_advocaticio_portal/';
+
+function enviarAcessoPortalWhatsApp(clienteId, email, senha) {
+  const c = store.clientes.find(c => c.id === clienteId);
+  if(!c || !c.tel) { showToast('Esse cliente não tem telefone cadastrado.', 'error'); return; }
+  const numero = c.tel.replace(/\D/g, '');
+  const numeroCompleto = numero.startsWith('55') ? numero : '55' + numero;
+  const msg = `Olá, ${c.nome.split(' ')[0]}! Aqui está o acesso ao Portal do Cliente do nosso escritório:\n\n` +
+    `🔗 Link: ${PORTAL_URL}\n` +
+    `📧 E-mail: ${email}\n` +
+    `🔑 Senha: ${senha}\n\n` +
+    `Guarde essas informações com cuidado.`;
+  window.open('https://wa.me/' + numeroCompleto + '?text=' + encodeURIComponent(msg), '_blank');
+}
+
 async function criarAcessoPortalCliente() {
   const clienteId = document.getElementById('portal-acesso-cliente-id').value;
   const email = document.getElementById('portal-acesso-email').value.trim();
@@ -13215,7 +13232,8 @@ async function criarAcessoPortalCliente() {
     <div style="background:var(--surface);border:1px solid var(--blue-200);border-radius:var(--radius);padding:16px">
       <div style="font-size:13px;color:var(--text-secondary);margin-bottom:10px">${mensagem} Copie e envie pro cliente — essa senha <strong>não aparece de novo</strong>.</div>
       <div style="font-family:'IBM Plex Mono',monospace;font-size:13.5px;margin-bottom:4px"><strong>E-mail:</strong> ${data.email}</div>
-      <div style="font-family:'IBM Plex Mono',monospace;font-size:20px;font-weight:700;color:var(--blue-700);letter-spacing:1px">${data.senha}</div>
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:20px;font-weight:700;color:var(--blue-700);letter-spacing:1px;margin-bottom:12px">${data.senha}</div>
+      <button class="btn btn-primary" style="background:#25D366;border-color:#25D366;width:100%" onclick="enviarAcessoPortalWhatsApp('${clienteId}','${data.email}','${data.senha}')">📱 Enviar por WhatsApp</button>
     </div>`;
   btn.style.display = 'none';
   document.getElementById('btn-portal-acesso-cancelar').textContent = 'Fechar';
