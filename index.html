@@ -1156,8 +1156,23 @@ body.topbar-escura .notif-btn:hover { background: rgba(255,255,255,0.2); border-
           <span class="icon">💬</span> Mensagens Portal
           <span class="nav-badge" id="badge-msgs-portal" style="display:none">0</span>
         </button>
+        <button class="nav-item" onclick="navigate('chat-interno',this)">
+          <span class="icon">🗨️</span> Chat Interno
+          <span class="nav-badge" id="badge-chat-interno" style="display:none">0</span>
+        </button>
         <button class="nav-item" onclick="navigate('historico-contatos',this)">
           <span class="icon">📞</span> Histórico de Contatos
+        </button>
+      </div>
+    </div>
+    <div class="nav-section" data-cat="suporte">
+      <button class="nav-cat-header" onclick="toggleNavCategoria('suporte')">
+        Suporte <span class="nav-cat-chevron">▶</span>
+      </button>
+      <div class="nav-cat-items">
+        <button class="nav-item" onclick="navigate('chamados-suporte',this)">
+          <span class="icon">🛠️</span> Chamados de Suporte
+          <span class="nav-badge" id="badge-chamados" style="display:none">0</span>
         </button>
       </div>
     </div>
@@ -2387,6 +2402,74 @@ body.topbar-escura .notif-btn:hover { background: rgba(255,255,255,0.2); border-
             <div style="display:flex;gap:8px">
               <textarea id="mp-chat-input" class="form-control" rows="2" placeholder="Responder ao cliente..." style="flex:1;resize:none" onkeydown="if(event.key==='Enter' && !event.shiftKey){event.preventDefault();responderMensagemPortal();}"></textarea>
               <button class="btn btn-primary" onclick="responderMensagemPortal()" style="align-self:flex-end">Enviar</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========== CHAT INTERNO (comunicação da equipe) ========== -->
+    <div class="page" id="page-chat-interno">
+      <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start;height:calc(100vh - 140px)">
+        <div style="flex:0 0 260px;background:var(--white);border:1px solid var(--border);border-radius:var(--radius);overflow-y:auto;height:100%">
+          <div style="padding:12px 14px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
+            <span style="font-size:12px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px">Grupos</span>
+            <button class="btn btn-outline btn-sm" onclick="abrirModalNovoGrupoChat()" title="Novo Grupo">+ Novo</button>
+          </div>
+          <div id="ci-lista-grupos" style="padding:8px"></div>
+        </div>
+        <div style="flex:1;min-width:0;display:flex;flex-direction:column;height:100%;background:var(--white);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden">
+          <div id="ci-chat-header" style="padding:12px 16px;border-bottom:1px solid var(--border);display:none;justify-content:space-between;align-items:center">
+            <span id="ci-chat-header-nome" style="font-size:14px;font-weight:600;color:var(--text-primary)"></span>
+            <button class="btn btn-outline btn-sm" onclick="abrirModalMembrosGrupo()">👥 Membros</button>
+          </div>
+          <div id="ci-chat-empty" style="flex:1;display:flex;align-items:center;justify-content:center;color:var(--text-muted);font-size:13.5px;text-align:center;padding:0 30px">← Selecione um grupo ou crie um novo pra começar a conversar com a equipe</div>
+          <div id="ci-chat-messages" style="flex:1;overflow-y:auto;padding:16px;display:none;flex-direction:column;gap:10px"></div>
+          <div id="ci-chat-input-area" style="display:none;padding:12px;border-top:1px solid var(--border)">
+            <div id="ci-citacao-preview" style="display:none;margin-bottom:8px;padding:7px 12px;background:var(--blue-50);border-radius:8px;font-size:12.5px;color:var(--blue-700)"></div>
+            <div style="display:flex;gap:8px;align-items:flex-end">
+              <button class="btn btn-outline btn-sm" onclick="document.getElementById('ci-file-input').click()" title="Anexar arquivo">📎</button>
+              <button class="btn btn-outline btn-sm" onclick="abrirModalCitar()" title="Citar cliente ou processo">@</button>
+              <input type="file" id="ci-file-input" style="display:none" onchange="handleChatFile(this.files[0])">
+              <textarea id="ci-chat-input" class="form-control" rows="2" placeholder="Escreva uma mensagem..." style="flex:1;resize:none" onkeydown="if(event.key==='Enter' && !event.shiftKey){event.preventDefault();enviarMensagemChatInterno();}"></textarea>
+              <button class="btn btn-primary" onclick="enviarMensagemChatInterno()" style="align-self:flex-end">Enviar</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========== CHAMADOS DE SUPORTE (interação com o desenvolvedor) ========== -->
+    <div class="page" id="page-chamados-suporte">
+      <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start;height:calc(100vh - 140px)">
+        <div style="flex:0 0 280px;background:var(--white);border:1px solid var(--border);border-radius:var(--radius);overflow-y:auto;height:100%">
+          <div style="padding:12px 14px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
+            <span style="font-size:12px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px">Chamados</span>
+            <button class="btn btn-outline btn-sm" onclick="abrirModalNovoChamado()" title="Novo Chamado">+ Novo</button>
+          </div>
+          <div id="cs-lista-chamados" style="padding:8px"></div>
+        </div>
+        <div style="flex:1;min-width:0;display:flex;flex-direction:column;height:100%;background:var(--white);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden">
+          <div id="cs-chat-header" style="padding:12px 16px;border-bottom:1px solid var(--border);display:none">
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+              <span id="cs-chat-header-titulo" style="font-size:14px;font-weight:600;color:var(--text-primary)"></span>
+              <select id="cs-chat-status" class="form-control" style="width:auto;font-size:12.5px;padding:5px 10px" onchange="atualizarStatusChamado(this.value)">
+                <option value="aberto">🆕 Aberto</option>
+                <option value="em_andamento">🔧 Em andamento</option>
+                <option value="resolvido">✅ Resolvido</option>
+                <option value="fechado">🔒 Fechado</option>
+              </select>
+            </div>
+            <div id="cs-chat-header-meta" style="font-size:11.5px;color:var(--text-muted);margin-top:4px"></div>
+          </div>
+          <div id="cs-chat-empty" style="flex:1;display:flex;align-items:center;justify-content:center;color:var(--text-muted);font-size:13.5px;text-align:center;padding:0 30px">← Selecione um chamado ou abra um novo pra falar com o desenvolvedor</div>
+          <div id="cs-chat-messages" style="flex:1;overflow-y:auto;padding:16px;display:none;flex-direction:column;gap:10px"></div>
+          <div id="cs-chat-input-area" style="display:none;padding:12px;border-top:1px solid var(--border)">
+            <div style="display:flex;gap:8px;align-items:flex-end">
+              <button class="btn btn-outline btn-sm" onclick="document.getElementById('cs-file-input').click()" title="Anexar print de tela">📎</button>
+              <input type="file" id="cs-file-input" style="display:none" onchange="handleChamadoFile(this.files[0])" accept="image/*,.pdf,.doc,.docx">
+              <textarea id="cs-chat-input" class="form-control" rows="2" placeholder="Escreva sua mensagem..." style="flex:1;resize:none" onkeydown="if(event.key==='Enter' && !event.shiftKey){event.preventDefault();enviarMensagemChamado();}"></textarea>
+              <button class="btn btn-primary" onclick="enviarMensagemChamado()" style="align-self:flex-end">Enviar</button>
             </div>
           </div>
         </div>
@@ -4928,6 +5011,104 @@ body.topbar-escura .notif-btn:hover { background: rgba(255,255,255,0.2); border-
   </div>
 </div>
 
+<div class="modal-overlay" id="modal-novo-grupo-chat">
+  <div class="modal" style="width:440px">
+    <div class="modal-header">
+      <span class="modal-title">🗨️ Novo Grupo</span>
+      <button class="btn btn-ghost btn-icon" onclick="closeModal('modal-novo-grupo-chat')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Nome do grupo</label>
+        <input type="text" class="form-control" id="ng-nome" placeholder="Ex: Equipe Jurídica, Financeiro...">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Descrição (opcional)</label>
+        <input type="text" class="form-control" id="ng-descricao" placeholder="Do que esse grupo trata?">
+      </div>
+      <p style="font-size:11.5px;color:var(--text-muted)">Todos os usuários ativos da equipe entram automaticamente nesse grupo.</p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal-novo-grupo-chat')">Cancelar</button>
+      <button class="btn btn-primary" onclick="criarGrupoChat()">Criar Grupo</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-membros-grupo">
+  <div class="modal" style="width:420px">
+    <div class="modal-header">
+      <span class="modal-title">👥 Membros do Grupo</span>
+      <button class="btn btn-ghost btn-icon" onclick="closeModal('modal-membros-grupo')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="mg-membros-lista" style="max-height:320px;overflow-y:auto"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal-membros-grupo')">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-citar">
+  <div class="modal" style="width:440px">
+    <div class="modal-header">
+      <span class="modal-title">@ Citar Cliente ou Processo</span>
+      <button class="btn btn-ghost btn-icon" onclick="closeModal('modal-citar')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <input type="text" class="form-control" id="citar-busca" placeholder="Buscar cliente ou nº do processo..." oninput="buscarParaCitar(this.value)" autocomplete="off">
+      </div>
+      <div id="citar-resultados" style="max-height:300px;overflow-y:auto"></div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-novo-chamado">
+  <div class="modal" style="width:460px">
+    <div class="modal-header">
+      <span class="modal-title">🛠️ Novo Chamado</span>
+      <button class="btn btn-ghost btn-icon" onclick="closeModal('modal-novo-chamado')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Título</label>
+        <input type="text" class="form-control" id="nc-titulo" placeholder="Resuma o que você precisa">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Tipo</label>
+          <select class="form-control" id="nc-tipo">
+            <option value="ajuste">🔧 Ajuste</option>
+            <option value="manutencao">🛠️ Manutenção</option>
+            <option value="implantacao">🚀 Implantação</option>
+            <option value="duvida">❓ Dúvida</option>
+            <option value="outro">📌 Outro</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Prioridade</label>
+          <select class="form-control" id="nc-prioridade">
+            <option value="baixa">Baixa</option>
+            <option value="normal" selected>Normal</option>
+            <option value="alta">Alta</option>
+            <option value="urgente">Urgente</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Descreva o que você precisa</label>
+        <textarea class="form-control" id="nc-descricao" rows="4" placeholder="Quanto mais detalhe, mais rápido a gente resolve..."></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal-novo-chamado')">Cancelar</button>
+      <button class="btn btn-primary" onclick="criarChamado()">Abrir Chamado</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="modal-portal-acesso">
   <div class="modal" style="width:440px">
     <div class="modal-header">
@@ -7225,6 +7406,413 @@ async function responderMensagemPortal() {
   showToast('Mensagem enviada!', 'success');
 }
 
+// ==================== CHAT INTERNO (comunicação da equipe) ====================
+
+let _ciGrupoAtual = null;
+let _ciMensagensCache = [];
+let _ciCitacaoPendente = null; // {tipo:'cliente'|'processo', id, texto}
+let _ciArquivoPendente = null; // {path, nome} depois do upload
+
+async function carregarChatGrupos() {
+  const sb = await getSB();
+  const eid = getEscritorioId();
+  if(!sb || !eid) return [];
+  const meuId = getSessao().userId;
+  const { data: membrosDe, error: errM } = await sb.from('chat_grupo_membros').select('grupo_id').eq('usuario_id', meuId);
+  if(errM || !membrosDe?.length) return [];
+  const grupoIds = membrosDe.map(m => m.grupo_id);
+  const { data, error } = await sb.from('chat_grupos').select('*').in('id', grupoIds).order('criado_em', { ascending: false });
+  if(error) { console.warn('Erro ao carregar grupos:', error.message); return []; }
+  return data || [];
+}
+
+async function renderListaGruposChat() {
+  const lista = document.getElementById('ci-lista-grupos');
+  if(!lista) return;
+  lista.innerHTML = '<div style="text-align:center;color:var(--text-muted);font-size:12.5px;padding:16px">Carregando...</div>';
+  const grupos = await carregarChatGrupos();
+  store.chatGrupos = grupos;
+  if(!grupos.length) {
+    lista.innerHTML = '<div style="text-align:center;color:var(--text-muted);font-size:12.5px;padding:16px">Nenhum grupo ainda.<br>Crie o primeiro pra começar.</div>';
+    return;
+  }
+  lista.innerHTML = grupos.map(g => `
+    <div onclick="abrirGrupoChat('${g.id}')" style="padding:10px 12px;border-radius:var(--radius-s);cursor:pointer;margin-bottom:4px;${_ciGrupoAtual?.id===g.id?'background:var(--blue-50);border:1px solid var(--blue-200)':'border:1px solid transparent'}">
+      <div style="font-weight:600;font-size:13.5px;color:var(--text-primary)">🗨️ ${g.nome}</div>
+      ${g.descricao?`<div style="font-size:11.5px;color:var(--text-muted);margin-top:2px">${g.descricao}</div>`:''}
+    </div>`).join('');
+}
+
+async function abrirGrupoChat(grupoId) {
+  const g = (store.chatGrupos||[]).find(g => g.id === grupoId);
+  if(!g) return;
+  _ciGrupoAtual = g;
+  renderListaGruposChat();
+  document.getElementById('ci-chat-header').style.display = 'flex';
+  document.getElementById('ci-chat-header-nome').textContent = '🗨️ ' + g.nome;
+  document.getElementById('ci-chat-empty').style.display = 'none';
+  document.getElementById('ci-chat-messages').style.display = 'flex';
+  document.getElementById('ci-chat-input-area').style.display = 'block';
+  await carregarMensagensChat(grupoId);
+}
+
+async function carregarMensagensChat(grupoId) {
+  const sb = await getSB();
+  if(!sb) return;
+  const { data, error } = await sb.from('chat_mensagens').select('*').eq('grupo_id', grupoId).order('criado_em', { ascending: true });
+  if(error) { console.warn('Erro ao carregar mensagens:', error.message); return; }
+  _ciMensagensCache = data || [];
+  renderMensagensChatInterno();
+}
+
+function renderMensagensChatInterno() {
+  const cont = document.getElementById('ci-chat-messages');
+  if(!cont) return;
+  const meuId = getSessao().userId;
+  if(!_ciMensagensCache.length) {
+    cont.innerHTML = '<div style="text-align:center;color:var(--text-muted);font-size:13px;margin:auto">Nenhuma mensagem ainda. Diga oi! 👋</div>';
+    return;
+  }
+  cont.innerHTML = _ciMensagensCache.map(m => {
+    const minha = m.autor_id === meuId;
+    const citacao = m.cliente_citado_nome
+      ? `<div style="font-size:11.5px;background:rgba(255,255,255,0.15);border-radius:6px;padding:4px 8px;margin-bottom:5px;cursor:pointer" onclick="abrirCliente('${m.cliente_citado_id}')">👤 ${m.cliente_citado_nome}</div>`
+      : m.processo_citado_numero
+      ? `<div style="font-size:11.5px;background:rgba(255,255,255,0.15);border-radius:6px;padding:4px 8px;margin-bottom:5px;cursor:pointer" onclick="verDetalhe('${m.processo_citado_id}')">⚖️ ${m.processo_citado_numero}</div>`
+      : '';
+    const anexo = m.anexo_path
+      ? `<div style="margin-top:6px"><button onclick="abrirAnexoChat('${m.anexo_path}')" style="background:rgba(255,255,255,0.15);border:none;border-radius:6px;padding:5px 10px;font-size:11.5px;cursor:pointer;color:inherit">📎 ${m.anexo_nome||'Anexo'}</button></div>`
+      : '';
+    const hora = new Date(m.criado_em).toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' });
+    return `<div style="align-self:${minha?'flex-end':'flex-start'};max-width:72%">
+      ${!minha?`<div style="font-size:11px;color:var(--text-muted);margin-bottom:2px;padding:0 4px">${m.autor_nome}</div>`:''}
+      <div style="background:${minha?'var(--navy)':'var(--surface)'};color:${minha?'#fff':'var(--text-primary)'};border-radius:14px;${minha?'border-bottom-right-radius:4px':'border-bottom-left-radius:4px'};padding:9px 13px">
+        ${citacao}
+        ${m.conteudo?`<div style="font-size:13.5px;line-height:1.45;white-space:pre-wrap">${m.conteudo}</div>`:''}
+        ${anexo}
+      </div>
+      <div style="font-size:10px;color:var(--text-muted);margin-top:2px;padding:0 4px;text-align:${minha?'right':'left'}">${hora}</div>
+    </div>`;
+  }).join('');
+  cont.scrollTop = cont.scrollHeight;
+}
+
+async function enviarMensagemChatInterno() {
+  if(!_ciGrupoAtual) return;
+  const input = document.getElementById('ci-chat-input');
+  const conteudo = input.value.trim();
+  if(!conteudo && !_ciCitacaoPendente && !_ciArquivoPendente) return;
+
+  const sb = await getSB(); const eid = getEscritorioId(); const sessao = getSessao();
+  const payload = {
+    grupo_id: _ciGrupoAtual.id, escritorio_id: eid,
+    autor_id: sessao.userId, autor_nome: sessao.nome,
+    conteudo: conteudo || null
+  };
+  if(_ciCitacaoPendente?.tipo === 'cliente') { payload.cliente_citado_id = _ciCitacaoPendente.id; payload.cliente_citado_nome = _ciCitacaoPendente.texto; }
+  if(_ciCitacaoPendente?.tipo === 'processo') { payload.processo_citado_id = _ciCitacaoPendente.id; payload.processo_citado_numero = _ciCitacaoPendente.texto; }
+  if(_ciArquivoPendente) { payload.anexo_path = _ciArquivoPendente.path; payload.anexo_nome = _ciArquivoPendente.nome; }
+
+  const { data, error } = await sb.from('chat_mensagens').insert(payload).select().single();
+  if(error) { showToast('Erro ao enviar: ' + error.message, 'error'); return; }
+
+  input.value = '';
+  _ciCitacaoPendente = null;
+  _ciArquivoPendente = null;
+  document.getElementById('ci-citacao-preview').style.display = 'none';
+  _ciMensagensCache.push(data);
+  renderMensagensChatInterno();
+}
+
+function abrirModalNovoGrupoChat() {
+  document.getElementById('ng-nome').value = '';
+  document.getElementById('ng-descricao').value = '';
+  openModal('modal-novo-grupo-chat', false);
+}
+
+async function criarGrupoChat() {
+  const nome = document.getElementById('ng-nome').value.trim();
+  if(!nome) { showToast('Dê um nome ao grupo.', 'error'); return; }
+  const sb = await getSB(); const eid = getEscritorioId(); const sessao = getSessao();
+
+  const { data: grupo, error } = await sb.from('chat_grupos').insert({
+    escritorio_id: eid, nome, descricao: document.getElementById('ng-descricao').value.trim() || null,
+    criado_por: sessao.userId, criado_por_nome: sessao.nome
+  }).select().single();
+  if(error) { showToast('Erro ao criar grupo: ' + error.message, 'error'); return; }
+
+  // Adiciona toda a equipe ativa do escritório automaticamente como membro.
+  const equipe = await carregarUsuariosEscritorio();
+  const membros = equipe.filter(u => u.ativo).map(u => ({ grupo_id: grupo.id, escritorio_id: eid, usuario_id: u.usuario_id }));
+  if(!membros.find(m => m.usuario_id === sessao.userId)) membros.push({ grupo_id: grupo.id, escritorio_id: eid, usuario_id: sessao.userId });
+  await sb.from('chat_grupo_membros').insert(membros);
+
+  closeModal('modal-novo-grupo-chat');
+  showToast('Grupo criado!', 'success');
+  await renderListaGruposChat();
+  abrirGrupoChat(grupo.id);
+}
+
+async function abrirModalMembrosGrupo() {
+  if(!_ciGrupoAtual) return;
+  const sb = await getSB();
+  const { data: membros } = await sb.from('chat_grupo_membros').select('usuario_id').eq('grupo_id', _ciGrupoAtual.id);
+  const equipe = await carregarUsuariosEscritorio();
+  const lista = document.getElementById('mg-membros-lista');
+  const total = membros?.length || 0;
+  const porPapel = {};
+  (membros||[]).forEach(m => {
+    const u = equipe.find(e => e.usuario_id === m.usuario_id);
+    const papel = PAPEL_LABEL_MEMBRO[u?.papel] || u?.papel || 'Membro';
+    porPapel[papel] = (porPapel[papel]||0) + 1;
+  });
+  lista.innerHTML = `<div style="margin-bottom:14px;font-size:13.5px"><strong>${total}</strong> pessoa(s) nesse grupo</div>` +
+    Object.keys(porPapel).map(p => `<div style="padding:8px 0;border-top:1px solid var(--border);font-size:13px">${p}: <strong>${porPapel[p]}</strong></div>`).join('') +
+    `<p style="font-size:11.5px;color:var(--text-muted);margin-top:14px">Novos usuários ativados na equipe entram automaticamente nos próximos grupos criados. Esse grupo já foi criado com todos os ativos no momento.</p>`;
+  openModal('modal-membros-grupo', false);
+}
+const PAPEL_LABEL_MEMBRO = { administrador:'Administrador', advogado:'Advogado', financeiro:'Financeiro', assistente:'Assistente', secretaria:'Secretária' };
+
+function abrirModalCitar() {
+  document.getElementById('citar-busca').value = '';
+  document.getElementById('citar-resultados').innerHTML = '<div style="text-align:center;color:var(--text-muted);font-size:12.5px;padding:16px">Digite pra buscar...</div>';
+  openModal('modal-citar', false);
+  setTimeout(() => document.getElementById('citar-busca').focus(), 150);
+}
+
+function buscarParaCitar(termo) {
+  const t = termo.toLowerCase().trim();
+  const resultados = document.getElementById('citar-resultados');
+  if(t.length < 2) { resultados.innerHTML = '<div style="text-align:center;color:var(--text-muted);font-size:12.5px;padding:16px">Digite pra buscar...</div>'; return; }
+
+  const clientes = store.clientes.filter(c => c.nome.toLowerCase().includes(t)).slice(0, 5);
+  const processos = store.processos.filter(p => p.numero.toLowerCase().includes(t)).slice(0, 5);
+
+  let html = '';
+  if(clientes.length) {
+    html += '<div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.4px;margin:8px 0 4px">Clientes</div>';
+    html += clientes.map(c => `<div onclick="selecionarCitacao('cliente','${c.id}','${c.nome.replace(/'/g,"\\'")}')" style="padding:9px 10px;border-radius:8px;cursor:pointer;font-size:13px" onmouseover="this.style.background='var(--surface)'" onmouseout="this.style.background='none'">👤 ${c.nome}</div>`).join('');
+  }
+  if(processos.length) {
+    html += '<div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.4px;margin:8px 0 4px">Processos</div>';
+    html += processos.map(p => `<div onclick="selecionarCitacao('processo','${p.id}','${p.numero}')" style="padding:9px 10px;border-radius:8px;cursor:pointer;font-size:13px" onmouseover="this.style.background='var(--surface)'" onmouseout="this.style.background='none'">⚖️ ${p.numero}</div>`).join('');
+  }
+  resultados.innerHTML = html || '<div style="text-align:center;color:var(--text-muted);font-size:12.5px;padding:16px">Nada encontrado.</div>';
+}
+
+function selecionarCitacao(tipo, id, texto) {
+  _ciCitacaoPendente = { tipo, id, texto };
+  const preview = document.getElementById('ci-citacao-preview');
+  preview.style.display = 'block';
+  preview.innerHTML = (tipo==='cliente'?'👤 ':'⚖️ ') + texto + ' <button onclick="_ciCitacaoPendente=null;document.getElementById(\'ci-citacao-preview\').style.display=\'none\'" style="background:none;border:none;cursor:pointer;color:inherit;font-weight:700;margin-left:6px">✕</button>';
+  closeModal('modal-citar');
+}
+
+async function handleChatFile(file) {
+  if(!file) return;
+  const sb = await getSB(); const eid = getEscritorioId();
+  const nomeSeguro = file.name.replace(/[^a-zA-Z0-9.\-_]/g, '_');
+  const path = 'chat/' + eid + '/' + Date.now() + '_' + nomeSeguro;
+  showToast('Enviando arquivo...', '');
+  const { error } = await sb.storage.from('documentos').upload(path, file);
+  if(error) { showToast('Erro ao enviar arquivo: ' + error.message, 'error'); return; }
+  _ciArquivoPendente = { path, nome: file.name };
+  const preview = document.getElementById('ci-citacao-preview');
+  preview.style.display = 'block';
+  preview.innerHTML = '📎 ' + file.name + ' <button onclick="_ciArquivoPendente=null;document.getElementById(\'ci-citacao-preview\').style.display=\'none\'" style="background:none;border:none;cursor:pointer;color:inherit;font-weight:700;margin-left:6px">✕</button>';
+  showToast('Arquivo pronto — envie a mensagem.', 'success');
+}
+
+async function abrirAnexoChat(path) {
+  const sb = await getSB();
+  const { data, error } = await sb.storage.from('documentos').createSignedUrl(path, 300);
+  if(error) { showToast('Erro ao abrir anexo: ' + error.message, 'error'); return; }
+  window.open(data.signedUrl, '_blank');
+}
+
+function abrirCliente(clienteId) {
+  navigate('clientes', document.querySelector('.nav-item[onclick*="clientes"]'));
+  setTimeout(() => editarCliente(clienteId), 200);
+}
+
+// ==================== CHAMADOS DE SUPORTE ====================
+
+let _csChamadoAtual = null;
+let _csMensagensCache = [];
+let _csArquivoPendente = null;
+
+const TIPO_CHAMADO_LABEL = { manutencao:'🛠️ Manutenção', implantacao:'🚀 Implantação', ajuste:'🔧 Ajuste', duvida:'❓ Dúvida', outro:'📌 Outro' };
+const STATUS_CHAMADO_LABEL = { aberto:{label:'🆕 Aberto', cor:'#185FA5'}, em_andamento:{label:'🔧 Em andamento', cor:'#92400E'}, resolvido:{label:'✅ Resolvido', cor:'#0B7B45'}, fechado:{label:'🔒 Fechado', cor:'#64748B'} };
+
+async function carregarChamados() {
+  const sb = await getSB(); const eid = getEscritorioId();
+  if(!sb || !eid) return [];
+  const { data, error } = await sb.from('chamados_suporte').select('*').eq('escritorio_id', eid).order('atualizado_em', { ascending: false });
+  if(error) { console.warn('Erro ao carregar chamados:', error.message); return []; }
+  return data || [];
+}
+
+async function renderListaChamados() {
+  const lista = document.getElementById('cs-lista-chamados');
+  if(!lista) return;
+  lista.innerHTML = '<div style="text-align:center;color:var(--text-muted);font-size:12.5px;padding:16px">Carregando...</div>';
+  const chamados = await carregarChamados();
+  store.chamados = chamados;
+  if(!chamados.length) {
+    lista.innerHTML = '<div style="text-align:center;color:var(--text-muted);font-size:12.5px;padding:16px">Nenhum chamado ainda.</div>';
+    return;
+  }
+  lista.innerHTML = chamados.map(c => {
+    const st = STATUS_CHAMADO_LABEL[c.status] || {label:c.status, cor:'#64748B'};
+    return `<div onclick="abrirChamado('${c.id}')" style="padding:10px 12px;border-radius:var(--radius-s);cursor:pointer;margin-bottom:4px;${_csChamadoAtual?.id===c.id?'background:var(--blue-50);border:1px solid var(--blue-200)':'border:1px solid var(--border)'}">
+      <div style="font-weight:600;font-size:13px;color:var(--text-primary)">${c.titulo}</div>
+      <div style="display:flex;gap:6px;align-items:center;margin-top:5px">
+        <span style="font-size:10.5px;padding:2px 8px;border-radius:100px;background:${st.cor}18;color:${st.cor};font-weight:600">${st.label}</span>
+        <span style="font-size:10.5px;color:var(--text-muted)">${TIPO_CHAMADO_LABEL[c.tipo]||c.tipo}</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function abrirChamado(chamadoId) {
+  const c = (store.chamados||[]).find(c => c.id === chamadoId);
+  if(!c) return;
+  _csChamadoAtual = c;
+  renderListaChamados();
+  document.getElementById('cs-chat-header').style.display = 'block';
+  document.getElementById('cs-chat-header-titulo').textContent = c.titulo;
+  document.getElementById('cs-chat-status').value = c.status;
+  document.getElementById('cs-chat-header-meta').textContent = TIPO_CHAMADO_LABEL[c.tipo] + ' · aberto em ' + fmtDate(c.criado_em.slice(0,10));
+  document.getElementById('cs-chat-empty').style.display = 'none';
+  document.getElementById('cs-chat-messages').style.display = 'flex';
+  document.getElementById('cs-chat-input-area').style.display = 'block';
+  await carregarMensagensChamado(chamadoId);
+}
+
+async function carregarMensagensChamado(chamadoId) {
+  const sb = await getSB();
+  if(!sb) return;
+  const { data, error } = await sb.from('chamados_mensagens').select('*').eq('chamado_id', chamadoId).order('criado_em', { ascending: true });
+  if(error) { console.warn('Erro ao carregar mensagens do chamado:', error.message); return; }
+  _csMensagensCache = data || [];
+  renderMensagensChamado();
+}
+
+function renderMensagensChamado() {
+  const cont = document.getElementById('cs-chat-messages');
+  if(!cont) return;
+  if(!_csMensagensCache.length) {
+    cont.innerHTML = '<div style="text-align:center;color:var(--text-muted);font-size:13px;margin:auto">Sem mensagens ainda.</div>';
+    return;
+  }
+  cont.innerHTML = _csMensagensCache.map(m => {
+    const daEquipe = m.eh_equipe_adveasy;
+    const anexo = m.anexo_path
+      ? `<div style="margin-top:6px"><button onclick="abrirAnexoChamado('${m.anexo_path}')" style="background:rgba(255,255,255,0.15);border:none;border-radius:6px;padding:5px 10px;font-size:11.5px;cursor:pointer;color:inherit">📎 ${m.anexo_nome||'Anexo'}</button></div>`
+      : '';
+    const hora = new Date(m.criado_em).toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' });
+    return `<div style="align-self:${daEquipe?'flex-start':'flex-end'};max-width:75%">
+      <div style="font-size:11px;color:var(--text-muted);margin-bottom:2px;padding:0 4px">${daEquipe?'🔧 '+m.autor_nome+' (ADV Easy)':m.autor_nome}</div>
+      <div style="background:${daEquipe?'var(--gold-50, #FEF3C7)':'var(--navy)'};color:${daEquipe?'#92400E':'#fff'};border-radius:14px;${daEquipe?'border-bottom-left-radius:4px':'border-bottom-right-radius:4px'};padding:9px 13px">
+        ${m.conteudo?`<div style="font-size:13.5px;line-height:1.45;white-space:pre-wrap">${m.conteudo}</div>`:''}
+        ${anexo}
+      </div>
+      <div style="font-size:10px;color:var(--text-muted);margin-top:2px;padding:0 4px;text-align:${daEquipe?'left':'right'}">${hora}</div>
+    </div>`;
+  }).join('');
+  cont.scrollTop = cont.scrollHeight;
+}
+
+async function enviarMensagemChamado() {
+  if(!_csChamadoAtual) return;
+  const input = document.getElementById('cs-chat-input');
+  const conteudo = input.value.trim();
+  if(!conteudo && !_csArquivoPendente) return;
+
+  const sb = await getSB(); const eid = getEscritorioId(); const sessao = getSessao();
+  const payload = {
+    chamado_id: _csChamadoAtual.id, escritorio_id: eid,
+    autor_id: sessao.userId, autor_nome: sessao.nome, eh_equipe_adveasy: false,
+    conteudo: conteudo || null
+  };
+  if(_csArquivoPendente) { payload.anexo_path = _csArquivoPendente.path; payload.anexo_nome = _csArquivoPendente.nome; }
+
+  const { data, error } = await sb.from('chamados_mensagens').insert(payload).select().single();
+  if(error) { showToast('Erro ao enviar: ' + error.message, 'error'); return; }
+
+  await sb.from('chamados_suporte').update({ atualizado_em: new Date().toISOString() }).eq('id', _csChamadoAtual.id);
+
+  input.value = '';
+  _csArquivoPendente = null;
+  _csMensagensCache.push(data);
+  renderMensagensChamado();
+}
+
+function abrirModalNovoChamado() {
+  document.getElementById('nc-titulo').value = '';
+  document.getElementById('nc-tipo').value = 'ajuste';
+  document.getElementById('nc-prioridade').value = 'normal';
+  document.getElementById('nc-descricao').value = '';
+  openModal('modal-novo-chamado', false);
+}
+
+async function criarChamado() {
+  const titulo = document.getElementById('nc-titulo').value.trim();
+  const descricao = document.getElementById('nc-descricao').value.trim();
+  if(!titulo) { showToast('Dê um título ao chamado.', 'error'); return; }
+
+  const sb = await getSB(); const eid = getEscritorioId(); const sessao = getSessao();
+  const { data: chamado, error } = await sb.from('chamados_suporte').insert({
+    escritorio_id: eid, titulo,
+    tipo: document.getElementById('nc-tipo').value,
+    prioridade: document.getElementById('nc-prioridade').value,
+    criado_por: sessao.userId, criado_por_nome: sessao.nome
+  }).select().single();
+  if(error) { showToast('Erro ao abrir chamado: ' + error.message, 'error'); return; }
+
+  if(descricao) {
+    await sb.from('chamados_mensagens').insert({
+      chamado_id: chamado.id, escritorio_id: eid,
+      autor_id: sessao.userId, autor_nome: sessao.nome, eh_equipe_adveasy: false,
+      conteudo: descricao
+    });
+  }
+
+  closeModal('modal-novo-chamado');
+  showToast('Chamado aberto!', 'success');
+  await renderListaChamados();
+  abrirChamado(chamado.id);
+}
+
+async function atualizarStatusChamado(novoStatus) {
+  if(!_csChamadoAtual) return;
+  const sb = await getSB();
+  const { error } = await sb.from('chamados_suporte').update({ status: novoStatus, atualizado_em: new Date().toISOString() }).eq('id', _csChamadoAtual.id);
+  if(error) { showToast('Erro ao atualizar status: ' + error.message, 'error'); return; }
+  _csChamadoAtual.status = novoStatus;
+  showToast('Status atualizado.', 'success');
+  renderListaChamados();
+}
+
+async function handleChamadoFile(file) {
+  if(!file) return;
+  const sb = await getSB(); const eid = getEscritorioId();
+  const nomeSeguro = file.name.replace(/[^a-zA-Z0-9.\-_]/g, '_');
+  const path = 'chamados/' + eid + '/' + Date.now() + '_' + nomeSeguro;
+  showToast('Enviando arquivo...', '');
+  const { error } = await sb.storage.from('documentos').upload(path, file);
+  if(error) { showToast('Erro ao enviar arquivo: ' + error.message, 'error'); return; }
+  _csArquivoPendente = { path, nome: file.name };
+  showToast('Print anexado — envie a mensagem.', 'success');
+}
+
+async function abrirAnexoChamado(path) {
+  const sb = await getSB();
+  const { data, error } = await sb.storage.from('documentos').createSignedUrl(path, 300);
+  if(error) { showToast('Erro ao abrir anexo: ' + error.message, 'error'); return; }
+  window.open(data.signedUrl, '_blank');
+}
+
 // ==================== CAMPANHAS DE MARKETING ====================
 
 const TIPOS_CAMPANHA = { post:'📱 Post', story:'⏱ Story', panfleto:'📄 Panfleto', evento:'🎪 Evento', indicacao_massa:'🤝 Indicação em massa', outro:'📌 Outro' };
@@ -9418,7 +10006,8 @@ const PAGINA_CATEGORIA = {
   financeiro: 'financeiro', despesas: 'financeiro',
   faturamento: 'faturamento',
   relatorios: 'relatorios',
-  informativos: 'comunicacoes', 'mensagens-portal': 'comunicacoes', 'historico-contatos': 'comunicacoes'
+  informativos: 'comunicacoes', 'mensagens-portal': 'comunicacoes', 'chat-interno': 'comunicacoes', 'historico-contatos': 'comunicacoes',
+  'chamados-suporte': 'suporte'
   // "opcoes" não entra aqui de propósito: é acessada tanto por Sistema
   // quanto por Configurações, então cada item do menu que leva até ela
   // chama forcarAbrirCategoria() explicitamente com a categoria certa.
@@ -9541,6 +10130,8 @@ function refreshPage(page) {
   else if(page === 'relatorios') { gerarRelatorio(); renderConversao(); renderInadimplencia(); renderExito(); renderTaxaExito(); renderDuracao(); renderCargaTrabalho(); renderRelClientes(); }
   else if(page === 'informativos') renderInformativos();
   else if(page === 'mensagens-portal') renderMensagensPortal();
+  else if(page === 'chat-interno') renderListaGruposChat();
+  else if(page === 'chamados-suporte') renderListaChamados();
   else if(page === 'opcoes') renderOpcoes();
 }
 
@@ -15953,29 +16544,29 @@ function getEscritorioId() {
 const PERFIS = {
   admin: {
     label: 'Administrador', cor: '#185FA5', bg: '#E6F1FB',
-    paginas: ['dashboard','tipos','clientes','historico-contatos','processos','orcamentos','agenda','kanban','diario-oficial','modelos-documentos','leads','financeiro','despesas','faturamento','relatorios','informativos','mensagens-portal','opcoes'],
+    paginas: ['dashboard','tipos','clientes','historico-contatos','processos','orcamentos','agenda','kanban','diario-oficial','modelos-documentos','leads','financeiro','despesas','faturamento','relatorios','informativos','mensagens-portal','chat-interno','chamados-suporte','opcoes'],
     pode: { editarClientes:true, excluirClientes:true, verFinanceiro:true, gerenciarUsuarios:true, verOpcoes:true, exportarRelatorio:true }
   },
   advogado: {
     label: 'Advogado', cor: '#0B7B45', bg: '#E2F5EC',
-    paginas: ['dashboard','tipos','clientes','historico-contatos','processos','orcamentos','agenda','kanban','diario-oficial','modelos-documentos','leads','financeiro','despesas','faturamento','relatorios','informativos','mensagens-portal'],
+    paginas: ['dashboard','tipos','clientes','historico-contatos','processos','orcamentos','agenda','kanban','diario-oficial','modelos-documentos','leads','financeiro','despesas','faturamento','relatorios','informativos','mensagens-portal','chat-interno','chamados-suporte'],
     pode: { editarClientes:true, excluirClientes:false, verFinanceiro:true, gerenciarUsuarios:false, verOpcoes:false, exportarRelatorio:true }
   },
   financeiro: {
     label: 'Financeiro', cor: '#7C3AED', bg: '#F0E9FE',
-    paginas: ['dashboard','clientes','historico-contatos','processos','orcamentos','agenda','kanban','diario-oficial','modelos-documentos','leads','financeiro','despesas','faturamento','relatorios','informativos','mensagens-portal'],
+    paginas: ['dashboard','clientes','historico-contatos','processos','orcamentos','agenda','kanban','diario-oficial','modelos-documentos','leads','financeiro','despesas','faturamento','relatorios','informativos','mensagens-portal','chat-interno','chamados-suporte'],
     pode: { editarClientes:false, excluirClientes:false, verFinanceiro:true, gerenciarUsuarios:false, verOpcoes:false, exportarRelatorio:true }
   },
   assistente: {
     label: 'Assistente', cor: '#92400E', bg: '#FEF3C7',
-    paginas: ['dashboard','clientes','historico-contatos','processos','agenda','kanban','diario-oficial','modelos-documentos','leads','informativos','mensagens-portal'],
+    paginas: ['dashboard','clientes','historico-contatos','processos','agenda','kanban','diario-oficial','modelos-documentos','leads','informativos','mensagens-portal','chat-interno','chamados-suporte'],
     pode: { editarClientes:true, excluirClientes:false, verFinanceiro:false, gerenciarUsuarios:false, verOpcoes:false, exportarRelatorio:false }
   },
   // Mantido por compatibilidade com cadastros antigos do sistema local
   // (módulo de Usuários ainda não conectado ao banco real usa este nome).
   secretaria: {
     label: 'Secretária', cor: '#92400E', bg: '#FEF3C7',
-    paginas: ['dashboard','clientes','historico-contatos','processos','agenda','kanban','diario-oficial','modelos-documentos','leads','informativos','mensagens-portal'],
+    paginas: ['dashboard','clientes','historico-contatos','processos','agenda','kanban','diario-oficial','modelos-documentos','leads','informativos','mensagens-portal','chat-interno','chamados-suporte'],
     pode: { editarClientes:true, excluirClientes:false, verFinanceiro:false, gerenciarUsuarios:false, verOpcoes:false, exportarRelatorio:false }
   }
 };
