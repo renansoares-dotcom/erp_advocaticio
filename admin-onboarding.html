@@ -30,6 +30,7 @@
   }
   .admin-nav-item:hover { background:rgba(255,255,255,0.04); color:#E8F0F8; }
   .admin-nav-item.active { background:rgba(196,169,107,0.1); color:#DCC48E; border-left-color:#C4A96B; }
+  .nav-badge-admin { margin-left:auto; background:#B91C1C; color:#fff; font-size:10.5px; font-weight:700; padding:1px 7px; border-radius:100px; }
   .admin-sidebar-foot { margin-top:auto; padding:16px 20px 0; border-top:1px solid rgba(255,255,255,0.08); }
   .admin-main { flex:1; min-width:0; }
   .admin-window { display:none; }
@@ -187,6 +188,7 @@
         <div class="admin-nav-item" data-win="win-versoes" onclick="navigateAdmin('win-versoes', this)">🗂️ Versões do Sistema</div>
         <div class="admin-nav-item" data-win="win-informativos" onclick="navigateAdmin('win-informativos', this)">📢 Informativos</div>
         <div class="admin-nav-item" data-win="win-dashboard-geral" onclick="navigateAdmin('win-dashboard-geral', this); carregarDashboardGeral();">📊 Dashboard Geral</div>
+        <div class="admin-nav-item" data-win="win-chamados" onclick="navigateAdmin('win-chamados', this); carregarChamadosAdmin();">🛠️ Chamados de Suporte<span class="nav-badge-admin" id="badge-chamados-admin" style="display:none">0</span></div>
       </div>
       <div class="admin-sidebar-foot">
         <button class="btn-sair" onclick="sair()" style="width:100%">Sair</button>
@@ -452,6 +454,43 @@
       </div>
     </div>
 
+    <!-- ===== CHAMADOS DE SUPORTE (de todos os escritórios) ===== -->
+    <div class="card admin-window" id="win-chamados">
+      <h2>🛠️ Chamados de Suporte</h2>
+      <p style="font-size:12.5px;color:#9DB5D0;margin-bottom:16px">Manutenção, implantação e ajustes pedidos pelos escritórios clientes.</p>
+      <div style="display:flex;gap:16px;height:600px">
+        <div style="flex:0 0 320px;overflow-y:auto;border-right:1px solid rgba(255,255,255,0.08);padding-right:12px">
+          <div id="ca-lista-chamados"><p style="font-size:12.5px;color:#9DB5D0">Carregando...</p></div>
+        </div>
+        <div style="flex:1;min-width:0;display:flex;flex-direction:column">
+          <div id="ca-chat-header" style="display:none;padding-bottom:10px;border-bottom:1px solid rgba(255,255,255,0.08);margin-bottom:10px">
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+              <div>
+                <div id="ca-chat-titulo" style="font-size:14.5px;font-weight:600"></div>
+                <div id="ca-chat-meta" style="font-size:11.5px;color:#9DB5D0;margin-top:2px"></div>
+              </div>
+              <select id="ca-chat-status" onchange="atualizarStatusChamadoAdmin(this.value)" style="background:#0F1E2E;border:1px solid #2A4D6E;color:#E8F0F8;padding:6px 10px;border-radius:6px;font-size:12px">
+                <option value="aberto">🆕 Aberto</option>
+                <option value="em_andamento">🔧 Em andamento</option>
+                <option value="resolvido">✅ Resolvido</option>
+                <option value="fechado">🔒 Fechado</option>
+              </select>
+            </div>
+          </div>
+          <div id="ca-chat-empty" style="flex:1;display:flex;align-items:center;justify-content:center;color:#9DB5D0;font-size:13px">← Selecione um chamado</div>
+          <div id="ca-chat-messages" style="flex:1;overflow-y:auto;display:none;flex-direction:column;gap:10px;padding-right:4px"></div>
+          <div id="ca-chat-input-area" style="display:none;padding-top:10px;border-top:1px solid rgba(255,255,255,0.08);margin-top:10px">
+            <div style="display:flex;gap:8px;align-items:flex-end">
+              <button onclick="document.getElementById('ca-file-input').click()" title="Anexar arquivo" style="background:none;border:1px solid #2A4D6E;color:#9DB5D0;width:34px;height:34px;border-radius:6px;cursor:pointer">📎</button>
+              <input type="file" id="ca-file-input" style="display:none" onchange="handleChamadoFileAdmin(this.files[0])">
+              <textarea id="ca-chat-input" rows="2" placeholder="Responder ao escritório..." style="flex:1;resize:none;background:#0F1E2E;border:1px solid #2A4D6E;color:#E8F0F8;padding:8px 10px;border-radius:6px;font-family:inherit;font-size:13px" onkeydown="if(event.key==='Enter' && !event.shiftKey){event.preventDefault();enviarMensagemChamadoAdmin();}"></textarea>
+              <button class="btn-primary" onclick="enviarMensagemChamadoAdmin()" style="padding:9px 16px">Enviar</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
       </div>
     </div>
   </div>
@@ -588,6 +627,7 @@ function entrarNoPainel(email) {
   iniciarBlocoGithub();
   carregarListaInformativosAdmin();
   carregarLandingLeads();
+  carregarChamadosAdmin();
 }
 
 // Ao carregar a página, checa se já existe uma sessão válida (login feito
@@ -804,6 +844,158 @@ async function excluirLandingLead(id) {
   if(error) { showToast('Erro ao excluir: ' + error.message, 'error'); return; }
   showToast('Contato excluído.', 'success');
   carregarLandingLeads();
+}
+
+// ==================== CHAMADOS DE SUPORTE (todos os escritórios) ====================
+
+let _caChamadoAtual = null;
+let _caMensagensCache = [];
+let _caArquivoPendente = null;
+let _caEscritoriosMapa = {};
+
+const TIPO_CHAMADO_ADMIN = { manutencao:'🛠️ Manutenção', implantacao:'🚀 Implantação', ajuste:'🔧 Ajuste', duvida:'❓ Dúvida', outro:'📌 Outro' };
+const STATUS_CHAMADO_ADMIN = {
+  aberto:{label:'🆕 Aberto', cor:'#93C5FD'}, em_andamento:{label:'🔧 Em andamento', cor:'#FCD34D'},
+  resolvido:{label:'✅ Resolvido', cor:'#86EFAC'}, fechado:{label:'🔒 Fechado', cor:'#9DB5D0'}
+};
+
+async function carregarChamadosAdmin() {
+  const sbAdmin = getSBAdmin();
+  const lista = document.getElementById('ca-lista-chamados');
+  if(!sbAdmin) { lista.innerHTML = '<p style="font-size:12.5px;color:#9DB5D0">Salve a Service Role Key acima primeiro.</p>'; return; }
+
+  const { data: chamados, error } = await sbAdmin.from('chamados_suporte').select('*').order('atualizado_em', { ascending: false });
+  if(error) { lista.innerHTML = '<p style="color:#FCA5A5;font-size:12.5px">Erro: ' + error.message + '</p>'; return; }
+
+  // Busca nome dos escritórios à parte e junta aqui (mais confiável do
+  // que depender de embed automático do PostgREST).
+  const { data: escritorios } = await sbAdmin.from('escritorios').select('id, nome');
+  _caEscritoriosMapa = {};
+  (escritorios||[]).forEach(function(e){ _caEscritoriosMapa[e.id] = e.nome; });
+
+  store.chamadosAdmin = chamados || [];
+  const abertos = (chamados||[]).filter(function(c){ return c.status === 'aberto' || c.status === 'em_andamento'; }).length;
+  const badge = document.getElementById('badge-chamados-admin');
+  if(badge) { badge.style.display = abertos ? 'inline-block' : 'none'; badge.textContent = abertos; }
+
+  if(!chamados || !chamados.length) {
+    lista.innerHTML = '<p style="font-size:12.5px;color:#9DB5D0">Nenhum chamado registrado ainda.</p>';
+    return;
+  }
+
+  lista.innerHTML = chamados.map(function(c) {
+    const st = STATUS_CHAMADO_ADMIN[c.status] || { label: c.status, cor: '#9DB5D0' };
+    const nomeEsc = _caEscritoriosMapa[c.escritorio_id] || 'Escritório';
+    const ativo = _caChamadoAtual && _caChamadoAtual.id === c.id;
+    return '<div onclick="abrirChamadoAdmin(\'' + c.id + '\')" style="padding:10px 12px;border-radius:8px;cursor:pointer;margin-bottom:6px;' +
+      (ativo ? 'background:rgba(196,169,107,0.12);border:1px solid #C4A96B' : 'border:1px solid rgba(255,255,255,0.08)') + '">' +
+      '<div style="font-size:11px;color:#C4A96B;font-weight:600;margin-bottom:2px">' + nomeEsc + '</div>' +
+      '<div style="font-size:13px;font-weight:600">' + c.titulo + '</div>' +
+      '<div style="display:flex;gap:6px;align-items:center;margin-top:6px">' +
+        '<span style="font-size:10.5px;padding:2px 8px;border-radius:100px;background:' + st.cor + '22;color:' + st.cor + ';font-weight:600">' + st.label + '</span>' +
+        '<span style="font-size:10.5px;color:#9DB5D0">' + (TIPO_CHAMADO_ADMIN[c.tipo]||c.tipo) + '</span>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+
+async function abrirChamadoAdmin(id) {
+  const c = (store.chamadosAdmin||[]).find(function(c){ return c.id === id; });
+  if(!c) return;
+  _caChamadoAtual = c;
+  carregarChamadosAdmin(); // re-renderiza a lista pra destacar o selecionado
+
+  document.getElementById('ca-chat-header').style.display = 'block';
+  document.getElementById('ca-chat-titulo').textContent = c.titulo;
+  document.getElementById('ca-chat-meta').textContent = (_caEscritoriosMapa[c.escritorio_id]||'Escritório') + ' · ' + (TIPO_CHAMADO_ADMIN[c.tipo]||c.tipo) + ' · prioridade ' + c.prioridade;
+  document.getElementById('ca-chat-status').value = c.status;
+  document.getElementById('ca-chat-empty').style.display = 'none';
+  document.getElementById('ca-chat-messages').style.display = 'flex';
+  document.getElementById('ca-chat-input-area').style.display = 'block';
+
+  const sbAdmin = getSBAdmin();
+  const { data, error } = await sbAdmin.from('chamados_mensagens').select('*').eq('chamado_id', id).order('criado_em', { ascending: true });
+  if(error) { showToast('Erro ao carregar mensagens: ' + error.message, 'error'); return; }
+  _caMensagensCache = data || [];
+  renderMensagensChamadoAdmin();
+}
+
+function renderMensagensChamadoAdmin() {
+  const cont = document.getElementById('ca-chat-messages');
+  if(!_caMensagensCache.length) {
+    cont.innerHTML = '<p style="font-size:12.5px;color:#9DB5D0;margin:auto">Sem mensagens ainda.</p>';
+    return;
+  }
+  cont.innerHTML = _caMensagensCache.map(function(m) {
+    const souEu = m.eh_equipe_adveasy;
+    const anexo = m.anexo_path
+      ? '<div style="margin-top:6px"><button onclick="abrirAnexoChamadoAdmin(\'' + m.anexo_path + '\')" style="background:rgba(255,255,255,0.12);border:none;border-radius:6px;padding:5px 10px;font-size:11px;cursor:pointer;color:inherit">📎 ' + (m.anexo_nome||'Anexo') + '</button></div>'
+      : '';
+    const hora = new Date(m.criado_em).toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' });
+    return '<div style="align-self:' + (souEu ? 'flex-end' : 'flex-start') + ';max-width:75%">' +
+      '<div style="font-size:10.5px;color:#9DB5D0;margin-bottom:2px;padding:0 4px">' + (souEu ? 'Você (ADV Easy)' : m.autor_nome) + '</div>' +
+      '<div style="background:' + (souEu ? '#C4A96B' : 'rgba(255,255,255,0.06)') + ';color:' + (souEu ? '#0B1622' : '#E8F0F8') + ';border-radius:12px;' + (souEu ? 'border-bottom-right-radius:3px' : 'border-bottom-left-radius:3px') + ';padding:8px 12px">' +
+        (m.conteudo ? '<div style="font-size:13px;line-height:1.4;white-space:pre-wrap">' + m.conteudo + '</div>' : '') +
+        anexo +
+      '</div>' +
+      '<div style="font-size:10px;color:#9DB5D0;margin-top:2px;padding:0 4px;text-align:' + (souEu?'right':'left') + '">' + hora + '</div>' +
+    '</div>';
+  }).join('');
+  cont.scrollTop = cont.scrollHeight;
+}
+
+async function enviarMensagemChamadoAdmin() {
+  if(!_caChamadoAtual) return;
+  const input = document.getElementById('ca-chat-input');
+  const conteudo = input.value.trim();
+  if(!conteudo && !_caArquivoPendente) return;
+
+  const sbAdmin = getSBAdmin();
+  const payload = {
+    chamado_id: _caChamadoAtual.id, escritorio_id: _caChamadoAtual.escritorio_id,
+    autor_nome: 'Suporte ADV Easy', eh_equipe_adveasy: true,
+    conteudo: conteudo || null
+  };
+  if(_caArquivoPendente) { payload.anexo_path = _caArquivoPendente.path; payload.anexo_nome = _caArquivoPendente.nome; }
+
+  const { data, error } = await sbAdmin.from('chamados_mensagens').insert(payload).select().single();
+  if(error) { showToast('Erro ao enviar: ' + error.message, 'error'); return; }
+
+  await sbAdmin.from('chamados_suporte').update({ atualizado_em: new Date().toISOString() }).eq('id', _caChamadoAtual.id);
+
+  input.value = '';
+  _caArquivoPendente = null;
+  _caMensagensCache.push(data);
+  renderMensagensChamadoAdmin();
+}
+
+async function atualizarStatusChamadoAdmin(novoStatus) {
+  if(!_caChamadoAtual) return;
+  const sbAdmin = getSBAdmin();
+  const { error } = await sbAdmin.from('chamados_suporte').update({ status: novoStatus, atualizado_em: new Date().toISOString() }).eq('id', _caChamadoAtual.id);
+  if(error) { showToast('Erro ao atualizar status: ' + error.message, 'error'); return; }
+  _caChamadoAtual.status = novoStatus;
+  showToast('Status atualizado.', 'success');
+  carregarChamadosAdmin();
+}
+
+async function handleChamadoFileAdmin(file) {
+  if(!file || !_caChamadoAtual) return;
+  const sbAdmin = getSBAdmin();
+  const nomeSeguro = file.name.replace(/[^a-zA-Z0-9.\-_]/g, '_');
+  const path = 'chamados/' + _caChamadoAtual.escritorio_id + '/' + Date.now() + '_' + nomeSeguro;
+  showToast('Enviando arquivo...', '');
+  const { error } = await sbAdmin.storage.from('documentos').upload(path, file);
+  if(error) { showToast('Erro ao enviar arquivo: ' + error.message, 'error'); return; }
+  _caArquivoPendente = { path: path, nome: file.name };
+  showToast('Arquivo pronto — envie a mensagem.', 'success');
+}
+
+async function abrirAnexoChamadoAdmin(path) {
+  const sbAdmin = getSBAdmin();
+  const { data, error } = await sbAdmin.storage.from('documentos').createSignedUrl(path, 300);
+  if(error) { showToast('Erro ao abrir anexo: ' + error.message, 'error'); return; }
+  window.open(data.signedUrl, '_blank');
 }
 
 const PAPEL_LABEL_ADMIN = {
