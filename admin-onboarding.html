@@ -437,7 +437,10 @@
         <p style="font-size:12.5px;color:#9DB5D0">Carregando...</p>
       </div>
 
-      <h4 style="font-size:13px;color:#9DB5D0;margin:22px 0 10px;text-transform:uppercase;letter-spacing:0.5px">Equipe</h4>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin:22px 0 10px">
+        <h4 style="font-size:13px;color:#9DB5D0;text-transform:uppercase;letter-spacing:0.5px">Equipe</h4>
+        <button class="btn-financeiro" onclick="abrirModalCriarUsuario()">+ Criar Usuário</button>
+      </div>
       <div class="table-wrap" style="overflow-x:auto;margin-bottom:26px">
         <table>
           <thead><tr><th>Nome</th><th>E-mail</th><th>Papel</th><th>Status</th><th>Último login</th><th>Ações</th></tr></thead>
@@ -492,6 +495,31 @@
     </div>
 
       </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-criar-usuario">
+  <div class="modal-confirma" style="width:420px;border-color:#2A4D6E">
+    <h3 style="color:#E8F0F8">➕ Criar Usuário</h3>
+    <p style="font-size:12.5px;color:#9DB5D0;margin-bottom:14px">Cria o acesso direto, com senha pronta na hora — sem depender de convite por e-mail.</p>
+    <div id="cu-campos">
+      <label style="font-size:12px;color:#9DB5D0;display:block;margin-bottom:4px">Nome</label>
+      <input type="text" id="cu-nome" placeholder="Nome completo" style="width:100%;margin-bottom:12px">
+      <label style="font-size:12px;color:#9DB5D0;display:block;margin-bottom:4px">E-mail</label>
+      <input type="email" id="cu-email" placeholder="email@exemplo.com" style="width:100%;margin-bottom:12px">
+      <label style="font-size:12px;color:#9DB5D0;display:block;margin-bottom:4px">Papel</label>
+      <select id="cu-papel" style="width:100%;background:#0F1E2E;border:1px solid #2A4D6E;color:#E8F0F8;padding:9px 10px;border-radius:6px;font-size:13.5px;margin-bottom:6px">
+        <option value="administrador">Administrador</option>
+        <option value="advogado" selected>Advogado</option>
+        <option value="financeiro">Financeiro</option>
+        <option value="assistente">Assistente</option>
+      </select>
+    </div>
+    <div id="cu-resultado" style="display:none;margin:14px 0;background:rgba(196,169,107,0.1);border:1px solid #C4A96B;border-radius:8px;padding:14px"></div>
+    <div class="modal-confirma-botoes">
+      <button class="btn-cancelar-modal" id="cu-btn-cancelar" onclick="fecharModalCriarUsuario()">Cancelar</button>
+      <button class="btn-confirmar-exclusao" id="cu-btn-criar" style="background:#185FA5;border-color:#185FA5" onclick="criarUsuarioDireto()">Criar</button>
     </div>
   </div>
 </div>
@@ -1162,6 +1190,67 @@ async function carregarDetalheEscritorio(id) {
 
 function gerarSenhaAleatoria8() {
   return Math.floor(10000000 + Math.random() * 90000000).toString();
+}
+
+function abrirModalCriarUsuario() {
+  document.getElementById('cu-nome').value = '';
+  document.getElementById('cu-email').value = '';
+  document.getElementById('cu-papel').value = 'advogado';
+  document.getElementById('cu-campos').style.display = 'block';
+  document.getElementById('cu-resultado').style.display = 'none';
+  document.getElementById('cu-btn-criar').style.display = '';
+  document.getElementById('cu-btn-cancelar').textContent = 'Cancelar';
+  document.getElementById('modal-criar-usuario').classList.add('aberto');
+}
+function fecharModalCriarUsuario() {
+  document.getElementById('modal-criar-usuario').classList.remove('aberto');
+}
+
+async function criarUsuarioDireto() {
+  const nome = document.getElementById('cu-nome').value.trim();
+  const email = document.getElementById('cu-email').value.trim().toLowerCase();
+  const papel = document.getElementById('cu-papel').value;
+  if(!nome || !email) { showToast('Preencha nome e e-mail.', 'error'); return; }
+  if(!_detalheEscritorioAtual) { showToast('Nenhum escritório selecionado.', 'error'); return; }
+
+  const sbAdmin = getSBAdmin();
+  if(!sbAdmin) return;
+
+  const btn = document.getElementById('cu-btn-criar');
+  btn.disabled = true; btn.textContent = 'Criando...';
+
+  const senha = gerarSenhaAleatoria8();
+  const { data: novoUser, error: errUser } = await sbAdmin.auth.admin.createUser({
+    email, password: senha, email_confirm: true, user_metadata: { nome }
+  });
+
+  if(errUser) {
+    showToast('Erro ao criar usuário: ' + errUser.message, 'error');
+    btn.disabled = false; btn.textContent = 'Criar';
+    return;
+  }
+
+  const { error: errVinculo } = await sbAdmin.from('usuarios_escritorios').insert({
+    usuario_id: novoUser.user.id, escritorio_id: _detalheEscritorioAtual, papel, ativo: true
+  });
+  if(errVinculo) {
+    showToast('Usuário criado, mas falhou ao vincular ao escritório: ' + errVinculo.message, 'error');
+    btn.disabled = false; btn.textContent = 'Criar';
+    return;
+  }
+
+  document.getElementById('cu-campos').style.display = 'none';
+  btn.style.display = 'none';
+  document.getElementById('cu-btn-cancelar').textContent = 'Fechar';
+  const resultado = document.getElementById('cu-resultado');
+  resultado.style.display = 'block';
+  resultado.innerHTML =
+    '<div style="font-size:12.5px;color:#DCC48E;margin-bottom:8px">✅ Usuário criado! Copie a senha — ela não aparece de novo.</div>' +
+    '<div style="font-family:monospace;font-size:13px;margin-bottom:4px"><strong>E-mail:</strong> ' + email + '</div>' +
+    '<div style="font-family:monospace;font-size:19px;font-weight:700;color:#C4A96B;letter-spacing:1px">' + senha + '</div>';
+
+  showToast('Usuário criado com sucesso.', 'success');
+  if(typeof carregarDetalheEscritorio === 'function') carregarDetalheEscritorio(_detalheEscritorioAtual);
 }
 
 async function resetarSenhaStaff(usuarioId, nome) {
