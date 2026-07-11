@@ -2414,7 +2414,10 @@ body.topbar-escura .notif-btn:hover { background: rgba(255,255,255,0.2); border-
         <div style="flex:0 0 260px;background:var(--white);border:1px solid var(--border);border-radius:var(--radius);overflow-y:auto;height:100%">
           <div style="padding:12px 14px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
             <span style="font-size:12px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px">Grupos</span>
-            <button class="btn btn-outline btn-sm" onclick="abrirModalNovoGrupoChat()" title="Novo Grupo">+ Novo</button>
+            <div style="display:flex;gap:6px">
+              <button class="btn btn-outline btn-sm" onclick="abrirModalNovaConversa()" title="Conversa direta">💬 Direta</button>
+              <button class="btn btn-outline btn-sm" onclick="abrirModalNovoGrupoChat()" title="Novo Grupo">+ Grupo</button>
+            </div>
           </div>
           <div id="ci-lista-grupos" style="padding:8px"></div>
         </div>
@@ -5026,11 +5029,31 @@ body.topbar-escura .notif-btn:hover { background: rgba(255,255,255,0.2); border-
         <label class="form-label">Descrição (opcional)</label>
         <input type="text" class="form-control" id="ng-descricao" placeholder="Do que esse grupo trata?">
       </div>
-      <p style="font-size:11.5px;color:var(--text-muted)">Todos os usuários ativos da equipe entram automaticamente nesse grupo.</p>
+      <div class="form-group">
+        <label class="form-label">Membros</label>
+        <div id="ng-membros-lista" style="max-height:220px;overflow-y:auto;border:1px solid var(--border);border-radius:var(--radius);padding:6px">
+          <p style="font-size:12.5px;color:var(--text-muted);padding:8px">Carregando equipe...</p>
+        </div>
+      </div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="closeModal('modal-novo-grupo-chat')">Cancelar</button>
       <button class="btn btn-primary" onclick="criarGrupoChat()">Criar Grupo</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-nova-conversa">
+  <div class="modal" style="width:400px">
+    <div class="modal-header">
+      <span class="modal-title">💬 Nova Conversa</span>
+      <button class="btn btn-ghost btn-icon" onclick="closeModal('modal-nova-conversa')">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:12.5px;color:var(--text-muted);margin-bottom:10px">Escolha com quem falar diretamente:</p>
+      <div id="nc-pessoas-lista" style="max-height:320px;overflow-y:auto">
+        <p style="font-size:12.5px;color:var(--text-muted);padding:8px">Carregando equipe...</p>
+      </div>
     </div>
   </div>
 </div>
@@ -7423,7 +7446,40 @@ async function carregarChatGrupos() {
   const grupoIds = membrosDe.map(m => m.grupo_id);
   const { data, error } = await sb.from('chat_grupos').select('*').in('id', grupoIds).order('criado_em', { ascending: false });
   if(error) { console.warn('Erro ao carregar grupos:', error.message); return []; }
-  return data || [];
+  const grupos = data || [];
+
+  // Pras conversas diretas, descobre e guarda o nome da OUTRA pessoa —
+  // sem isso a lista mostraria só "Conversa direta" genérico.
+  const diretos = grupos.filter(g => g.tipo === 'direto');
+  if(diretos.length) {
+    const { data: todosMembros } = await sb.from('chat_grupo_membros').select('grupo_id, usuario_id').in('grupo_id', diretos.map(g => g.id));
+    const outrosIds = [...new Set((todosMembros||[]).filter(m => m.usuario_id !== meuId).map(m => m.usuario_id))];
+    const { data: perfis } = outrosIds.length ? await sb.from('perfis').select('id, nome, email').in('id', outrosIds) : { data: [] };
+    diretos.forEach(g => {
+      const outroId = (todosMembros||[]).find(m => m.grupo_id === g.id && m.usuario_id !== meuId)?.usuario_id;
+      const p = (perfis||[]).find(p => p.id === outroId);
+      g._nomeOutraPessoa = p?.nome || p?.email || g.nome || 'Colega';
+    });
+  }
+
+  return grupos;
+}
+
+// Busca nome/e-mail real de todo mundo que trabalha no mesmo escritório
+// (via public.perfis, que só existe a partir da migração 047) — antes
+// disso não tinha como ver nome de colega nenhum.
+async function carregarPerfisEquipe() {
+  const sb = await getSB(); const eid = getEscritorioId();
+  if(!sb || !eid) return [];
+  const equipe = await carregarUsuariosEscritorio();
+  const ids = equipe.filter(u => u.ativo).map(u => u.usuario_id);
+  if(!ids.length) return [];
+  const { data: perfis, error } = await sb.from('perfis').select('id, nome, email').in('id', ids);
+  if(error) { console.warn('Erro ao carregar perfis da equipe:', error.message); return []; }
+  return equipe.filter(u => u.ativo).map(u => {
+    const p = (perfis||[]).find(p => p.id === u.usuario_id);
+    return { usuarioId: u.usuario_id, papel: u.papel, nome: p?.nome || p?.email || 'Colega', email: p?.email || '' };
+  });
 }
 
 async function renderListaGruposChat() {
@@ -7433,14 +7489,17 @@ async function renderListaGruposChat() {
   const grupos = await carregarChatGrupos();
   store.chatGrupos = grupos;
   if(!grupos.length) {
-    lista.innerHTML = '<div style="text-align:center;color:var(--text-muted);font-size:12.5px;padding:16px">Nenhum grupo ainda.<br>Crie o primeiro pra começar.</div>';
+    lista.innerHTML = '<div style="text-align:center;color:var(--text-muted);font-size:12.5px;padding:16px">Nenhuma conversa ainda.<br>Crie um grupo ou inicie uma conversa direta.</div>';
     return;
   }
-  lista.innerHTML = grupos.map(g => `
-    <div onclick="abrirGrupoChat('${g.id}')" style="padding:10px 12px;border-radius:var(--radius-s);cursor:pointer;margin-bottom:4px;${_ciGrupoAtual?.id===g.id?'background:var(--blue-50);border:1px solid var(--blue-200)':'border:1px solid transparent'}">
-      <div style="font-weight:600;font-size:13.5px;color:var(--text-primary)">🗨️ ${g.nome}</div>
+  lista.innerHTML = grupos.map(g => {
+    const ativo = _ciGrupoAtual?.id===g.id;
+    const nomeExibido = g.tipo === 'direto' ? ('💬 ' + (g._nomeOutraPessoa || 'Conversa direta')) : ('🗨️ ' + g.nome);
+    return `<div onclick="abrirGrupoChat('${g.id}')" style="padding:10px 12px;border-radius:var(--radius-s);cursor:pointer;margin-bottom:4px;${ativo?'background:var(--blue-50);border:1px solid var(--blue-200)':'border:1px solid transparent'}">
+      <div style="font-weight:600;font-size:13.5px;color:var(--text-primary)">${nomeExibido}</div>
       ${g.descricao?`<div style="font-size:11.5px;color:var(--text-muted);margin-top:2px">${g.descricao}</div>`:''}
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 
 async function abrirGrupoChat(grupoId) {
@@ -7448,8 +7507,10 @@ async function abrirGrupoChat(grupoId) {
   if(!g) return;
   _ciGrupoAtual = g;
   renderListaGruposChat();
+  const nomeExibido = g.tipo === 'direto' ? ('💬 ' + (g._nomeOutraPessoa || 'Conversa direta')) : ('🗨️ ' + g.nome);
   document.getElementById('ci-chat-header').style.display = 'flex';
-  document.getElementById('ci-chat-header-nome').textContent = '🗨️ ' + g.nome;
+  document.getElementById('ci-chat-header-nome').textContent = nomeExibido;
+  document.querySelector('#ci-chat-header button').style.display = g.tipo === 'direto' ? 'none' : '';
   document.getElementById('ci-chat-empty').style.display = 'none';
   document.getElementById('ci-chat-messages').style.display = 'flex';
   document.getElementById('ci-chat-input-area').style.display = 'block';
@@ -7524,27 +7585,38 @@ async function enviarMensagemChatInterno() {
   renderMensagensChatInterno();
 }
 
-function abrirModalNovoGrupoChat() {
+async function abrirModalNovoGrupoChat() {
   document.getElementById('ng-nome').value = '';
   document.getElementById('ng-descricao').value = '';
   openModal('modal-novo-grupo-chat', false);
+  const membrosEl = document.getElementById('ng-membros-lista');
+  const perfis = await carregarPerfisEquipe();
+  const meuId = getSessao().userId;
+  if(!perfis.length) { membrosEl.innerHTML = '<p style="font-size:12.5px;color:var(--text-muted);padding:8px">Nenhum colega encontrado.</p>'; return; }
+  membrosEl.innerHTML = perfis.map(p => `
+    <label style="display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:6px;cursor:pointer;font-size:13px">
+      <input type="checkbox" class="ng-membro-check" value="${p.usuarioId}" ${p.usuarioId===meuId?'checked disabled':'checked'}>
+      ${p.nome}${p.usuarioId===meuId?' (você)':''}
+      <span style="margin-left:auto;font-size:10.5px;color:var(--text-muted)">${PAPEL_LABEL_MEMBRO[p.papel]||p.papel}</span>
+    </label>`).join('');
 }
 
 async function criarGrupoChat() {
   const nome = document.getElementById('ng-nome').value.trim();
   if(!nome) { showToast('Dê um nome ao grupo.', 'error'); return; }
+  const selecionados = Array.from(document.querySelectorAll('.ng-membro-check:checked')).map(el => el.value);
+  if(!selecionados.length) { showToast('Escolha pelo menos um membro.', 'error'); return; }
+
   const sb = await getSB(); const eid = getEscritorioId(); const sessao = getSessao();
+  if(!selecionados.includes(sessao.userId)) selecionados.push(sessao.userId);
 
   const { data: grupo, error } = await sb.from('chat_grupos').insert({
     escritorio_id: eid, nome, descricao: document.getElementById('ng-descricao').value.trim() || null,
-    criado_por: sessao.userId, criado_por_nome: sessao.nome
+    criado_por: sessao.userId, criado_por_nome: sessao.nome, tipo: 'grupo'
   }).select().single();
   if(error) { showToast('Erro ao criar grupo: ' + error.message, 'error'); return; }
 
-  // Adiciona toda a equipe ativa do escritório automaticamente como membro.
-  const equipe = await carregarUsuariosEscritorio();
-  const membros = equipe.filter(u => u.ativo).map(u => ({ grupo_id: grupo.id, escritorio_id: eid, usuario_id: u.usuario_id }));
-  if(!membros.find(m => m.usuario_id === sessao.userId)) membros.push({ grupo_id: grupo.id, escritorio_id: eid, usuario_id: sessao.userId });
+  const membros = selecionados.map(uid => ({ grupo_id: grupo.id, escritorio_id: eid, usuario_id: uid }));
   await sb.from('chat_grupo_membros').insert(membros);
 
   closeModal('modal-novo-grupo-chat');
@@ -7553,25 +7625,112 @@ async function criarGrupoChat() {
   abrirGrupoChat(grupo.id);
 }
 
+async function abrirModalNovaConversa() {
+  openModal('modal-nova-conversa', false);
+  const lista = document.getElementById('nc-pessoas-lista');
+  const perfis = await carregarPerfisEquipe();
+  const meuId = getSessao().userId;
+  const outros = perfis.filter(p => p.usuarioId !== meuId);
+  if(!outros.length) { lista.innerHTML = '<p style="font-size:12.5px;color:var(--text-muted);padding:8px">Não há mais ninguém na equipe ainda.</p>'; return; }
+  lista.innerHTML = outros.map(p => `
+    <div onclick="iniciarConversaDireta('${p.usuarioId}','${p.nome.replace(/'/g,"\\'")}')" style="padding:10px;border-radius:8px;cursor:pointer;font-size:13.5px;display:flex;justify-content:space-between;align-items:center" onmouseover="this.style.background='var(--surface)'" onmouseout="this.style.background='none'">
+      ${p.nome}
+      <span style="font-size:10.5px;color:var(--text-muted)">${PAPEL_LABEL_MEMBRO[p.papel]||p.papel}</span>
+    </div>`).join('');
+}
+
+async function iniciarConversaDireta(usuarioId, nome) {
+  const sb = await getSB(); const eid = getEscritorioId(); const sessao = getSessao();
+
+  // Confere se já existe uma conversa direta entre essas duas pessoas,
+  // pra não criar duplicada toda vez.
+  const { data: minhasConversas } = await sb.from('chat_grupo_membros').select('grupo_id').eq('usuario_id', sessao.userId);
+  const meusGrupoIds = (minhasConversas||[]).map(m => m.grupo_id);
+  if(meusGrupoIds.length) {
+    const { data: existentes } = await sb.from('chat_grupos').select('id, tipo').in('id', meusGrupoIds).eq('tipo', 'direto');
+    for(const g of (existentes||[])) {
+      const { data: membrosDele } = await sb.from('chat_grupo_membros').select('usuario_id').eq('grupo_id', g.id);
+      const idsDele = (membrosDele||[]).map(m => m.usuario_id);
+      if(idsDele.length === 2 && idsDele.includes(usuarioId)) {
+        closeModal('modal-nova-conversa');
+        g._nomeOutraPessoa = nome;
+        if(!store.chatGrupos) store.chatGrupos = [];
+        if(!store.chatGrupos.find(x => x.id === g.id)) store.chatGrupos.push(g);
+        abrirGrupoChat(g.id);
+        return;
+      }
+    }
+  }
+
+  // Não existia — cria uma nova.
+  const { data: grupo, error } = await sb.from('chat_grupos').insert({
+    escritorio_id: eid, nome: nome, criado_por: sessao.userId, criado_por_nome: sessao.nome, tipo: 'direto'
+  }).select().single();
+  if(error) { showToast('Erro ao iniciar conversa: ' + error.message, 'error'); return; }
+  await sb.from('chat_grupo_membros').insert([
+    { grupo_id: grupo.id, escritorio_id: eid, usuario_id: sessao.userId },
+    { grupo_id: grupo.id, escritorio_id: eid, usuario_id: usuarioId }
+  ]);
+  grupo._nomeOutraPessoa = nome;
+  closeModal('modal-nova-conversa');
+  showToast('Conversa iniciada!', 'success');
+  await renderListaGruposChat();
+  abrirGrupoChat(grupo.id);
+}
+
 async function abrirModalMembrosGrupo() {
-  if(!_ciGrupoAtual) return;
-  const sb = await getSB();
-  const { data: membros } = await sb.from('chat_grupo_membros').select('usuario_id').eq('grupo_id', _ciGrupoAtual.id);
-  const equipe = await carregarUsuariosEscritorio();
+  if(!_ciGrupoAtual || _ciGrupoAtual.tipo === 'direto') return;
+  const sb = await getSB(); const eid = getEscritorioId();
+  const { data: membros } = await sb.from('chat_grupo_membros').select('id, usuario_id').eq('grupo_id', _ciGrupoAtual.id);
+  const perfis = await carregarPerfisEquipe();
   const lista = document.getElementById('mg-membros-lista');
-  const total = membros?.length || 0;
-  const porPapel = {};
-  (membros||[]).forEach(m => {
-    const u = equipe.find(e => e.usuario_id === m.usuario_id);
-    const papel = PAPEL_LABEL_MEMBRO[u?.papel] || u?.papel || 'Membro';
-    porPapel[papel] = (porPapel[papel]||0) + 1;
-  });
-  lista.innerHTML = `<div style="margin-bottom:14px;font-size:13.5px"><strong>${total}</strong> pessoa(s) nesse grupo</div>` +
-    Object.keys(porPapel).map(p => `<div style="padding:8px 0;border-top:1px solid var(--border);font-size:13px">${p}: <strong>${porPapel[p]}</strong></div>`).join('') +
-    `<p style="font-size:11.5px;color:var(--text-muted);margin-top:14px">Novos usuários ativados na equipe entram automaticamente nos próximos grupos criados. Esse grupo já foi criado com todos os ativos no momento.</p>`;
+  const meuId = getSessao().userId;
+
+  const jaMembros = (membros||[]).map(m => m.usuario_id);
+  const foraDoGrupo = perfis.filter(p => !jaMembros.includes(p.usuarioId));
+
+  let html = `<div style="margin-bottom:10px;font-size:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.4px">No grupo (${membros?.length||0})</div>`;
+  html += (membros||[]).map(m => {
+    const p = perfis.find(p => p.usuarioId === m.usuario_id);
+    const nome = p?.nome || (m.usuario_id === meuId ? getSessao().nome : 'Colega');
+    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-top:1px solid var(--border);font-size:13px">
+      ${nome}${m.usuario_id===meuId?' (você)':''}
+      ${m.usuario_id!==meuId?`<button onclick="removerMembroGrupo('${m.id}')" style="background:none;border:none;color:var(--red-600);cursor:pointer;font-size:11.5px">Remover</button>`:''}
+    </div>`;
+  }).join('');
+
+  if(foraDoGrupo.length) {
+    html += `<div style="margin:16px 0 10px;font-size:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.4px">Adicionar</div>`;
+    html += foraDoGrupo.map(p => `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-top:1px solid var(--border);font-size:13px">
+      ${p.nome}
+      <button onclick="adicionarMembroGrupo('${p.usuarioId}')" style="background:none;border:none;color:var(--blue-600);cursor:pointer;font-size:11.5px">+ Adicionar</button>
+    </div>`).join('');
+  }
+
+  lista.innerHTML = html;
   openModal('modal-membros-grupo', false);
 }
+
+async function adicionarMembroGrupo(usuarioId) {
+  if(!_ciGrupoAtual) return;
+  const sb = await getSB(); const eid = getEscritorioId();
+  const { error } = await sb.from('chat_grupo_membros').insert({ grupo_id: _ciGrupoAtual.id, escritorio_id: eid, usuario_id: usuarioId });
+  if(error) { showToast('Erro ao adicionar: ' + error.message, 'error'); return; }
+  showToast('Membro adicionado.', 'success');
+  abrirModalMembrosGrupo();
+}
+
+async function removerMembroGrupo(vinculoId) {
+  if(!confirm('Remover essa pessoa do grupo?')) return;
+  const sb = await getSB();
+  const { error } = await sb.from('chat_grupo_membros').delete().eq('id', vinculoId);
+  if(error) { showToast('Erro ao remover: ' + error.message, 'error'); return; }
+  showToast('Removido do grupo.', 'success');
+  abrirModalMembrosGrupo();
+}
+
 const PAPEL_LABEL_MEMBRO = { administrador:'Administrador', advogado:'Advogado', financeiro:'Financeiro', assistente:'Assistente', secretaria:'Secretária' };
+
 
 function abrirModalCitar() {
   document.getElementById('citar-busca').value = '';
