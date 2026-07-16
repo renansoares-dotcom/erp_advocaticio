@@ -6261,22 +6261,17 @@ function renderDrawer(categoria) {
 
   document.getElementById('drawer-titulo').textContent = menu.titulo;
 
-  const perfil = store.perfil || 'admin';
-  const paginasVisiveis = (PERFIS[perfil] || PERFIS['admin']).paginas || [];
-
-  document.getElementById('drawer-itens').innerHTML = menu.itens
-    .filter(item => paginasVisiveis.includes(item.page))
-    .map(item => {
-      const badgeEl = item.badge ? document.getElementById(item.badge) : null;
-      const badgeNum = badgeEl ? badgeEl.textContent : '';
-      const badgeVis = badgeEl && badgeEl.style.display !== 'none' && badgeNum !== '0';
-      const ativo = currentPage === item.page;
-      return `<button class="drawer-item${ativo ? ' active' : ''}" onclick="navegarDrawer('${item.page}')">
-        <span class="d-icon">${item.icon}</span>
-        ${item.label}
-        ${badgeVis ? `<span class="d-badge">${badgeNum}</span>` : ''}
-      </button>`;
-    }).join('');
+  document.getElementById('drawer-itens').innerHTML = menu.itens.map(item => {
+    const badgeEl = item.badge ? document.getElementById(item.badge) : null;
+    const badgeNum = badgeEl ? badgeEl.textContent : '';
+    const badgeVis = badgeEl && badgeEl.style.display !== 'none' && badgeNum !== '0';
+    const ativo = currentPage === item.page;
+    return `<button class="drawer-item${ativo ? ' active' : ''}" onclick="navegarDrawer('${item.page}')">
+      <span class="d-icon">${item.icon}</span>
+      ${item.label}
+      ${badgeVis ? `<span class="d-badge">${badgeNum}</span>` : ''}
+    </button>`;
+  }).join('');
 }
 
 function navegarDrawer(page) {
