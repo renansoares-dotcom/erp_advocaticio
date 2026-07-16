@@ -226,28 +226,6 @@ body {
     padding: 0 3px;
   }
 
-  /* ===== DRAWER: menu que sobe ao tocar numa categoria ===== */
-  #mobile-drawer-overlay {
-    display: none;
-    position: fixed;
-    inset: 0;
-    background: rgba(0,0,0,0.5);
-    z-index: 300;
-  }
-  #mobile-drawer-overlay.open { display: block; }
-  #mobile-drawer {
-    position: fixed;
-    bottom: 60px; left: 0; right: 0;
-    background: var(--sidebar-bg, #0F1E2E);
-    border-radius: 16px 16px 0 0;
-    z-index: 301;
-    transform: translateY(100%);
-    transition: transform 0.25s cubic-bezier(0.4,0,0.2,1);
-    max-height: 70vh;
-    overflow-y: auto;
-    padding: 8px 0 16px;
-  }
-  #mobile-drawer.open { transform: translateY(0); }
   .drawer-handle {
     width: 36px; height: 4px;
     background: rgba(255,255,255,0.2);
@@ -413,6 +391,13 @@ body {
   /* Btn instalar */
   #btn-instalar-app { bottom: 68px !important; }
 }
+
+/* Mobile bottom nav — escondido no desktop, ativado via media query mobile */
+#mobile-bottom-nav { display: none; }
+#mobile-drawer-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 300; }
+#mobile-drawer-overlay.open { display: block; }
+#mobile-drawer { position: fixed; bottom: 60px; left: 0; right: 0; background: #0F1E2E; border-radius: 16px 16px 0 0; z-index: 301; transform: translateY(110%); transition: transform 0.25s cubic-bezier(0.4,0,0.2,1); max-height: 70vh; overflow-y: auto; padding: 8px 0 16px; }
+#mobile-drawer.open { transform: translateY(0); }
 
 /* SIDEBAR */
 .sidebar {
@@ -1206,7 +1191,7 @@ body.topbar-escura .notif-btn:hover { background: rgba(255,255,255,0.2); border-
 
 <!-- ===== MOBILE BOTTOM NAV + DRAWER ===== -->
 <!-- Só visível em telas <= 768px (display:none por padrão, CSS mobile ativa display:flex) -->
-<div id="mobile-bottom-nav" style="display:none">
+<div id="mobile-bottom-nav">
   <button class="mob-nav-cat active" id="mob-cat-principal" onclick="toggleDrawer('principal')">
     <span class="mob-icon">🏠</span>
     <span>Principal</span>
