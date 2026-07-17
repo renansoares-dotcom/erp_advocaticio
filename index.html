@@ -147,6 +147,13 @@ body {
 #app-wrapper { display: none; width: 100%; min-width: 0; }
 
 /* ===== MOBILE RESPONSIVO ===== */
+/* Mobile bottom nav — escondido no desktop, ativado via media query mobile */
+#mobile-bottom-nav { display: none; }
+#mobile-drawer-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 300; }
+#mobile-drawer-overlay.open { display: block; }
+#mobile-drawer { position: fixed; bottom: calc(60px + env(safe-area-inset-bottom, 0px)); left: 0; right: 0; background: #0F1E2E; border-radius: 16px 16px 0 0; z-index: 301; transform: translateY(110%); transition: transform 0.25s cubic-bezier(0.4,0,0.2,1); max-height: 70vh; overflow-y: auto; padding: 8px 0 16px; }
+#mobile-drawer.open { transform: translateY(0); }
+
 @media (max-width: 768px) {
 
   html { height: -webkit-fill-available; }
@@ -392,13 +399,6 @@ body {
   /* Btn instalar */
   #btn-instalar-app { bottom: 68px !important; }
 }
-
-/* Mobile bottom nav — escondido no desktop, ativado via media query mobile */
-#mobile-bottom-nav { display: none; }
-#mobile-drawer-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 300; }
-#mobile-drawer-overlay.open { display: block; }
-#mobile-drawer { position: fixed; bottom: calc(60px + env(safe-area-inset-bottom, 0px)); left: 0; right: 0; background: #0F1E2E; border-radius: 16px 16px 0 0; z-index: 301; transform: translateY(110%); transition: transform 0.25s cubic-bezier(0.4,0,0.2,1); max-height: 70vh; overflow-y: auto; padding: 8px 0 16px; }
-#mobile-drawer.open { transform: translateY(0); }
 
 /* SIDEBAR */
 .sidebar {
